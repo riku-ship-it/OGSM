@@ -295,17 +295,18 @@ body {
 .badge-完成   { background: rgba(13,147,115,.12); color: #0a7a60; }
 .badge-卡關   { background: rgba(212,78,40,.12);  color: #b83d1e; }
 
-.action-item-meta { display: flex; align-items: center; gap: 8px; }
-.action-meta-assignee { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); }
+.action-item-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.action-meta-assignee { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); flex-shrink: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
 .avatar {
   width: 18px; height: 18px; border-radius: 50%;
   font-size: 8px; font-weight: 700; color: #fff;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.action-meta-date { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+.action-meta-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; width: 55%; }
+.action-meta-date { font-size: 11px; color: var(--text3); font-family: var(--mono); white-space: nowrap; flex-shrink: 0; }
 .action-mini-bar { flex: 1; height: 3px; background: rgba(0,0,0,.1); border-radius: 99px; overflow: hidden; }
 .action-mini-fill { height: 100%; border-radius: 99px; transition: width .4s; }
-.action-pct { font-size: 10px; font-weight: 700; font-family: var(--mono); color: var(--text3); }
+.action-pct { font-size: 10px; font-weight: 700; font-family: var(--mono); color: var(--text3); flex-shrink: 0; }
 
 /* ── Empty / Hint states ── */
 .col-empty {
@@ -836,10 +837,12 @@ function renderColumns() {
           ${a.assignee ? `<span class="action-meta-assignee">
             <span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>
             ${escHtml(a.assignee)}
-          </span>` : ''}
-          ${a.due_date ? `<span class="action-meta-date">${fmtDate(a.due_date)}</span>` : ''}
-          <div class="action-mini-bar"><div class="action-mini-fill" style="width:${a.progress}%;background:${barColor}"></div></div>
-          <span class="action-pct" style="color:${barColor}">${a.progress}%</span>
+          </span>` : '<span></span>'}
+          <div class="action-meta-right">
+            ${a.due_date ? `<span class="action-meta-date">${fmtDate(a.due_date)}</span>` : ''}
+            <div class="action-mini-bar"><div class="action-mini-fill" style="width:${a.progress}%;background:${barColor}"></div></div>
+            <span class="action-pct" style="color:${barColor}">${a.progress}%</span>
+          </div>
         </div>
       `;
       item.addEventListener('click', () => openEditModal(a.id));
