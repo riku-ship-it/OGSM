@@ -28,20 +28,6 @@ var SHEET_NAME = '工作表1';
 
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 
-// ---------- CORS Header ----------
-function setCorsHeaders(output) {
-  output.setHeader('Access-Control-Allow-Origin',  '*');
-  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  return output;
-}
-
-// ---------- OPTIONS 預檢請求 ----------
-function doOptions(e) {
-  var output = ContentService.createTextOutput('');
-  setCorsHeaders(output);
-  return output;
-}
 
 // ====================================================
 //  GET：讀取單一工作表，回傳 { objectives, goals, actions }
@@ -113,15 +99,12 @@ function doGet(e) {
       .createTextOutput(payload)
       .setMimeType(ContentService.MimeType.JSON);
 
-    setCorsHeaders(output);
     return output;
 
   } catch (err) {
-    var errOut = ContentService
+    return ContentService
       .createTextOutput(JSON.stringify({ error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
-    setCorsHeaders(errOut);
-    return errOut;
   }
 }
 
@@ -226,14 +209,11 @@ function doPost(e) {
       .createTextOutput(result)
       .setMimeType(ContentService.MimeType.JSON);
 
-    setCorsHeaders(output);
     return output;
 
   } catch (err) {
-    var errOut = ContentService
+    return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
-    setCorsHeaders(errOut);
-    return errOut;
   }
 }
