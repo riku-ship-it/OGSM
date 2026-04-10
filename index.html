@@ -15,15 +15,15 @@
   --amber:  #C47A15;
   --coral:  #D44E28;
   --purple: #5B4FCF;
-  --bg:     #0F1117;
-  --bg2:    #161920;
-  --bg3:    #1E2129;
-  --surface:#242830;
-  --border: rgba(255,255,255,.08);
-  --border2:rgba(255,255,255,.14);
-  --text:   #F0F2F5;
-  --text2:  #A8AEBA;
-  --text3:  #6B7280;
+  --bg:     #F0F3F9;
+  --bg2:    #FFFFFF;
+  --bg3:    #E8ECF3;
+  --surface:#FFFFFF;
+  --border: rgba(0,0,0,.09);
+  --border2:rgba(0,0,0,.14);
+  --text:   #1A1D26;
+  --text2:  #555E6E;
+  --text3:  #8E96A3;
   --radius: 14px;
   --font:   'DM Sans', sans-serif;
   --mono:   'DM Mono', monospace;
@@ -40,7 +40,7 @@ body {
 
 /* ── Top Bar ── */
 .topbar {
-  background: rgba(15,17,23,.92);
+  background: rgba(240,243,249,.95);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
   padding: 0 28px;
@@ -58,7 +58,7 @@ body {
   letter-spacing: .5px;
   color: var(--text);
   font-family: var(--mono);
-  background: linear-gradient(135deg,#fff 30%,var(--text2));
+  background: linear-gradient(135deg, var(--blue) 0%, var(--purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -78,7 +78,7 @@ body {
   font-family: var(--font);
   transition: all .15s;
 }
-.topbar-btn:hover { background: var(--bg3); color: var(--text); border-color: rgba(255,255,255,.22); }
+.topbar-btn:hover { background: var(--bg3); color: var(--text); border-color: rgba(0,0,0,.22); }
 
 .topbar-btn-primary {
   background: var(--blue);
@@ -114,9 +114,9 @@ body {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #a29af4;
-  background: rgba(83,75,183,.2);
-  border: 1px solid rgba(83,75,183,.35);
+  color: #5B4FCF;
+  background: rgba(83,75,183,.1);
+  border: 1px solid rgba(83,75,183,.3);
   padding: 3px 10px;
   border-radius: 99px;
   text-transform: uppercase;
@@ -126,7 +126,7 @@ body {
 .obj-pct-badge {
   font-size: 13px;
   font-weight: 700;
-  color: #a29af4;
+  color: #5B4FCF;
   font-family: var(--mono);
 }
 .obj-name {
@@ -141,8 +141,8 @@ body {
   margin: -2px -4px;
   transition: background .15s;
 }
-.obj-name:hover { background: rgba(255,255,255,.05); }
-.obj-name:focus { background: rgba(83,75,183,.15); box-shadow: 0 0 0 2px rgba(83,75,183,.4); }
+.obj-name:hover { background: rgba(0,0,0,.04); }
+.obj-name:focus { background: rgba(83,75,183,.08); box-shadow: 0 0 0 2px rgba(83,75,183,.3); }
 
 /* ── Three-column layout ── */
 .three-col-wrap {
@@ -183,9 +183,9 @@ body {
   border-radius: 99px;
   font-family: var(--mono);
 }
-.col-tag-g { background: rgba(43,127,224,.18); color: #6bb0f5; border: 1px solid rgba(43,127,224,.3); }
-.col-tag-s { background: rgba(13,147,115,.18); color: #4ecba3; border: 1px solid rgba(13,147,115,.3); }
-.col-tag-m { background: rgba(196,122,21,.18); color: #f5b54e; border: 1px solid rgba(196,122,21,.3); }
+.col-tag-g { background: rgba(43,127,224,.12); color: #1a6fd4; border: 1px solid rgba(43,127,224,.3); }
+.col-tag-s { background: rgba(13,147,115,.12); color: #0a7a60; border: 1px solid rgba(13,147,115,.3); }
+.col-tag-m { background: rgba(196,122,21,.12); color: #a06210; border: 1px solid rgba(196,122,21,.3); }
 
 .col-title { font-size: 13px; font-weight: 600; color: var(--text2); }
 .col-count { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-left: auto; }
@@ -208,7 +208,7 @@ body {
   border-radius: 10px;
   cursor: pointer;
   border: 1.5px solid transparent;
-  background: rgba(255,255,255,.03);
+  background: rgba(0,0,0,.02);
   transition: all .18s;
   position: relative;
   overflow: hidden;
@@ -223,7 +223,7 @@ body {
   opacity: 0;
   transition: opacity .18s;
 }
-.goal-item:hover { background: rgba(255,255,255,.06); border-color: var(--border2); }
+.goal-item:hover { background: rgba(0,0,0,.04); border-color: var(--border2); }
 .goal-item:hover::before { opacity: 1; }
 .goal-item.active {
   background: color-mix(in srgb, var(--goal-color, var(--blue)) 12%, transparent);
@@ -238,9 +238,9 @@ body {
   outline: none; cursor: text;
   border-radius: 4px; padding: 1px 3px; margin: -1px -3px 6px;
 }
-.goal-item-name:hover { background: rgba(255,255,255,.06); }
-.goal-item-name:focus { background: rgba(255,255,255,.1); box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
-.goal-item-bar { height: 3px; background: rgba(255,255,255,.08); border-radius: 99px; overflow: hidden; }
+.goal-item-name:hover { background: rgba(0,0,0,.04); }
+.goal-item-name:focus { background: rgba(0,0,0,.06); box-shadow: 0 0 0 2px rgba(0,0,0,.1); }
+.goal-item-bar { height: 3px; background: rgba(0,0,0,.1); border-radius: 99px; overflow: hidden; }
 .goal-item-fill { height: 100%; border-radius: 99px; transition: width .4s ease; }
 .goal-item-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
 .goal-item-pct { font-size: 11px; font-weight: 700; font-family: var(--mono); }
@@ -259,10 +259,10 @@ body {
   border-radius: 10px;
   cursor: pointer;
   border: 1.5px solid transparent;
-  background: rgba(255,255,255,.03);
+  background: rgba(0,0,0,.02);
   transition: all .18s;
 }
-.strategy-item:hover { background: rgba(255,255,255,.06); border-color: var(--border2); }
+.strategy-item:hover { background: rgba(0,0,0,.04); border-color: var(--border2); }
 .strategy-item.active {
   background: rgba(13,147,115,.1);
   border-color: rgba(13,147,115,.3);
@@ -280,20 +280,20 @@ body {
   border-radius: 10px;
   cursor: pointer;
   border: 1.5px solid var(--border);
-  background: rgba(255,255,255,.03);
+  background: rgba(0,0,0,.02);
   transition: all .18s;
 }
-.action-item:hover { background: rgba(255,255,255,.06); border-color: var(--border2); }
+.action-item:hover { background: rgba(0,0,0,.04); border-color: var(--border2); }
 .action-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .action-item-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; flex: 1; }
 .action-badge {
   font-size: 10px; font-weight: 700; padding: 2px 8px;
   border-radius: 99px; white-space: nowrap; flex-shrink: 0;
 }
-.badge-未開始 { background: rgba(255,255,255,.08); color: var(--text3); }
-.badge-進行中 { background: rgba(43,127,224,.2); color: #6bb0f5; }
-.badge-完成   { background: rgba(13,147,115,.2); color: #4ecba3; }
-.badge-卡關   { background: rgba(212,78,40,.2);  color: #f5876e; }
+.badge-未開始 { background: rgba(0,0,0,.07); color: var(--text3); }
+.badge-進行中 { background: rgba(43,127,224,.12); color: #1a6fd4; }
+.badge-完成   { background: rgba(13,147,115,.12); color: #0a7a60; }
+.badge-卡關   { background: rgba(212,78,40,.12);  color: #b83d1e; }
 
 .action-item-meta { display: flex; align-items: center; gap: 8px; }
 .action-meta-assignee { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3); }
@@ -303,7 +303,7 @@ body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .action-meta-date { font-size: 11px; color: var(--text3); font-family: var(--mono); }
-.action-mini-bar { flex: 1; height: 3px; background: rgba(255,255,255,.08); border-radius: 99px; overflow: hidden; }
+.action-mini-bar { flex: 1; height: 3px; background: rgba(0,0,0,.1); border-radius: 99px; overflow: hidden; }
 .action-mini-fill { height: 100%; border-radius: 99px; transition: width .4s; }
 .action-pct { font-size: 10px; font-weight: 700; font-family: var(--mono); color: var(--text3); }
 
@@ -346,7 +346,7 @@ body {
   transition: all .15s;
   flex-shrink: 0;
 }
-.btn-col-add:hover { border-color: rgba(255,255,255,.3); color: var(--text2); background: rgba(255,255,255,.04); }
+.btn-col-add:hover { border-color: rgba(0,0,0,.3); color: var(--text2); background: rgba(0,0,0,.03); }
 
 /* ── Loading ── */
 .loading-overlay {
@@ -381,7 +381,7 @@ body {
   border: 1px solid var(--border2);
   border-radius: 16px;
   width: 100%; max-width: 460px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  box-shadow: 0 24px 64px rgba(0,0,0,.18);
   transform: translateY(14px) scale(.98);
   transition: transform .22s cubic-bezier(.34,1.56,.64,1);
   overflow: hidden;
@@ -396,13 +396,13 @@ body {
 .modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
 .modal-sub   { font-size: 12px; color: var(--text3); margin-top: 3px; }
 .modal-close {
-  background: rgba(255,255,255,.08); border: none; cursor: pointer;
+  background: rgba(0,0,0,.06); border: none; cursor: pointer;
   color: var(--text3); font-size: 16px; line-height: 1;
   width: 28px; height: 28px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s; flex-shrink: 0;
 }
-.modal-close:hover { background: rgba(255,255,255,.15); color: var(--text); }
+.modal-close:hover { background: rgba(0,0,0,.12); color: var(--text); }
 
 .modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -466,7 +466,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
   </button>
   <button class="topbar-btn topbar-btn-primary" onclick="openAddGoalModal()">
     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 010 2H9v4a1 1 0 01-2 0V9H3a1 1 0 010-2h4V3a1 1 0 011-1z"/></svg>
-    新增 Goal
+    新增目標
   </button>
 </div>
 
@@ -537,7 +537,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
   <div class="modal">
     <div class="modal-header">
       <div>
-        <div class="modal-title">新增 Goal（支線目標）</div>
+        <div class="modal-title">新增支線目標</div>
         <div class="modal-sub">新增後將寫入 Google Sheets</div>
       </div>
       <button class="modal-close" onclick="closeAddGoalModal()">✕</button>
@@ -550,11 +550,11 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
       <div class="form-group">
         <label class="form-label">顏色</label>
         <select class="form-select" id="new-goal-color">
-          <option value="teal">🟢 Teal（翠綠）</option>
-          <option value="blue" selected>🔵 Blue（藍）</option>
-          <option value="amber">🟡 Amber（琥珀）</option>
-          <option value="coral">🟠 Coral（珊瑚）</option>
-          <option value="purple">🟣 Purple（紫）</option>
+          <option value="teal">🟢 翠綠</option>
+          <option value="blue" selected>🔵 藍色</option>
+          <option value="amber">🟡 琥珀</option>
+          <option value="coral">🟠 珊瑚</option>
+          <option value="purple">🟣 紫色</option>
         </select>
       </div>
       <div class="form-group">
@@ -567,7 +567,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
     </div>
     <div class="modal-footer">
       <button class="btn btn-cancel" onclick="closeAddGoalModal()">取消</button>
-      <button class="btn btn-save" id="add-goal-save-btn" onclick="saveNewGoal()">新增 Goal</button>
+      <button class="btn btn-save" id="add-goal-save-btn" onclick="saveNewGoal()">新增目標</button>
     </div>
   </div>
 </div>
@@ -697,7 +697,7 @@ function renderObjective() {
 
   const year = new Date().getFullYear();
   document.getElementById('topbar-meta').textContent =
-    `${year} 年度・${goals.length} 個 Goal・${state.actions.length} 項行動`;
+    `${year} 年度・${goals.length} 個目標・${state.actions.length} 項行動`;
 }
 
 function renderColumns() {
@@ -717,7 +717,7 @@ function renderColumns() {
       item.className = 'goal-item' + (selectedGoalId === goal.id ? ' active' : '');
       item.style.setProperty('--goal-color', color);
       item.innerHTML = `
-        <div class="goal-item-num">Goal ${idx+1}</div>
+        <div class="goal-item-num">目標 ${idx+1}</div>
         <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
         <div class="goal-item-bar"><div class="goal-item-fill" style="width:${goal.progress}%;background:${color}"></div></div>
         <div class="goal-item-meta">
@@ -739,7 +739,7 @@ function renderColumns() {
         if (!newName || newName === goal.name) { nameEl.textContent = goal.name; return; }
         try {
           const res = await postData({ type:'rename_goal', goal_id:goal.id, new_name:newName });
-          if (res.success) { goal.name = newName; showToast('✅ Goal 名稱已更新'); }
+          if (res.success) { goal.name = newName; showToast('✅ 目標名稱已更新'); }
           else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = goal.name; }
         } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = goal.name; }
       });
@@ -754,7 +754,7 @@ function renderColumns() {
   // Add goal btn
   const gAddBtn = document.createElement('button');
   gAddBtn.className = 'btn-col-add';
-  gAddBtn.textContent = '+ 新增 Goal';
+  gAddBtn.textContent = '+ 新增目標';
   gAddBtn.onclick = openAddGoalModal;
   gCol.appendChild(gAddBtn);
 
@@ -772,9 +772,9 @@ function renderColumns() {
   const sBody = sCol.querySelector('.col-body');
 
   if (!selectedGoalId) {
-    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側 Goal</span></div>';
+    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側目標</span></div>';
   } else if (!strategies.length) {
-    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📋</div><span>此 Goal 尚無策略</span></div>';
+    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📋</div><span>此目標尚無策略</span></div>';
   } else {
     strategies.forEach((strat, idx) => {
       const acts = goalActions.filter(a => (a.strategy_name||'（未分類）') === strat);
@@ -800,7 +800,7 @@ function renderColumns() {
   if (selectedGoalId) {
     const sAddBtn = document.createElement('button');
     sAddBtn.className = 'btn-col-add';
-    sAddBtn.textContent = '+ 新增行動項目';
+    sAddBtn.textContent = '+ 新增策略';
     sAddBtn.onclick = () => openAddActionModal(selectedGoalId, selectedGoal?.name || '');
     sCol.appendChild(sAddBtn);
   }
@@ -818,7 +818,7 @@ function renderColumns() {
   const mBody = mCol.querySelector('.col-body');
 
   if (!selectedGoalId) {
-    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側 Goal</span></div>';
+    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側目標</span></div>';
   } else if (!mActions.length) {
     mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📝</div><span>尚無行動項目</span></div>';
   } else {
@@ -934,7 +934,7 @@ async function saveNewGoal() {
       await loadAndRender();
     } else showToast('❌ '+(res.message||'新增失敗'), true);
   } catch(e) { showToast('❌ 網路錯誤', true); }
-  finally { btn.disabled = false; btn.textContent = '新增 Goal'; }
+  finally { btn.disabled = false; btn.textContent = '新增目標'; }
 }
 
 // ── Add Action Modal ──
