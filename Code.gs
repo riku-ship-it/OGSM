@@ -167,6 +167,34 @@ function doPost(e) {
       }
       result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到支線：' + goalId });
 
+    // ---- rename_strategy：更新符合 goal_id + old_name 的列的 H 欄（策略名稱）----
+    } else if (body.type === 'rename_strategy') {
+      var goalId  = String(body.goal_id);
+      var oldName = String(body.old_name || '');
+      var newName = String(body.new_name || '').trim();
+      var count   = 0;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId && String(data[i][7]) === oldName) {
+          sheet.getRange(i + 1, 8).setValue(newName);
+          count++;
+        }
+      }
+      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略：' + oldName });
+
+    // ---- rename_action：更新符合 action_id 的列的 I 欄（行動名稱）----
+    } else if (body.type === 'rename_action') {
+      var targetId = String(body.action_id);
+      var newName  = String(body.new_name || '').trim();
+      var updated  = false;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][6]) === targetId) {
+          sheet.getRange(i + 1, 9).setValue(newName);
+          updated = true;
+          break;
+        }
+      }
+      result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動：' + targetId });
+
     // ---- 預設：依行動編號更新行動欄位 ----
     } else {
       var targetId = String(body.id);
