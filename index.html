@@ -5,363 +5,452 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OGSM 策略看板</title>
 <style>
-  /* ===================== Reset & Base ===================== */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ===================== Reset & Base ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --teal:   #1D9E75;
-    --blue:   #378ADD;
-    --amber:  #BA7517;
-    --coral:  #D85A30;
-    --purple: #534AB7;
-    --bg:     #F4F5F7;
-    --surface:#FFFFFF;
-    --border: #E2E5EA;
-    --text:   #1A1D23;
-    --muted:  #6B7280;
-    --radius: 10px;
-    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
-  }
+:root {
+  --teal:   #1D9E75;
+  --blue:   #378ADD;
+  --amber:  #BA7517;
+  --coral:  #D85A30;
+  --purple: #534AB7;
+  --bg:     #F4F5F7;
+  --surface:#FFFFFF;
+  --border: #E2E5EA;
+  --text:   #1A1D23;
+  --muted:  #6B7280;
+  --radius: 12px;
+  --shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+}
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC',
-                 'Noto Sans TC', 'Helvetica Neue', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC',
+               'Noto Sans TC', 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
 
-  /* ===================== Header ===================== */
-  .header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 20px 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    gap: 24px;
-  }
-  .header-left { flex: 1; min-width: 0; }
-  .header h1 {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -.3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .header-sub {
-    font-size: 13px;
-    color: var(--muted);
-    margin-top: 2px;
-  }
-  .header-progress {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  .overall-label {
-    font-size: 13px;
-    color: var(--muted);
-    white-space: nowrap;
-  }
-  .overall-pct {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1;
-  }
-  .overall-bar-wrap {
-    width: 120px;
-    height: 8px;
-    background: var(--border);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .overall-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #378ADD, #1D9E75);
-    border-radius: 99px;
-    transition: width .4s ease;
-  }
+/* ===================== Top Bar ===================== */
+.topbar {
+  background: #1A1D23;
+  color: #fff;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -.2px; flex: 1; }
+.topbar-meta  { font-size: 12px; color: rgba(255,255,255,.5); }
 
-  /* ===================== Board ===================== */
-  .board-wrap {
-    padding: 28px 32px 48px;
-    overflow-x: auto;
-  }
-  .board {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    min-width: max-content;
-  }
+.btn-add-goal {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.btn-add-goal:hover { background: #2563EB; }
 
-  /* ===================== Column (Goal) ===================== */
-  .col {
-    width: 340px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .col-header {
-    background: var(--surface);
-    border-radius: var(--radius);
-    padding: 14px 16px 12px;
-    box-shadow: var(--shadow);
-    border-top: 4px solid var(--col-color, #378ADD);
-  }
-  .col-title {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .col-title-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--col-color);
-    flex-shrink: 0;
-  }
-  .col-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .col-bar-wrap {
-    flex: 1;
-    height: 6px;
-    background: var(--border);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .col-bar-fill {
-    height: 100%;
-    border-radius: 99px;
-    background: var(--col-color);
-    transition: width .4s ease;
-  }
-  .col-pct {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--col-color);
-    min-width: 32px;
-    text-align: right;
-  }
+.btn-filter {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+}
+.btn-filter:hover { background: rgba(255,255,255,.2); }
 
-  /* ===================== Strategy Card ===================== */
-  .strategy-card {
-    background: var(--surface);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-  .strategy-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .6px;
-    text-transform: uppercase;
-    color: var(--col-color);
-    padding: 10px 14px 8px;
-    border-bottom: 1px solid var(--border);
-    background: color-mix(in srgb, var(--col-color) 8%, transparent);
-  }
-  .action-list { display: flex; flex-direction: column; }
+/* ===================== Objective Banner ===================== */
+.obj-banner {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.obj-tag {
+  background: #EEF0FF;
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.obj-title { font-size: 18px; font-weight: 700; flex: 1; }
+.obj-ring-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.obj-ring-label { font-size: 13px; color: var(--muted); }
+.ring-svg { transform: rotate(-90deg); }
+.ring-bg   { fill: none; stroke: var(--border); stroke-width: 4; }
+.ring-fill { fill: none; stroke: var(--purple); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+.ring-pct  {
+  font-size: 12px; font-weight: 700; fill: var(--purple);
+  dominant-baseline: middle; text-anchor: middle;
+  transform: rotate(90deg);
+}
 
-  /* ===================== Action Item ===================== */
-  .action-item {
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: background .15s;
-  }
-  .action-item:last-child { border-bottom: none; }
-  .action-item:hover { background: #F9FAFB; }
+/* ===================== Main Layout ===================== */
+.main-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 32px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-  .action-name {
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 1.4;
-    margin-bottom: 8px;
-  }
-  .action-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 12px;
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 8px;
-    align-items: center;
-  }
-  .action-meta span { display: flex; align-items: center; gap: 3px; }
-  .action-meta svg { opacity: .6; }
+/* ===================== Goal Block ===================== */
+.goal-block {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
 
-  .action-bottom {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .mini-bar-wrap {
-    flex: 1;
-    height: 4px;
-    background: var(--border);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .mini-bar-fill {
-    height: 100%;
-    border-radius: 99px;
-    background: var(--col-color);
-    transition: width .4s ease;
-  }
-  .mini-pct {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    min-width: 28px;
-    text-align: right;
-  }
+.goal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface);
+  transition: background .15s;
+  border-left: 4px solid var(--goal-color, var(--blue));
+}
+.goal-header:hover { background: #FAFBFC; }
 
-  /* ===================== Status Badge ===================== */
-  .badge {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .3px;
-    padding: 2px 7px;
-    border-radius: 99px;
-    flex-shrink: 0;
-  }
-  .badge-未開始 { background: #F1F3F5; color: #6B7280; }
-  .badge-進行中 { background: #DBEAFE; color: #1D4ED8; }
-  .badge-完成   { background: #D1FAE5; color: #065F46; }
-  .badge-卡關   { background: #FEE2E2; color: #B91C1C; }
+.goal-badge {
+  background: var(--goal-color, var(--blue));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
-  /* ===================== Empty State ===================== */
-  .empty {
-    text-align: center;
-    padding: 48px 24px;
-    color: var(--muted);
-    font-size: 14px;
-  }
+.goal-name {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+}
 
-  /* ===================== Loading / Error ===================== */
-  .loading-screen, .error-screen {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    min-height: 60vh; gap: 12px; color: var(--muted);
-  }
-  .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid var(--border);
-    border-top-color: #378ADD;
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+.goal-progress-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 160px;
+}
+.goal-bar-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.goal-bar-wrap  {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  min-width: 80px;
+}
+.goal-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--goal-color, var(--blue));
+  transition: width .4s ease;
+}
+.goal-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--goal-color, var(--blue));
+  min-width: 36px;
+  text-align: right;
+}
 
-  /* ===================== Modal ===================== */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.4);
-    z-index: 200;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-    opacity: 0; pointer-events: none;
-    transition: opacity .2s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+.chevron {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform .2s;
+  flex-shrink: 0;
+}
+.chevron.open { transform: rotate(180deg); }
 
-  .modal {
-    background: var(--surface);
-    border-radius: 14px;
-    width: 100%; max-width: 460px;
-    box-shadow: 0 8px 40px rgba(0,0,0,.2);
-    transform: translateY(12px);
-    transition: transform .2s;
-    overflow: hidden;
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
+/* ===================== Goal Body (collapsible) ===================== */
+.goal-body {
+  border-top: 1px solid var(--border);
+  padding: 0;
+  display: none;
+}
+.goal-body.open { display: block; }
 
-  .modal-header {
-    padding: 18px 20px 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-  }
-  .modal-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
-  .modal-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .modal-close {
-    background: none; border: none; cursor: pointer;
-    color: var(--muted); font-size: 20px; line-height: 1;
-    padding: 2px 4px; border-radius: 4px;
-    transition: background .15s;
-    flex-shrink: 0;
-  }
-  .modal-close:hover { background: var(--border); }
+.strategy-section { border-bottom: 1px solid var(--border); }
+.strategy-section:last-child { border-bottom: none; }
 
-  .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.strategy-header-row {
+  padding: 14px 20px 10px;
+}
+.strategy-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--goal-color, var(--blue));
+  background: color-mix(in srgb, var(--goal-color, var(--blue)) 10%, transparent);
+  padding: 3px 8px;
+  border-radius: 5px;
+  margin-bottom: 4px;
+}
+.strategy-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+.strategy-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); }
-  .form-input, .form-select {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 7px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--text);
-    background: var(--surface);
-    transition: border-color .15s;
-    outline: none;
-  }
-  .form-input:focus, .form-select:focus { border-color: #378ADD; }
+/* ===================== Action Table ===================== */
+.action-table-wrap { padding: 0 20px 14px; }
 
-  .progress-row { display: flex; align-items: center; gap: 10px; }
-  .progress-row input[type=range] { flex: 1; accent-color: #378ADD; }
-  .progress-row .pct-display {
-    font-size: 14px; font-weight: 700;
-    color: var(--text); min-width: 36px; text-align: right;
-  }
+.action-table-head {
+  display: grid;
+  grid-template-columns: 1fr 100px 90px 100px 80px;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
 
-  .modal-footer {
-    padding: 12px 20px 18px;
-    display: flex; gap: 10px; justify-content: flex-end;
-  }
-  .btn {
-    padding: 9px 20px;
-    border-radius: 7px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: opacity .15s, background .15s;
-    font-family: inherit;
-  }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .btn-cancel { background: var(--border); color: var(--text); }
-  .btn-cancel:hover:not(:disabled) { background: #D1D5DB; }
-  .btn-save   { background: #378ADD; color: #fff; }
-  .btn-save:hover:not(:disabled)   { background: #2563EB; }
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 90px 100px 80px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  align-items: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.action-row:hover { background: #F3F4F6; }
 
-  /* ===================== Toast ===================== */
-  .toast {
-    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(10px);
-    background: #1A1D23; color: #fff;
-    padding: 10px 20px; border-radius: 99px;
-    font-size: 13px; font-weight: 500;
-    opacity: 0; pointer-events: none;
-    transition: opacity .25s, transform .25s;
-    z-index: 300;
-    white-space: nowrap;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.error { background: #B91C1C; }
+.action-row-name { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text);
+}
+.avatar {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.due-date-txt { font-size: 12px; color: var(--muted); }
+
+.mini-progress {
+  display: flex; align-items: center; gap: 6px;
+}
+.mini-bar-wrap {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--goal-color, var(--blue));
+  transition: width .4s ease;
+}
+
+/* ===================== Status Badge ===================== */
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.badge-未開始 { background: #F1F3F5; color: #6B7280; }
+.badge-進行中 { background: #DBEAFE; color: #1D4ED8; }
+.badge-完成   { background: #D1FAE5; color: #065F46; }
+.badge-卡關   { background: #FEE2E2; color: #B91C1C; }
+
+.btn-add-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 20px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--goal-color, var(--blue));
+  background: none;
+  border: 1.5px dashed color-mix(in srgb, var(--goal-color, var(--blue)) 40%, transparent);
+  border-radius: 7px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.btn-add-action:hover {
+  background: color-mix(in srgb, var(--goal-color, var(--blue)) 6%, transparent);
+  border-color: var(--goal-color, var(--blue));
+}
+
+/* ===================== Collapsed hint ===================== */
+.goal-hint {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: #FAFBFC;
+}
+
+/* ===================== Empty ===================== */
+.empty-board {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.empty-board p { margin-top: 8px; font-size: 13px; }
+
+/* ===================== Loading ===================== */
+.loading-screen {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 40vh; gap: 12px; color: var(--muted);
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===================== Modal (edit action) ===================== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+.modal {
+  background: var(--surface);
+  border-radius: 14px;
+  width: 100%; max-width: 480px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  transform: translateY(12px);
+  transition: transform .2s;
+  overflow: hidden;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+
+.modal-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.modal-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+.modal-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.modal-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 20px; line-height: 1;
+  padding: 2px 4px; border-radius: 4px;
+  transition: background .15s; flex-shrink: 0;
+}
+.modal-close:hover { background: var(--border); }
+
+.modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.form-input, .form-select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 14px; font-family: inherit;
+  color: var(--text); background: var(--surface);
+  transition: border-color .15s; outline: none;
+}
+.form-input:focus, .form-select:focus { border-color: var(--blue); }
+.progress-row { display: flex; align-items: center; gap: 10px; }
+.progress-row input[type=range] { flex: 1; accent-color: var(--blue); }
+.pct-display { font-size: 14px; font-weight: 700; min-width: 36px; text-align: right; }
+
+.modal-footer {
+  padding: 12px 20px 18px;
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.btn { padding: 9px 20px; border-radius: 7px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s, background .15s; font-family: inherit; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-cancel { background: var(--border); color: var(--text); }
+.btn-cancel:hover:not(:disabled) { background: #D1D5DB; }
+.btn-save   { background: var(--blue); color: #fff; }
+.btn-save:hover:not(:disabled)   { background: #2563EB; }
+
+/* ===================== Add Goal Modal ===================== */
+.modal-add-goal .modal { max-width: 500px; }
+
+/* ===================== Toast ===================== */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(10px);
+  background: #1A1D23; color: #fff;
+  padding: 10px 20px; border-radius: 99px;
+  font-size: 13px; font-weight: 500;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s, transform .25s; z-index: 600; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { background: #B91C1C; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .topbar, .obj-banner, .main-content { padding-left: 16px; padding-right: 16px; }
+  .action-table-head { display: none; }
+  .action-row { grid-template-columns: 1fr auto; }
+  .action-row > *:nth-child(2),
+  .action-row > *:nth-child(3),
+  .action-row > *:nth-child(4) { display: none; }
+  .goal-progress-area { min-width: 120px; }
+}
 </style>
 </head>
 <body>
@@ -372,34 +461,59 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
 </script>
 <!-- ============================================================== -->
 
-<!-- Header -->
-<header class="header" id="app-header">
-  <div class="loading-screen" style="min-height:unset;padding:0;flex-direction:row;gap:10px;">
-    <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
-    <span>載入中…</span>
+<!-- Top Bar -->
+<div class="topbar" id="topbar">
+  <div style="display:flex;flex-direction:column;flex:1;min-width:0;">
+    <span class="topbar-title" id="topbar-title">OGSM 策略看板</span>
+    <span class="topbar-meta"  id="topbar-meta">載入中…</span>
   </div>
-</header>
+  <button class="btn-filter" onclick="openFilterModal()">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2h14v1.5L9 9v5l-2-1V9L1 3.5V2z"/></svg>
+    篩選成員
+  </button>
+  <button class="btn-add-goal" onclick="openAddGoalModal()">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 010 2H9v4a1 1 0 01-2 0V9H3a1 1 0 010-2h4V3a1 1 0 011-1z"/></svg>
+    + 新增 Goal
+  </button>
+</div>
+
+<!-- Objective Banner -->
+<div class="obj-banner" id="obj-banner" style="display:none;">
+  <span class="obj-tag">Objective</span>
+  <span class="obj-title" id="obj-title-text">—</span>
+  <div class="obj-ring-wrap">
+    <span class="obj-ring-label">整體進度</span>
+    <svg class="ring-svg" width="48" height="48" viewBox="0 0 48 48" id="ring-svg">
+      <circle class="ring-bg" cx="24" cy="24" r="20"/>
+      <circle class="ring-fill" id="ring-fill" cx="24" cy="24" r="20" stroke-dasharray="125.66" stroke-dashoffset="125.66"/>
+      <text class="ring-pct" id="ring-pct" x="24" y="24" font-size="10" font-weight="700" fill="var(--purple)">0%</text>
+    </svg>
+  </div>
+</div>
 
 <!-- Board -->
-<main class="board-wrap">
-  <div class="board" id="board"></div>
+<main class="main-content" id="main-content">
+  <div class="loading-screen">
+    <div class="spinner"></div>
+    <span>載入中…</span>
+  </div>
 </main>
 
-<!-- Edit Modal -->
-<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true">
+<!-- =================== Edit Action Modal =================== -->
+<div class="modal-overlay" id="modal-edit" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="modal-header">
       <div>
-        <div class="modal-title" id="modal-title"></div>
-        <div class="modal-sub"  id="modal-sub"></div>
+        <div class="modal-title" id="edit-modal-title"></div>
+        <div class="modal-sub"   id="edit-modal-sub"></div>
       </div>
-      <button class="modal-close" id="modal-close-btn" title="關閉">✕</button>
+      <button class="modal-close" onclick="closeEditModal()" title="關閉">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">進度（%）</label>
         <div class="progress-row">
-          <input type="range" id="edit-progress" min="0" max="100" step="1" />
+          <input type="range" id="edit-progress" min="0" max="100" step="1" oninput="document.getElementById('edit-progress-display').textContent=this.value+'%'"/>
           <span class="pct-display" id="edit-progress-display">0%</span>
         </div>
       </div>
@@ -420,10 +534,105 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
         <label class="form-label">截止日期</label>
         <input type="date" class="form-input" id="edit-due-date" />
       </div>
+      <div class="form-group">
+        <label class="form-label">行動項目名稱</label>
+        <input type="text" class="form-input" id="edit-action-name" placeholder="請輸入行動項目名稱" />
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-cancel" id="modal-cancel-btn">取消</button>
-      <button class="btn btn-save"   id="modal-save-btn">儲存更新</button>
+      <button class="btn btn-cancel" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-save"   id="edit-save-btn" onclick="saveEditModal()">儲存更新</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== Add Goal Modal =================== -->
+<div class="modal-overlay" id="modal-add-goal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">新增 Goal（支線目標）</div>
+        <div class="modal-sub">新增後將寫入 Google Sheets</div>
+      </div>
+      <button class="modal-close" onclick="closeAddGoalModal()" title="關閉">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">支線名稱 <span style="color:#B91C1C">*</span></label>
+        <input type="text" class="form-input" id="new-goal-name" placeholder="例：數位行銷強化" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">顏色</label>
+        <select class="form-select" id="new-goal-color">
+          <option value="teal">🟢 Teal（翠綠）</option>
+          <option value="blue" selected>🔵 Blue（藍）</option>
+          <option value="amber">🟡 Amber（琥珀）</option>
+          <option value="coral">🟠 Coral（珊瑚）</option>
+          <option value="purple">🟣 Purple（紫）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">初始進度（%）</label>
+        <div class="progress-row">
+          <input type="range" id="new-goal-progress" min="0" max="100" step="1" value="0" oninput="document.getElementById('new-goal-progress-display').textContent=this.value+'%'"/>
+          <span class="pct-display" id="new-goal-progress-display">0%</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddGoalModal()">取消</button>
+      <button class="btn btn-save"   id="add-goal-save-btn" onclick="saveNewGoal()">新增 Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== Add Action Modal =================== -->
+<div class="modal-overlay" id="modal-add-action" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">新增行動項目</div>
+        <div class="modal-sub" id="add-action-goal-name"></div>
+      </div>
+      <button class="modal-close" onclick="closeAddActionModal()" title="關閉">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">策略名稱 <span style="color:#B91C1C">*</span></label>
+        <input type="text" class="form-input" id="new-action-strategy" placeholder="例：建立內容行銷飛輪" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">行動項目 <span style="color:#B91C1C">*</span></label>
+        <input type="text" class="form-input" id="new-action-name" placeholder="例：建立文章選題資料庫" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">負責人</label>
+        <input type="text" class="form-input" id="new-action-assignee" placeholder="請輸入姓名" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">截止日期</label>
+        <input type="date" class="form-input" id="new-action-due" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">初始進度（%）</label>
+        <div class="progress-row">
+          <input type="range" id="new-action-progress" min="0" max="100" step="1" value="0" oninput="document.getElementById('new-action-progress-display').textContent=this.value+'%'"/>
+          <span class="pct-display" id="new-action-progress-display">0%</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">狀態</label>
+        <select class="form-select" id="new-action-status">
+          <option value="未開始">未開始</option>
+          <option value="進行中">進行中</option>
+          <option value="完成">完成</option>
+          <option value="卡關">卡關</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddActionModal()">取消</button>
+      <button class="btn btn-save"   id="add-action-save-btn" onclick="saveNewAction()">新增行動</button>
     </div>
   </div>
 </div>
@@ -432,9 +641,9 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
 <div class="toast" id="toast"></div>
 
 <script>
-// ========================================================
+// ===================================================
 //  COLOR MAP
-// ========================================================
+// ===================================================
 const COLOR_MAP = {
   teal:   '#1D9E75',
   blue:   '#378ADD',
@@ -443,25 +652,36 @@ const COLOR_MAP = {
   purple: '#534AB7',
 };
 
-// ========================================================
-//  State
-// ========================================================
-let state = { objectives: [], goals: [], actions: [] };
-let editingActionId = null;
-
-// ========================================================
-//  Fetch data from GAS
-// ========================================================
-async function fetchData() {
-  const res  = await fetch(GAS_URL, { method: 'GET' });
-  const json = await res.json();
-  return json;
+const AVATAR_COLORS = ['#378ADD','#1D9E75','#BA7517','#D85A30','#534AB7','#0F766E','#7C3AED'];
+const avatarColorCache = {};
+function avatarColor(name) {
+  if (!avatarColorCache[name]) {
+    const idx = Object.keys(avatarColorCache).length % AVATAR_COLORS.length;
+    avatarColorCache[name] = AVATAR_COLORS[idx];
+  }
+  return avatarColorCache[name];
+}
+function initials(name) {
+  return name ? name.slice(0, 2) : '—';
 }
 
-async function postUpdate(payload) {
-  // ★ 不帶 Content-Type header：讓瀏覽器使用 text/plain，
-  //   避免觸發 CORS preflight（OPTIONS）。
-  //   GAS 仍可從 e.postData.contents 正常讀到 JSON 字串。
+// ===================================================
+//  State
+// ===================================================
+let state = { objectives: [], goals: [], actions: [] };
+let editingActionId   = null;
+let addingToGoalId    = null;
+let expandedGoals     = new Set();
+
+// ===================================================
+//  Fetch / Post
+// ===================================================
+async function fetchData() {
+  const res  = await fetch(GAS_URL, { method: 'GET' });
+  return await res.json();
+}
+
+async function postData(payload) {
   const res = await fetch(GAS_URL, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -469,170 +689,192 @@ async function postUpdate(payload) {
   return await res.json();
 }
 
-// ========================================================
-//  Render Header
-// ========================================================
-function renderHeader(objectives, goals) {
-  const obj   = objectives[0] || { title: '（尚無目標）' };
-  const avg   = goals.length
+// ===================================================
+//  Render Objective Banner
+// ===================================================
+function renderBanner(objectives, goals) {
+  const obj = objectives[0] || { title: '（尚無目標）' };
+  const avg = goals.length
     ? Math.round(goals.reduce((s, g) => s + (g.progress || 0), 0) / goals.length)
     : 0;
 
-  document.getElementById('app-header').innerHTML = `
-    <div class="header-left">
-      <h1>${escHtml(obj.title)}</h1>
-      <div class="header-sub">OGSM 策略看板</div>
-    </div>
-    <div class="header-progress">
-      <span class="overall-label">整體進度</span>
-      <div class="overall-bar-wrap">
-        <div class="overall-bar-fill" style="width:${avg}%"></div>
-      </div>
-      <span class="overall-pct">${avg}%</span>
-    </div>
-  `;
+  document.getElementById('obj-title-text').textContent = obj.title;
+  document.getElementById('obj-banner').style.display   = 'flex';
+
+  // top bar meta
+  const year = new Date().getFullYear();
+  document.getElementById('topbar-meta').textContent =
+    `${year} 年度・${goals.length} 個 Goal・${state.actions.length} 項行動`;
+
+  // ring
+  const circumference = 2 * Math.PI * 20; // r=20
+  const offset = circumference * (1 - avg / 100);
+  document.getElementById('ring-fill').style.strokeDashoffset = offset;
+  document.getElementById('ring-pct').textContent = avg + '%';
 }
 
-// ========================================================
+// ===================================================
 //  Render Board
-// ========================================================
+// ===================================================
 function renderBoard(goals, actions) {
-  const board = document.getElementById('board');
+  const board = document.getElementById('main-content');
   board.innerHTML = '';
 
   if (!goals.length) {
-    board.innerHTML = '<div class="empty">尚無支線資料，請在 Google Sheets 新增 goals。</div>';
+    board.innerHTML = `
+      <div class="empty-board">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/></svg>
+        <p>尚無支線資料，請點選右上角「+ 新增 Goal」開始。</p>
+      </div>`;
     return;
   }
 
-  goals.forEach(goal => {
-    const color     = COLOR_MAP[goal.color] || COLOR_MAP.blue;
-    const colEl     = document.createElement('div');
-    colEl.className = 'col';
-    colEl.style.setProperty('--col-color', color);
+  goals.forEach((goal, idx) => {
+    const color = COLOR_MAP[goal.color] || COLOR_MAP.blue;
+    const isOpen = expandedGoals.has(goal.id) || idx === 0; // first one open by default
+    if (idx === 0 && !expandedGoals.has(goal.id)) expandedGoals.add(goal.id);
 
-    // Column header
-    colEl.innerHTML = `
-      <div class="col-header" style="border-top-color:${color}">
-        <div class="col-title">
-          <span class="col-title-dot" style="background:${color}"></span>
-          ${escHtml(goal.name)}
-        </div>
-        <div class="col-progress-row">
-          <div class="col-bar-wrap">
-            <div class="col-bar-fill" style="width:${goal.progress}%;background:${color}"></div>
-          </div>
-          <span class="col-pct" style="color:${color}">${goal.progress}%</span>
-        </div>
-      </div>
-    `;
-
-    // Group actions by strategy_name
     const goalActions = actions.filter(a => a.goal_id === goal.id);
-    const groups      = groupBy(goalActions, 'strategy_name');
+    const groups = groupBy(goalActions, 'strategy_name');
+
+    const block = document.createElement('div');
+    block.className = 'goal-block';
+    block.dataset.goalId = goal.id;
+
+    // ---- Header ----
+    const header = document.createElement('div');
+    header.className = 'goal-header';
+    header.style.setProperty('--goal-color', color);
+    header.innerHTML = `
+      <span class="goal-badge" style="background:${color}">Goal ${idx + 1}</span>
+      <span class="goal-name">${escHtml(goal.name)}</span>
+      <div class="goal-progress-area">
+        <span class="goal-bar-label">Dashboard 進度</span>
+        <div class="goal-bar-wrap">
+          <div class="goal-bar-fill" style="width:${goal.progress}%;background:${color}"></div>
+        </div>
+        <span class="goal-pct" style="color:${color}">${goal.progress}%</span>
+      </div>
+      <span class="chevron ${isOpen ? 'open' : ''}">▼</span>
+    `;
+    header.addEventListener('click', () => toggleGoal(goal.id, block, color));
+    block.appendChild(header);
+
+    // ---- Body ----
+    const body = document.createElement('div');
+    body.className = 'goal-body' + (isOpen ? ' open' : '');
+    body.style.setProperty('--goal-color', color);
 
     if (!goalActions.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.style.fontSize = '13px';
-      empty.textContent = '此支線尚無行動項目';
-      colEl.appendChild(empty);
+      body.innerHTML = `<div style="padding:20px;font-size:13px;color:var(--muted);">此 Goal 尚無行動項目</div>`;
     } else {
-      Object.entries(groups).forEach(([stratName, acts]) => {
-        const card = document.createElement('div');
-        card.className = 'strategy-card';
-        card.style.setProperty('--col-color', color);
+      Object.entries(groups).forEach(([stratName, acts], sIdx) => {
+        const sec = document.createElement('div');
+        sec.className = 'strategy-section';
+        sec.style.setProperty('--goal-color', color);
 
-        let actionsHtml = acts.map(a => `
-          <div class="action-item" data-id="${a.id}">
-            <div class="action-name">${escHtml(a.action_name)}</div>
-            <div class="action-meta">
-              ${a.assignee ? `<span>
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 1110 0H3z"/>
-                </svg>
-                ${escHtml(a.assignee)}</span>` : ''}
-              ${a.due_date ? `<span>
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M5 0a1 1 0 011 1v1h4V1a1 1 0 112 0v1h1a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V4a2 2 0 012-2h1V1a1 1 0 011-1zm7 5H4v7h8V5z"/>
-                </svg>
-                ${escHtml(a.due_date)}</span>` : ''}
+        const actionRows = acts.map(a => `
+          <div class="action-row" data-id="${escHtml(a.id)}" onclick="openEditModal('${escHtml(a.id)}')">
+            <span class="action-row-name">${escHtml(a.action_name)}</span>
+            <span class="assignee-chip">
+              ${a.assignee ? `<span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>${escHtml(a.assignee)}` : '<span style="color:var(--muted)">—</span>'}
+            </span>
+            <span class="due-date-txt">${a.due_date || '—'}</span>
+            <div class="mini-progress">
+              <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:${a.progress}%;background:${color}"></div></div>
+              <span style="font-size:11px;font-weight:600;color:var(--muted);min-width:28px;text-align:right">${a.progress}%</span>
             </div>
-            <div class="action-bottom">
-              <div class="mini-bar-wrap">
-                <div class="mini-bar-fill" style="width:${a.progress}%;background:${color}"></div>
-              </div>
-              <span class="mini-pct">${a.progress}%</span>
-              <span class="badge badge-${a.status}">${escHtml(a.status)}</span>
-            </div>
+            <span class="badge badge-${escHtml(a.status)}">${escHtml(a.status)}</span>
           </div>
         `).join('');
 
-        card.innerHTML = `
-          <div class="strategy-label" style="color:${color};background:${hexAlpha(color,.08)}">${escHtml(stratName)}</div>
-          <div class="action-list">${actionsHtml}</div>
+        sec.innerHTML = `
+          <div class="strategy-header-row">
+            <div class="strategy-tag">S${sIdx + 1}</div>
+            <div class="strategy-name">${escHtml(stratName)}</div>
+            <div class="strategy-sub">Action plan</div>
+          </div>
+          <div class="action-table-wrap">
+            <div class="action-table-head">
+              <span>行動項目</span><span>負責人</span><span>截止日</span><span>進度</span><span>狀態</span>
+            </div>
+            ${actionRows}
+          </div>
         `;
-
-        // Click to edit
-        card.querySelectorAll('.action-item').forEach(el => {
-          el.addEventListener('click', () => openModal(el.dataset.id));
-        });
-
-        colEl.appendChild(card);
+        body.appendChild(sec);
       });
     }
 
-    board.appendChild(colEl);
+    // Add action button
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add-action';
+    addBtn.style.setProperty('--goal-color', color);
+    addBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 010 2H9v4a1 1 0 01-2 0V9H3a1 1 0 010-2h4V3a1 1 0 011-1z"/></svg> 新增行動項目`;
+    addBtn.onclick = (e) => { e.stopPropagation(); openAddActionModal(goal.id, goal.name); };
+    body.appendChild(addBtn);
+
+    block.appendChild(body);
+    board.appendChild(block);
   });
 }
 
-// ========================================================
-//  Modal
-// ========================================================
-function openModal(actionId) {
-  const action = state.actions.find(a => a.id === actionId);
-  if (!action) return;
+function toggleGoal(goalId, block, color) {
+  const body    = block.querySelector('.goal-body');
+  const chevron = block.querySelector('.chevron');
+  const isOpen  = expandedGoals.has(goalId);
+
+  if (isOpen) {
+    expandedGoals.delete(goalId);
+    body.classList.remove('open');
+    chevron.classList.remove('open');
+  } else {
+    expandedGoals.add(goalId);
+    body.classList.add('open');
+    chevron.classList.add('open');
+  }
+}
+
+// ===================================================
+//  Edit Action Modal
+// ===================================================
+function openEditModal(actionId) {
+  const a = state.actions.find(x => x.id === actionId);
+  if (!a) return;
   editingActionId = actionId;
 
-  document.getElementById('modal-title').textContent = action.action_name;
-  document.getElementById('modal-sub').textContent   = action.strategy_name;
+  document.getElementById('edit-modal-title').textContent = a.action_name;
+  document.getElementById('edit-modal-sub').textContent   = a.strategy_name;
+  document.getElementById('edit-progress').value          = a.progress;
+  document.getElementById('edit-progress-display').textContent = a.progress + '%';
+  document.getElementById('edit-status').value            = a.status;
+  document.getElementById('edit-assignee').value          = a.assignee || '';
+  document.getElementById('edit-due-date').value          = a.due_date || '';
+  document.getElementById('edit-action-name').value       = a.action_name || '';
 
-  const progEl = document.getElementById('edit-progress');
-  progEl.value = action.progress;
-  document.getElementById('edit-progress-display').textContent = action.progress + '%';
-
-  document.getElementById('edit-status').value   = action.status;
-  document.getElementById('edit-assignee').value = action.assignee;
-  document.getElementById('edit-due-date').value = action.due_date || '';
-
-  document.getElementById('modal-overlay').classList.add('open');
-  document.getElementById('edit-assignee').focus();
+  openOverlay('modal-edit');
 }
+function closeEditModal() { closeOverlay('modal-edit'); editingActionId = null; }
 
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open');
-  editingActionId = null;
-}
-
-async function saveModal() {
+async function saveEditModal() {
   if (!editingActionId) return;
-  const saveBtn = document.getElementById('modal-save-btn');
-  saveBtn.disabled = true;
-  saveBtn.textContent = '儲存中…';
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = '儲存中…';
 
   const payload = {
-    id:       editingActionId,
-    progress: Number(document.getElementById('edit-progress').value),
-    status:   document.getElementById('edit-status').value,
-    assignee: document.getElementById('edit-assignee').value.trim(),
-    due_date: document.getElementById('edit-due-date').value,
+    type:        'update_action',
+    id:          editingActionId,
+    progress:    Number(document.getElementById('edit-progress').value),
+    status:      document.getElementById('edit-status').value,
+    assignee:    document.getElementById('edit-assignee').value.trim(),
+    due_date:    document.getElementById('edit-due-date').value,
+    action_name: document.getElementById('edit-action-name').value.trim(),
   };
 
   try {
-    const res = await postUpdate(payload);
+    const res = await postData(payload);
     if (res.success) {
       showToast('✅ 更新成功');
-      closeModal();
+      closeEditModal();
       await loadAndRender();
     } else {
       showToast('❌ ' + (res.message || '更新失敗'), true);
@@ -640,30 +882,144 @@ async function saveModal() {
   } catch (e) {
     showToast('❌ 網路錯誤：' + e.message, true);
   } finally {
-    saveBtn.disabled = false;
-    saveBtn.textContent = '儲存更新';
+    btn.disabled = false; btn.textContent = '儲存更新';
   }
 }
 
-// ========================================================
-//  Event Bindings
-// ========================================================
-document.getElementById('edit-progress').addEventListener('input', e => {
-  document.getElementById('edit-progress-display').textContent = e.target.value + '%';
-});
-document.getElementById('modal-close-btn').addEventListener('click',  closeModal);
-document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
-document.getElementById('modal-save-btn').addEventListener('click',   saveModal);
-document.getElementById('modal-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
+// ===================================================
+//  Add Goal Modal
+// ===================================================
+function openAddGoalModal() { openOverlay('modal-add-goal'); }
+function closeAddGoalModal() { closeOverlay('modal-add-goal'); }
+
+async function saveNewGoal() {
+  const name     = document.getElementById('new-goal-name').value.trim();
+  const color    = document.getElementById('new-goal-color').value;
+  const progress = Number(document.getElementById('new-goal-progress').value);
+  if (!name) { showToast('❌ 請填寫支線名稱', true); return; }
+
+  const btn = document.getElementById('add-goal-save-btn');
+  btn.disabled = true; btn.textContent = '新增中…';
+
+  // Build new IDs based on existing data
+  const obj = state.objectives[0] || { id: '1' };
+  const newGoalId = 'G' + (state.goals.length + 1);
+  const newActId  = 'A' + (state.actions.length + 1);
+
+  const payload = {
+    type:        'add_goal',
+    obj_id:      obj.id,
+    obj_title:   obj.title,
+    goal_id:     newGoalId,
+    goal_name:   name,
+    goal_progress: progress,
+    goal_color:  color,
+    action_id:   newActId,   // placeholder row required by sheet structure
+  };
+
+  try {
+    const res = await postData(payload);
+    if (res.success) {
+      showToast('✅ 新增成功');
+      closeAddGoalModal();
+      // reset form
+      document.getElementById('new-goal-name').value = '';
+      document.getElementById('new-goal-progress').value = 0;
+      document.getElementById('new-goal-progress-display').textContent = '0%';
+      await loadAndRender();
+    } else {
+      showToast('❌ ' + (res.message || '新增失敗'), true);
+    }
+  } catch (e) {
+    showToast('❌ 網路錯誤：' + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '新增 Goal';
+  }
+}
+
+// ===================================================
+//  Add Action Modal
+// ===================================================
+function openAddActionModal(goalId, goalName) {
+  addingToGoalId = goalId;
+  document.getElementById('add-action-goal-name').textContent = goalName;
+  document.getElementById('new-action-strategy').value = '';
+  document.getElementById('new-action-name').value     = '';
+  document.getElementById('new-action-assignee').value = '';
+  document.getElementById('new-action-due').value      = '';
+  document.getElementById('new-action-progress').value = 0;
+  document.getElementById('new-action-progress-display').textContent = '0%';
+  document.getElementById('new-action-status').value   = '未開始';
+  openOverlay('modal-add-action');
+}
+function closeAddActionModal() { closeOverlay('modal-add-action'); addingToGoalId = null; }
+
+async function saveNewAction() {
+  const strategy = document.getElementById('new-action-strategy').value.trim();
+  const name     = document.getElementById('new-action-name').value.trim();
+  if (!strategy || !name) { showToast('❌ 請填寫策略名稱與行動項目', true); return; }
+
+  const btn = document.getElementById('add-action-save-btn');
+  btn.disabled = true; btn.textContent = '新增中…';
+
+  const goal = state.goals.find(g => g.id === addingToGoalId);
+  const obj  = state.objectives[0] || { id: '1', title: '' };
+  const newActId = 'A' + (state.actions.length + 1);
+
+  const payload = {
+    type:          'add_action',
+    obj_id:        obj.id,
+    obj_title:     obj.title,
+    goal_id:       addingToGoalId,
+    goal_name:     goal ? goal.name : '',
+    goal_progress: goal ? goal.progress : 0,
+    goal_color:    goal ? goal.color : 'blue',
+    action_id:     newActId,
+    strategy_name: strategy,
+    action_name:   name,
+    assignee:      document.getElementById('new-action-assignee').value.trim(),
+    due_date:      document.getElementById('new-action-due').value,
+    progress:      Number(document.getElementById('new-action-progress').value),
+    status:        document.getElementById('new-action-status').value,
+  };
+
+  try {
+    const res = await postData(payload);
+    if (res.success) {
+      showToast('✅ 新增行動成功');
+      closeAddActionModal();
+      await loadAndRender();
+    } else {
+      showToast('❌ ' + (res.message || '新增失敗'), true);
+    }
+  } catch (e) {
+    showToast('❌ 網路錯誤：' + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '新增行動';
+  }
+}
+
+// ===================================================
+//  Filter Modal (stub)
+// ===================================================
+function openFilterModal() { showToast('篩選功能開發中…'); }
+
+// ===================================================
+//  Overlay helpers
+// ===================================================
+function openOverlay(id)  { document.getElementById(id).classList.add('open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
 });
 
-// ========================================================
+// ===================================================
 //  Toast
-// ========================================================
+// ===================================================
 let toastTimer = null;
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
@@ -674,34 +1030,32 @@ function showToast(msg, isError = false) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ========================================================
-//  Main Load & Render
-// ========================================================
+// ===================================================
+//  Main
+// ===================================================
 async function loadAndRender() {
   try {
     const data = await fetchData();
     state = data;
-    renderHeader(data.objectives, data.goals);
+    renderBanner(data.objectives, data.goals);
     renderBoard(data.goals, data.actions);
   } catch (e) {
-    document.getElementById('app-header').innerHTML = `
-      <div style="color:#B91C1C;font-size:14px;">
-        ⚠️ 資料載入失敗：${escHtml(e.message)}。請確認 GAS_URL 已正確設定。
-      </div>
-    `;
-    document.getElementById('board').innerHTML = '';
+    document.getElementById('main-content').innerHTML = `
+      <div class="empty-board" style="color:#B91C1C;">
+        ⚠️ 資料載入失敗：${escHtml(e.message)}<br>
+        <small>請確認 GAS_URL 已正確設定並已部署。</small>
+      </div>`;
   }
 }
 
-// ========================================================
+// ===================================================
 //  Utilities
-// ========================================================
+// ===================================================
 function escHtml(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
 function groupBy(arr, key) {
   return arr.reduce((acc, item) => {
     const k = item[key] || '（未分類）';
@@ -711,16 +1065,6 @@ function groupBy(arr, key) {
   }, {});
 }
 
-function hexAlpha(hex, alpha) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// ========================================================
-//  Init
-// ========================================================
 loadAndRender();
 </script>
 </body>
