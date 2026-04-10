@@ -303,6 +303,25 @@ body {
   background: color-mix(in srgb, var(--goal-color, var(--blue)) 6%, transparent);
   border-color: var(--goal-color, var(--blue));
 }
+.btn-add-sub-action {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
+.btn-add-sub-action:hover {
+  background: color-mix(in srgb, var(--goal-color, var(--blue)) 6%, transparent);
+  color: var(--goal-color, var(--blue));
+}
 
 /* ===================== Empty ===================== */
 .empty-board {
@@ -738,7 +757,7 @@ function renderBoard(goals, actions) {
                   <span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>
                   ${escHtml(a.assignee)}
                 </span>` : ''}
-                ${a.due_date ? `<span class="due-date-txt">${escHtml(a.due_date.replace(/^\d{4}-/, '').replace('-', '/'))}</span>` : ''}
+                ${a.due_date ? `<span class="due-date-txt">${fmtDate(a.due_date)}</span>` : ''}
                 <div class="mini-bar-wrap" style="flex:1">
                   <div class="mini-bar-fill" style="width:${a.progress}%;background:${barColor}"></div>
                 </div>
@@ -756,6 +775,11 @@ function renderBoard(goals, actions) {
           </div>
           ${actionItems}
         `;
+        const subAddBtn = document.createElement('button');
+        subAddBtn.className = 'btn-add-sub-action';
+        subAddBtn.textContent = '+ 新增行動項目';
+        subAddBtn.onclick = () => openAddActionModal(goal.id, goal.name, stratName);
+        card.appendChild(subAddBtn);
         col.appendChild(card);
       });
     }
@@ -878,10 +902,10 @@ async function saveNewGoal() {
 // ===================================================
 //  Add Action Modal
 // ===================================================
-function openAddActionModal(goalId, goalName) {
+function openAddActionModal(goalId, goalName, strategyName = '') {
   addingToGoalId = goalId;
   document.getElementById('add-action-goal-name').textContent = goalName;
-  document.getElementById('new-action-strategy').value = '';
+  document.getElementById('new-action-strategy').value = strategyName;
   document.getElementById('new-action-name').value     = '';
   document.getElementById('new-action-assignee').value = '';
   document.getElementById('new-action-due').value      = '';
@@ -993,6 +1017,14 @@ function escHtml(str) {
   return String(str)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return parseInt(m[2]) + '/' + parseInt(m[3]);
+  const d = new Date(s);
+  if (!isNaN(d)) return (d.getMonth() + 1) + '/' + d.getDate();
+  return '';
 }
 function groupBy(arr, key) {
   return arr.reduce((acc, item) => {
