@@ -459,9 +459,11 @@ async function fetchData() {
 }
 
 async function postUpdate(payload) {
-  const res  = await fetch(GAS_URL, {
+  // ★ 不帶 Content-Type header：讓瀏覽器使用 text/plain，
+  //   避免觸發 CORS preflight（OPTIONS）。
+  //   GAS 仍可從 e.postData.contents 正常讀到 JSON 字串。
+  const res = await fetch(GAS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   return await res.json();
