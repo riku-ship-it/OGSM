@@ -28,7 +28,7 @@ let addingToGoalId     = null;
 
 // ── Fetch / Post ──
 async function fetchData() {
-  const res = await fetch(GAS_URL, { method: 'GET' });
+  const res = await fetch(GAS_URL + '?api=1', { method: 'GET' });
   return await res.json();
 }
 async function postData(payload) {

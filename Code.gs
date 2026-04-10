@@ -41,6 +41,11 @@ var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 //  GET：讀取單一工作表，回傳 { objectives, goals, actions }
 // ====================================================
 function doGet(e) {
+  if (!e.parameter.api) {
+    return HtmlService.createTemplateFromFile('index').evaluate()
+      .setTitle('OGSM 策略看板')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   try {
     var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
     var sheet = ss.getSheetByName(SHEET_NAME);
