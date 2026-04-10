@@ -26,6 +26,14 @@
 // ★ 如果你的工作表名稱不是「工作表1」，請修改這裡
 var SHEET_NAME = '工作表1';
 
+// ====================================================
+//  HTML include 輔助函數
+//  用法：在 HTML 中以 <?!= include('css'); ?> 引入外部 HTML 檔案
+// ====================================================
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 
 
