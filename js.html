@@ -1,0 +1,441 @@
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7LdRHWiViQTCrte3fL2ySS49nPb_w3Zk7ctX1dyb1A0zDmMXw/exec';
+
+// ── Color Map ──
+const COLOR_MAP = {
+  teal:   '#0D9373',
+  blue:   '#2B7FE0',
+  amber:  '#C47A15',
+  coral:  '#D44E28',
+  purple: '#5B4FCF',
+};
+const AVATAR_COLORS = ['#2B7FE0','#0D9373','#C47A15','#D44E28','#5B4FCF','#0F766E','#7C3AED'];
+const avatarCache = {};
+function avatarColor(name) {
+  if (!avatarCache[name]) {
+    avatarCache[name] = AVATAR_COLORS[Object.keys(avatarCache).length % AVATAR_COLORS.length];
+  }
+  return avatarCache[name];
+}
+function initials(name) { return name ? name.slice(0,2) : '?'; }
+
+// ── State ──
+let state = { objectives: [], goals: [], actions: [] };
+let selectedGoalId     = null;
+let selectedStrategy   = null;
+let editingActionId    = null;
+let addingToGoalId     = null;
+
+// ── Fetch / Post ──
+async function fetchData() {
+  const res = await fetch(GAS_URL, { method: 'GET' });
+  return await res.json();
+}
+async function postData(payload) {
+  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+  return await res.json();
+}
+
+// ── Render ──
+function render() {
+  renderObjective();
+  renderColumns();
+}
+
+function renderObjective() {
+  const { objectives, goals } = state;
+  const obj = objectives[0] || { title: '請設定目的', id: '' };
+  const avg = goals.length
+    ? Math.round(goals.reduce((s,g) => s + (g.progress||0), 0) / goals.length)
+    : 0;
+
+  const section = document.getElementById('obj-section');
+  section.style.display = 'block';
+  document.getElementById('obj-pct-badge').textContent = avg + '%';
+
+  const nameEl = document.getElementById('obj-name');
+  if (nameEl.textContent !== obj.title) nameEl.textContent = obj.title;
+
+  nameEl.onblur = async function() {
+    const newTitle = nameEl.textContent.trim();
+    if (!newTitle || newTitle === obj.title) { nameEl.textContent = obj.title; return; }
+    try {
+      const res = await postData({ type:'rename_objective', obj_id:obj.id, new_title:newTitle });
+      if (res.success) { obj.title = newTitle; state.objectives[0] = obj; showToast('✅ 目的已更新'); }
+      else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = obj.title; }
+    } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = obj.title; }
+  };
+  nameEl.onkeydown = function(e) {
+    if (e.key==='Enter') { e.preventDefault(); nameEl.blur(); }
+    if (e.key==='Escape') { nameEl.textContent = obj.title; nameEl.blur(); }
+  };
+
+  const year = new Date().getFullYear();
+  document.getElementById('topbar-meta').textContent =
+    `${year} 年度・${goals.length} 個目標・${state.actions.length} 項行動`;
+}
+
+function renderColumns() {
+  const wrap = document.getElementById('three-col-wrap');
+  wrap.innerHTML = '';
+
+  // -- G column --
+  const gCol = makeColumn('G', '支線目標', 'col-tag-g', state.goals.length);
+  const gBody = gCol.querySelector('.col-body');
+
+  if (!state.goals.length) {
+    gBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">🎯</div><span>尚無支線目標</span></div>';
+  } else {
+    state.goals.forEach((goal, idx) => {
+      const color = COLOR_MAP[goal.color] || COLOR_MAP.blue;
+      const item = document.createElement('div');
+      item.className = 'goal-item' + (selectedGoalId === goal.id ? ' active' : '');
+      item.style.setProperty('--goal-color', color);
+      item.innerHTML = `
+        <div class="goal-item-num">目標 ${idx+1}</div>
+        <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
+        <div class="goal-item-bar"><div class="goal-item-fill" style="width:${goal.progress}%;background:${color}"></div></div>
+        <div class="goal-item-meta">
+          <span class="goal-item-pct" style="color:${color}">${goal.progress}%</span>
+          <span class="goal-item-arrow">→</span>
+        </div>
+      `;
+      // Click to select
+      item.addEventListener('click', function(e) {
+        if (e.target.classList.contains('goal-item-name')) return;
+        selectedGoalId = selectedGoalId === goal.id ? null : goal.id;
+        selectedStrategy = null;
+        renderColumns();
+      });
+      // Inline edit goal name
+      const nameEl = item.querySelector('.goal-item-name');
+      nameEl.addEventListener('blur', async function() {
+        const newName = nameEl.textContent.trim();
+        if (!newName || newName === goal.name) { nameEl.textContent = goal.name; return; }
+        try {
+          const res = await postData({ type:'rename_goal', goal_id:goal.id, new_name:newName });
+          if (res.success) { goal.name = newName; showToast('✅ 目標名稱已更新'); }
+          else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = goal.name; }
+        } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = goal.name; }
+      });
+      nameEl.addEventListener('keydown', function(e) {
+        if (e.key==='Enter') { e.preventDefault(); nameEl.blur(); }
+        if (e.key==='Escape') { nameEl.textContent = goal.name; nameEl.blur(); }
+      });
+      gBody.appendChild(item);
+    });
+  }
+
+  // Add goal btn
+  const gAddBtn = document.createElement('button');
+  gAddBtn.className = 'btn-col-add';
+  gAddBtn.textContent = '+ 新增目標';
+  gAddBtn.onclick = openAddGoalModal;
+  gCol.appendChild(gAddBtn);
+
+  wrap.appendChild(gCol);
+
+  // -- S column --
+  const selectedGoal = state.goals.find(g => g.id === selectedGoalId);
+  const goalActions = selectedGoalId ? state.actions.filter(a => a.goal_id === selectedGoalId) : [];
+  const strategies = selectedGoalId
+    ? [...new Set(goalActions.map(a => a.strategy_name || '（未分類）'))]
+    : [];
+
+  const sCount = selectedGoalId ? strategies.length : '';
+  const sCol = makeColumn('S', '策略', 'col-tag-s', sCount);
+  const sBody = sCol.querySelector('.col-body');
+
+  if (!selectedGoalId) {
+    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側目標</span></div>';
+  } else if (!strategies.length) {
+    sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📋</div><span>此目標尚無策略</span></div>';
+  } else {
+    strategies.forEach((strat, idx) => {
+      const acts = goalActions.filter(a => (a.strategy_name||'（未分類）') === strat);
+      const item = document.createElement('div');
+      item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
+      item.style.setProperty('--goal-color', COLOR_MAP[selectedGoal?.color] || COLOR_MAP.blue);
+      item.innerHTML = `
+        <div class="strategy-item-num">S${idx+1}</div>
+        <div class="strategy-item-name" contenteditable="true" spellcheck="false">${escHtml(strat)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="strategy-item-count">${acts.length} 項行動</span>
+          <span class="strategy-item-arrow">→</span>
+        </div>
+      `;
+      item.addEventListener('click', function(e) {
+        if (e.target.classList.contains('strategy-item-name')) return;
+        selectedStrategy = selectedStrategy === strat ? null : strat;
+        renderColumns();
+      });
+      // Inline edit strategy name
+      const sNameEl = item.querySelector('.strategy-item-name');
+      sNameEl.addEventListener('blur', async function() {
+        const newName = sNameEl.textContent.trim();
+        if (!newName || newName === strat) { sNameEl.textContent = strat; return; }
+        try {
+          const res = await postData({ type:'rename_strategy', goal_id:selectedGoalId, old_name:strat, new_name:newName });
+          if (res.success) {
+            state.actions.forEach(a => { if (a.goal_id === selectedGoalId && (a.strategy_name||'（未分類）') === strat) a.strategy_name = newName; });
+            if (selectedStrategy === strat) selectedStrategy = newName;
+            showToast('✅ 策略名稱已更新');
+            renderColumns();
+          } else { showToast('❌ '+(res.message||'更新失敗'), true); sNameEl.textContent = strat; }
+        } catch(e) { showToast('❌ 網路錯誤', true); sNameEl.textContent = strat; }
+      });
+      sNameEl.addEventListener('keydown', function(e) {
+        if (e.key==='Enter') { e.preventDefault(); sNameEl.blur(); }
+        if (e.key==='Escape') { sNameEl.textContent = strat; sNameEl.blur(); }
+      });
+      sBody.appendChild(item);
+    });
+  }
+
+  // Add action btn for S
+  if (selectedGoalId) {
+    const sAddBtn = document.createElement('button');
+    sAddBtn.className = 'btn-col-add';
+    sAddBtn.textContent = '+ 新增策略';
+    sAddBtn.onclick = () => openAddActionModal(selectedGoalId, selectedGoal?.name || '');
+    sCol.appendChild(sAddBtn);
+  }
+
+  wrap.appendChild(sCol);
+
+  // -- M column --
+  const mActions = selectedStrategy
+    ? goalActions.filter(a => (a.strategy_name||'（未分類）') === selectedStrategy)
+    : selectedGoalId ? goalActions : [];
+
+  const mLabel = selectedStrategy ? selectedStrategy : (selectedGoalId ? '全部行動' : '');
+  const mCount = selectedGoalId ? mActions.length : '';
+  const mCol = makeColumn('M', '行動項目', 'col-tag-m', mCount);
+  const mBody = mCol.querySelector('.col-body');
+
+  if (!selectedGoalId) {
+    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側目標</span></div>';
+  } else if (!mActions.length) {
+    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📝</div><span>尚無行動項目</span></div>';
+  } else {
+    const color = selectedGoal ? (COLOR_MAP[selectedGoal.color] || COLOR_MAP.blue) : COLOR_MAP.blue;
+    mActions.forEach(a => {
+      const barColor = a.status === '卡關' ? '#D44E28' : a.status === '完成' ? '#0D9373' : color;
+      const item = document.createElement('div');
+      item.className = 'action-item';
+      item.innerHTML = `
+        <div class="action-item-top">
+          <span class="action-item-name" contenteditable="true" spellcheck="false">${escHtml(a.action_name)}</span>
+          <span class="action-badge badge-${a.status}">${escHtml(a.status)}</span>
+        </div>
+        <div class="action-item-meta">
+          ${a.assignee ? `<span class="action-meta-assignee">
+            <span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>
+            ${escHtml(a.assignee)}
+          </span>` : '<span></span>'}
+          <div class="action-meta-right">
+            ${a.due_date ? `<span class="action-meta-date">${fmtDate(a.due_date)}</span>` : ''}
+            <div class="action-mini-bar"><div class="action-mini-fill" style="width:${a.progress}%;background:${barColor}"></div></div>
+            <span class="action-pct" style="color:${barColor}">${a.progress}%</span>
+          </div>
+        </div>
+      `;
+      item.addEventListener('click', function(e) {
+        if (e.target.classList.contains('action-item-name')) return;
+        openEditModal(a.id);
+      });
+      // Inline edit action name
+      const aNameEl = item.querySelector('.action-item-name');
+      aNameEl.addEventListener('blur', async function() {
+        const newName = aNameEl.textContent.trim();
+        if (!newName || newName === a.action_name) { aNameEl.textContent = a.action_name; return; }
+        try {
+          const res = await postData({ type:'rename_action', action_id:a.id, new_name:newName });
+          if (res.success) { a.action_name = newName; showToast('✅ 行動名稱已更新'); }
+          else { showToast('❌ '+(res.message||'更新失敗'), true); aNameEl.textContent = a.action_name; }
+        } catch(e) { showToast('❌ 網路錯誤', true); aNameEl.textContent = a.action_name; }
+      });
+      aNameEl.addEventListener('keydown', function(e) {
+        if (e.key==='Enter') { e.preventDefault(); aNameEl.blur(); }
+        if (e.key==='Escape') { aNameEl.textContent = a.action_name; aNameEl.blur(); }
+      });
+      mBody.appendChild(item);
+    });
+  }
+
+  if (selectedGoalId) {
+    const mAddBtn = document.createElement('button');
+    mAddBtn.className = 'btn-col-add';
+    mAddBtn.textContent = '+ 新增行動項目';
+    mAddBtn.onclick = () => openAddActionModal(selectedGoalId, selectedGoal?.name || '', selectedStrategy || '');
+    mCol.appendChild(mAddBtn);
+  }
+
+  wrap.appendChild(mCol);
+}
+
+function makeColumn(tag, title, tagClass, count) {
+  const col = document.createElement('div');
+  col.className = 'col-panel';
+  col.innerHTML = `
+    <div class="col-header">
+      <span class="col-tag ${tagClass}">${tag}</span>
+      <span class="col-title">${title}</span>
+      <span class="col-count">${count !== '' ? count + ' 項' : ''}</span>
+    </div>
+    <div class="col-body"></div>
+  `;
+  return col;
+}
+
+// ── Edit Modal ──
+function openEditModal(actionId) {
+  const a = state.actions.find(x => x.id === actionId);
+  if (!a) return;
+  editingActionId = actionId;
+  document.getElementById('edit-modal-title').textContent = a.action_name;
+  document.getElementById('edit-modal-sub').textContent   = a.strategy_name;
+  document.getElementById('edit-progress').value = a.progress;
+  document.getElementById('edit-progress-display').textContent = a.progress + '%';
+  document.getElementById('edit-status').value    = a.status;
+  document.getElementById('edit-assignee').value  = a.assignee || '';
+  document.getElementById('edit-due-date').value  = a.due_date || '';
+  document.getElementById('edit-action-name').value = a.action_name || '';
+  openOverlay('modal-edit');
+}
+function closeEditModal() { closeOverlay('modal-edit'); editingActionId = null; }
+async function saveEditModal() {
+  if (!editingActionId) return;
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = '儲存中';
+  const payload = {
+    type: 'update_action', id: editingActionId,
+    progress: Number(document.getElementById('edit-progress').value),
+    status:   document.getElementById('edit-status').value,
+    assignee: document.getElementById('edit-assignee').value.trim(),
+    due_date: document.getElementById('edit-due-date').value,
+    action_name: document.getElementById('edit-action-name').value.trim(),
+  };
+  try {
+    const res = await postData(payload);
+    if (res.success) { showToast('✅ 更新成功'); closeEditModal(); await loadAndRender(); }
+    else showToast('❌ '+(res.message||'更新失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '儲存更新'; }
+}
+
+// ── Add Goal Modal ──
+function openAddGoalModal() { openOverlay('modal-add-goal'); }
+function closeAddGoalModal() { closeOverlay('modal-add-goal'); }
+async function saveNewGoal() {
+  const name = document.getElementById('new-goal-name').value.trim();
+  const color = document.getElementById('new-goal-color').value;
+  const progress = Number(document.getElementById('new-goal-progress').value);
+  if (!name) { showToast('❌ 請填寫支線名稱', true); return; }
+  const btn = document.getElementById('add-goal-save-btn');
+  btn.disabled = true; btn.textContent = '新增中';
+  const obj = state.objectives[0] || { id:'1' };
+  const payload = {
+    type:'add_goal', obj_id:obj.id, obj_title:obj.title,
+    goal_id:'G'+Date.now(), goal_name:name, goal_progress:progress, goal_color:color,
+    action_id:'A'+Date.now(),
+  };
+  try {
+    const res = await postData(payload);
+    if (res.success) {
+      showToast('✅ 新增成功'); closeAddGoalModal();
+      document.getElementById('new-goal-name').value = '';
+      document.getElementById('new-goal-progress').value = 0;
+      document.getElementById('new-goal-progress-display').textContent = '0%';
+      await loadAndRender();
+    } else showToast('❌ '+(res.message||'新增失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '新增目標'; }
+}
+
+// ── Add Action Modal ──
+function openAddActionModal(goalId, goalName, strategyName='') {
+  addingToGoalId = goalId;
+  document.getElementById('add-action-goal-name').textContent = goalName;
+  document.getElementById('new-action-strategy').value = strategyName;
+  document.getElementById('new-action-name').value = '';
+  document.getElementById('new-action-assignee').value = '';
+  document.getElementById('new-action-due').value = '';
+  document.getElementById('new-action-progress').value = 0;
+  document.getElementById('new-action-progress-display').textContent = '0%';
+  document.getElementById('new-action-status').value = '未開始';
+  openOverlay('modal-add-action');
+}
+function closeAddActionModal() { closeOverlay('modal-add-action'); addingToGoalId = null; }
+async function saveNewAction() {
+  const strategy = document.getElementById('new-action-strategy').value.trim();
+  const name = document.getElementById('new-action-name').value.trim();
+  if (!strategy || !name) { showToast('❌ 請填寫策略名稱與行動項目', true); return; }
+  const btn = document.getElementById('add-action-save-btn');
+  btn.disabled = true; btn.textContent = '新增中';
+  const goal = state.goals.find(g => g.id === addingToGoalId);
+  const obj = state.objectives[0] || { id:'1', title:'' };
+  const payload = {
+    type:'add_action', obj_id:obj.id, obj_title:obj.title,
+    goal_id:addingToGoalId, goal_name:goal?.name||'', goal_progress:goal?.progress||0, goal_color:goal?.color||'blue',
+    action_id:'A'+Date.now(), strategy_name:strategy, action_name:name,
+    assignee:document.getElementById('new-action-assignee').value.trim(),
+    due_date:document.getElementById('new-action-due').value,
+    progress:Number(document.getElementById('new-action-progress').value),
+    status:document.getElementById('new-action-status').value,
+  };
+  try {
+    const res = await postData(payload);
+    if (res.success) { showToast('✅ 新增行動成功'); closeAddActionModal(); await loadAndRender(); }
+    else showToast('❌ '+(res.message||'新增失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '新增行動'; }
+}
+
+// ── Overlay helpers ──
+function openOverlay(id)  { document.getElementById(id).classList.add('open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
+});
+
+// ── Toast ──
+let toastTimer = null;
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast'+(isError?' error':'');
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Utils ──
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return parseInt(m[2])+'/'+parseInt(m[3]);
+  const d = new Date(s);
+  return isNaN(d) ? '' : (d.getMonth()+1)+'/'+d.getDate();
+}
+
+// ── Main ──
+async function loadAndRender() {
+  try {
+    const data = await fetchData();
+    state = data;
+    render();
+  } catch(e) {
+    document.getElementById('three-col-wrap').innerHTML =
+      `<div class="loading-overlay" style="grid-column:1/-1;color:#f5876e;">⚠️ 載入失敗：${escHtml(e.message)}</div>`;
+  }
+}
+
+loadAndRender();
+</script>
