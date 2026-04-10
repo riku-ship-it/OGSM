@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OGSM 策略看板</title>
+<style>
+  /* ===================== Reset & Base ===================== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal:   #1D9E75;
+    --blue:   #378ADD;
+    --amber:  #BA7517;
+    --coral:  #D85A30;
+    --purple: #534AB7;
+    --bg:     #F4F5F7;
+    --surface:#FFFFFF;
+    --border: #E2E5EA;
+    --text:   #1A1D23;
+    --muted:  #6B7280;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC',
+                 'Noto Sans TC', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===================== Header ===================== */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .header-left { flex: 1; min-width: 0; }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .header-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .overall-label {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .overall-pct {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .overall-bar-wrap {
+    width: 120px;
+    height: 8px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .overall-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #378ADD, #1D9E75);
+    border-radius: 99px;
+    transition: width .4s ease;
+  }
+
+  /* ===================== Board ===================== */
+  .board-wrap {
+    padding: 28px 32px 48px;
+    overflow-x: auto;
+  }
+  .board {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    min-width: max-content;
+  }
+
+  /* ===================== Column (Goal) ===================== */
+  .col {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .col-header {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 16px 12px;
+    box-shadow: var(--shadow);
+    border-top: 4px solid var(--col-color, #378ADD);
+  }
+  .col-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .col-title-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--col-color);
+    flex-shrink: 0;
+  }
+  .col-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .col-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .col-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--col-color);
+    transition: width .4s ease;
+  }
+  .col-pct {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--col-color);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* ===================== Strategy Card ===================== */
+  .strategy-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .strategy-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--col-color);
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--col-color) 8%, transparent);
+  }
+  .action-list { display: flex; flex-direction: column; }
+
+  /* ===================== Action Item ===================== */
+  .action-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .action-item:last-child { border-bottom: none; }
+  .action-item:hover { background: #F9FAFB; }
+
+  .action-name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .action-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .action-meta span { display: flex; align-items: center; gap: 3px; }
+  .action-meta svg { opacity: .6; }
+
+  .action-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mini-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .mini-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--col-color);
+    transition: width .4s ease;
+  }
+  .mini-pct {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* ===================== Status Badge ===================== */
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    flex-shrink: 0;
+  }
+  .badge-未開始 { background: #F1F3F5; color: #6B7280; }
+  .badge-進行中 { background: #DBEAFE; color: #1D4ED8; }
+  .badge-完成   { background: #D1FAE5; color: #065F46; }
+  .badge-卡關   { background: #FEE2E2; color: #B91C1C; }
+
+  /* ===================== Empty State ===================== */
+  .empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ===================== Loading / Error ===================== */
+  .loading-screen, .error-screen {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 60vh; gap: 12px; color: var(--muted);
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: #378ADD;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===================== Modal ===================== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    width: 100%; max-width: 460px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.2);
+    transform: translateY(12px);
+    transition: transform .2s;
+    overflow: hidden;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .modal-title { font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .modal-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 20px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px;
+    transition: background .15s;
+    flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--border); }
+
+  .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color .15s;
+    outline: none;
+  }
+  .form-input:focus, .form-select:focus { border-color: #378ADD; }
+
+  .progress-row { display: flex; align-items: center; gap: 10px; }
+  .progress-row input[type=range] { flex: 1; accent-color: #378ADD; }
+  .progress-row .pct-display {
+    font-size: 14px; font-weight: 700;
+    color: var(--text); min-width: 36px; text-align: right;
+  }
+
+  .modal-footer {
+    padding: 12px 20px 18px;
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .btn {
+    padding: 9px 20px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s, background .15s;
+    font-family: inherit;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-cancel { background: var(--border); color: var(--text); }
+  .btn-cancel:hover:not(:disabled) { background: #D1D5DB; }
+  .btn-save   { background: #378ADD; color: #fff; }
+  .btn-save:hover:not(:disabled)   { background: #2563EB; }
+
+  /* ===================== Toast ===================== */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: #1A1D23; color: #fff;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s;
+    z-index: 300;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: #B91C1C; }
+</style>
+</head>
+<body>
+
+<!-- =================== 替換成你的 GAS 部署網址 =================== -->
+<script>
+const GAS_URL = 'YOUR_GAS_URL';
+</script>
+<!-- ============================================================== -->
+
+<!-- Header -->
+<header class="header" id="app-header">
+  <div class="loading-screen" style="min-height:unset;padding:0;flex-direction:row;gap:10px;">
+    <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
+    <span>載入中…</span>
+  </div>
+</header>
+
+<!-- Board -->
+<main class="board-wrap">
+  <div class="board" id="board"></div>
+</main>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-sub"  id="modal-sub"></div>
+      </div>
+      <button class="modal-close" id="modal-close-btn" title="關閉">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">進度（%）</label>
+        <div class="progress-row">
+          <input type="range" id="edit-progress" min="0" max="100" step="1" />
+          <span class="pct-display" id="edit-progress-display">0%</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">狀態</label>
+        <select class="form-select" id="edit-status">
+          <option value="未開始">未開始</option>
+          <option value="進行中">進行中</option>
+          <option value="完成">完成</option>
+          <option value="卡關">卡關</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">負責人</label>
+        <input type="text" class="form-input" id="edit-assignee" placeholder="請輸入姓名" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">截止日期</label>
+        <input type="date" class="form-input" id="edit-due-date" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" id="modal-cancel-btn">取消</button>
+      <button class="btn btn-save"   id="modal-save-btn">儲存更新</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========================================================
+//  COLOR MAP
+// ========================================================
+const COLOR_MAP = {
+  teal:   '#1D9E75',
+  blue:   '#378ADD',
+  amber:  '#BA7517',
+  coral:  '#D85A30',
+  purple: '#534AB7',
+};
+
+// ========================================================
+//  State
+// ========================================================
+let state = { objectives: [], goals: [], actions: [] };
+let editingActionId = null;
+
+// ========================================================
+//  Fetch data from GAS
+// ========================================================
+async function fetchData() {
+  const res  = await fetch(GAS_URL, { method: 'GET' });
+  const json = await res.json();
+  return json;
+}
+
+async function postUpdate(payload) {
+  const res  = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return await res.json();
+}
+
+// ========================================================
+//  Render Header
+// ========================================================
+function renderHeader(objectives, goals) {
+  const obj   = objectives[0] || { title: '（尚無目標）' };
+  const avg   = goals.length
+    ? Math.round(goals.reduce((s, g) => s + (g.progress || 0), 0) / goals.length)
+    : 0;
+
+  document.getElementById('app-header').innerHTML = `
+    <div class="header-left">
+      <h1>${escHtml(obj.title)}</h1>
+      <div class="header-sub">OGSM 策略看板</div>
+    </div>
+    <div class="header-progress">
+      <span class="overall-label">整體進度</span>
+      <div class="overall-bar-wrap">
+        <div class="overall-bar-fill" style="width:${avg}%"></div>
+      </div>
+      <span class="overall-pct">${avg}%</span>
+    </div>
+  `;
+}
+
+// ========================================================
+//  Render Board
+// ========================================================
+function renderBoard(goals, actions) {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  if (!goals.length) {
+    board.innerHTML = '<div class="empty">尚無支線資料，請在 Google Sheets 新增 goals。</div>';
+    return;
+  }
+
+  goals.forEach(goal => {
+    const color     = COLOR_MAP[goal.color] || COLOR_MAP.blue;
+    const colEl     = document.createElement('div');
+    colEl.className = 'col';
+    colEl.style.setProperty('--col-color', color);
+
+    // Column header
+    colEl.innerHTML = `
+      <div class="col-header" style="border-top-color:${color}">
+        <div class="col-title">
+          <span class="col-title-dot" style="background:${color}"></span>
+          ${escHtml(goal.name)}
+        </div>
+        <div class="col-progress-row">
+          <div class="col-bar-wrap">
+            <div class="col-bar-fill" style="width:${goal.progress}%;background:${color}"></div>
+          </div>
+          <span class="col-pct" style="color:${color}">${goal.progress}%</span>
+        </div>
+      </div>
+    `;
+
+    // Group actions by strategy_name
+    const goalActions = actions.filter(a => a.goal_id === goal.id);
+    const groups      = groupBy(goalActions, 'strategy_name');
+
+    if (!goalActions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.style.fontSize = '13px';
+      empty.textContent = '此支線尚無行動項目';
+      colEl.appendChild(empty);
+    } else {
+      Object.entries(groups).forEach(([stratName, acts]) => {
+        const card = document.createElement('div');
+        card.className = 'strategy-card';
+        card.style.setProperty('--col-color', color);
+
+        let actionsHtml = acts.map(a => `
+          <div class="action-item" data-id="${a.id}">
+            <div class="action-name">${escHtml(a.action_name)}</div>
+            <div class="action-meta">
+              ${a.assignee ? `<span>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 1110 0H3z"/>
+                </svg>
+                ${escHtml(a.assignee)}</span>` : ''}
+              ${a.due_date ? `<span>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M5 0a1 1 0 011 1v1h4V1a1 1 0 112 0v1h1a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V4a2 2 0 012-2h1V1a1 1 0 011-1zm7 5H4v7h8V5z"/>
+                </svg>
+                ${escHtml(a.due_date)}</span>` : ''}
+            </div>
+            <div class="action-bottom">
+              <div class="mini-bar-wrap">
+                <div class="mini-bar-fill" style="width:${a.progress}%;background:${color}"></div>
+              </div>
+              <span class="mini-pct">${a.progress}%</span>
+              <span class="badge badge-${a.status}">${escHtml(a.status)}</span>
+            </div>
+          </div>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="strategy-label" style="color:${color};background:${hexAlpha(color,.08)}">${escHtml(stratName)}</div>
+          <div class="action-list">${actionsHtml}</div>
+        `;
+
+        // Click to edit
+        card.querySelectorAll('.action-item').forEach(el => {
+          el.addEventListener('click', () => openModal(el.dataset.id));
+        });
+
+        colEl.appendChild(card);
+      });
+    }
+
+    board.appendChild(colEl);
+  });
+}
+
+// ========================================================
+//  Modal
+// ========================================================
+function openModal(actionId) {
+  const action = state.actions.find(a => a.id === actionId);
+  if (!action) return;
+  editingActionId = actionId;
+
+  document.getElementById('modal-title').textContent = action.action_name;
+  document.getElementById('modal-sub').textContent   = action.strategy_name;
+
+  const progEl = document.getElementById('edit-progress');
+  progEl.value = action.progress;
+  document.getElementById('edit-progress-display').textContent = action.progress + '%';
+
+  document.getElementById('edit-status').value   = action.status;
+  document.getElementById('edit-assignee').value = action.assignee;
+  document.getElementById('edit-due-date').value = action.due_date || '';
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('edit-assignee').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingActionId = null;
+}
+
+async function saveModal() {
+  if (!editingActionId) return;
+  const saveBtn = document.getElementById('modal-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '儲存中…';
+
+  const payload = {
+    id:       editingActionId,
+    progress: Number(document.getElementById('edit-progress').value),
+    status:   document.getElementById('edit-status').value,
+    assignee: document.getElementById('edit-assignee').value.trim(),
+    due_date: document.getElementById('edit-due-date').value,
+  };
+
+  try {
+    const res = await postUpdate(payload);
+    if (res.success) {
+      showToast('✅ 更新成功');
+      closeModal();
+      await loadAndRender();
+    } else {
+      showToast('❌ ' + (res.message || '更新失敗'), true);
+    }
+  } catch (e) {
+    showToast('❌ 網路錯誤：' + e.message, true);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '儲存更新';
+  }
+}
+
+// ========================================================
+//  Event Bindings
+// ========================================================
+document.getElementById('edit-progress').addEventListener('input', e => {
+  document.getElementById('edit-progress-display').textContent = e.target.value + '%';
+});
+document.getElementById('modal-close-btn').addEventListener('click',  closeModal);
+document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+document.getElementById('modal-save-btn').addEventListener('click',   saveModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ========================================================
+//  Toast
+// ========================================================
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (isError ? ' error' : '');
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ========================================================
+//  Main Load & Render
+// ========================================================
+async function loadAndRender() {
+  try {
+    const data = await fetchData();
+    state = data;
+    renderHeader(data.objectives, data.goals);
+    renderBoard(data.goals, data.actions);
+  } catch (e) {
+    document.getElementById('app-header').innerHTML = `
+      <div style="color:#B91C1C;font-size:14px;">
+        ⚠️ 資料載入失敗：${escHtml(e.message)}。請確認 GAS_URL 已正確設定。
+      </div>
+    `;
+    document.getElementById('board').innerHTML = '';
+  }
+}
+
+// ========================================================
+//  Utilities
+// ========================================================
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key] || '（未分類）';
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(item);
+    return acc;
+  }, {});
+}
+
+function hexAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ========================================================
+//  Init
+// ========================================================
+loadAndRender();
+</script>
+</body>
+</html>
