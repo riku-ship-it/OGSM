@@ -97,6 +97,16 @@ body {
   flex-shrink: 0;
 }
 .obj-title { font-size: 18px; font-weight: 700; flex: 1; }
+.editable-field {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  transition: background .15s;
+  outline: none;
+}
+.editable-field:hover { background: rgba(99,91,255,.07); }
+.editable-field:focus { background: rgba(99,91,255,.12); box-shadow: 0 0 0 2px rgba(99,91,255,.25); }
 .obj-ring-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .obj-ring-label { font-size: 13px; color: var(--muted); }
 .ring-svg { transform: rotate(-90deg); }
@@ -461,8 +471,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
 
 <!-- Objective Banner -->
 <div class="obj-banner" id="obj-banner" style="display:none;">
-  <span class="obj-tag">Objective</span>
-  <span class="obj-title" id="obj-title-text">—</span>
+  <span class="obj-tag">目的</span>
+  <span class="obj-title editable-field" id="obj-title-text" contenteditable="true" spellcheck="false" title="點擊編輯目的名稱">—</span>
   <div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px;">
     <span style="font-size:13px;color:var(--muted);">整體</span>
     <span id="ring-pct" style="font-size:26px;font-weight:800;color:var(--purple);line-height:1.1;">0%</span>
@@ -677,8 +687,33 @@ function renderBanner(objectives, goals) {
     ? Math.round(goals.reduce((s, g) => s + (g.progress || 0), 0) / goals.length)
     : 0;
 
-  document.getElementById('obj-title-text').textContent = obj.title;
-  document.getElementById('obj-banner').style.display   = 'flex';
+  const titleEl = document.getElementById('obj-title-text');
+  titleEl.textContent = obj.title;
+  document.getElementById('obj-banner').style.display = 'flex';
+
+  titleEl.onblur = async function() {
+    const newTitle = titleEl.textContent.trim();
+    if (!newTitle) { titleEl.textContent = obj.title; return; }
+    if (newTitle === obj.title) return;
+    try {
+      const res = await postData({ type: 'rename_objective', obj_id: obj.id, new_title: newTitle });
+      if (res.success) {
+        obj.title = newTitle;
+        state.objectives[0] = obj;
+        showToast('✅ 目的已更新');
+      } else {
+        showToast('❌ ' + (res.message || '更新失敗'), true);
+        titleEl.textContent = obj.title;
+      }
+    } catch(e) {
+      showToast('❌ 網路錯誤：' + e.message, true);
+      titleEl.textContent = obj.title;
+    }
+  };
+  titleEl.onkeydown = function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+    if (e.key === 'Escape') { titleEl.textContent = obj.title; titleEl.blur(); }
+  };
 
   // top bar meta
   const year = new Date().getFullYear();
@@ -719,7 +754,7 @@ function renderBoard(goals, actions) {
       <div class="goal-header-card" style="background:color-mix(in srgb,${color} 12%,#fff)">
         <div class="goal-num">Goal ${idx + 1}</div>
         <div class="goal-title-row">
-          <span class="goal-name">${escHtml(goal.name)}</span>
+          <span class="goal-name editable-field" contenteditable="true" spellcheck="false" title="點擊編輯 Goal 名稱">${escHtml(goal.name)}</span>
           <span class="goal-pct" style="color:${color}">${goal.progress}%</span>
         </div>
         <div class="goal-bar-wrap">
@@ -727,6 +762,34 @@ function renderBoard(goals, actions) {
         </div>
       </div>
     `;
+
+    // Wire up inline editing for goal name
+    const goalNameEl = col.querySelector('.goal-name');
+    const originalName = goal.name;
+    goalNameEl.onblur = async function() {
+      const newName = goalNameEl.textContent.trim();
+      if (!newName) { goalNameEl.textContent = goal.name; return; }
+      if (newName === goal.name) return;
+      try {
+        const res = await postData({ type: 'rename_goal', goal_id: goal.id, new_name: newName });
+        if (res.success) {
+          goal.name = newName;
+          showToast('✅ Goal 名稱已更新');
+        } else {
+          showToast('❌ ' + (res.message || '更新失敗'), true);
+          goalNameEl.textContent = goal.name;
+        }
+      } catch(e) {
+        showToast('❌ 網路錯誤：' + e.message, true);
+        goalNameEl.textContent = goal.name;
+      }
+    };
+    goalNameEl.onkeydown = function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); goalNameEl.blur(); }
+      if (e.key === 'Escape') { goalNameEl.textContent = goal.name; goalNameEl.blur(); }
+    };
+    // Prevent goal card click from interfering with editing
+    goalNameEl.onclick = function(e) { e.stopPropagation(); };
 
     // ---- Strategy cards ----
     if (!goalActions.length) {

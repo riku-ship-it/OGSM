@@ -149,47 +149,78 @@ function formatDate(value) {
 // ====================================================
 function doPost(e) {
   try {
-    var body     = JSON.parse(e.postData.contents);
-    var targetId = String(body.id);
+    var body = JSON.parse(e.postData.contents);
 
     var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
     var sheet = ss.getSheetByName(SHEET_NAME);
     if (!sheet) throw new Error('找不到工作表：' + SHEET_NAME);
 
-    var data    = sheet.getDataRange().getValues();
-    var updated = false;
+    var data = sheet.getDataRange().getValues();
+    var result;
 
-    for (var i = 1; i < data.length; i++) {
-      var actionId = String(data[i][6]); // G 欄（index 6）= 行動編號
-      if (actionId === targetId) {
-        var rowNum = i + 1; // Sheets 列號從 1 起算（含標題列偏移）
-
-        // J（欄 10）= 負責人
-        if (body.assignee !== undefined) {
-          sheet.getRange(rowNum, 10).setValue(body.assignee);
+    // ---- rename_objective：更新所有符合 obj_id 的列的 B 欄（目標標題）----
+    if (body.type === 'rename_objective') {
+      var objId    = String(body.obj_id);
+      var newTitle = String(body.new_title || '').trim();
+      var count    = 0;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === objId) {
+          sheet.getRange(i + 1, 2).setValue(newTitle);
+          count++;
         }
-        // L（欄 12）= 截止日期
-        if (body.due_date !== undefined) {
-          sheet.getRange(rowNum, 12).setValue(body.due_date);
-        }
-        // M（欄 13）= 行動進度
-        if (body.progress !== undefined) {
-          sheet.getRange(rowNum, 13).setValue(Number(body.progress));
-        }
-        // N（欄 14）= 狀態
-        if (body.status !== undefined) {
-          sheet.getRange(rowNum, 14).setValue(body.status);
-        }
-
-        updated = true;
-        break;
       }
-    }
+      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + objId });
 
-    var result = JSON.stringify({
-      success: updated,
-      message: updated ? '更新成功' : '找不到行動編號：' + targetId
-    });
+    // ---- rename_goal：更新所有符合 goal_id 的列的 D 欄（支線名稱）----
+    } else if (body.type === 'rename_goal') {
+      var goalId  = String(body.goal_id);
+      var newName = String(body.new_name || '').trim();
+      var count   = 0;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId) {
+          sheet.getRange(i + 1, 4).setValue(newName);
+          count++;
+        }
+      }
+      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到支線：' + goalId });
+
+    // ---- 預設：依行動編號更新行動欄位 ----
+    } else {
+      var targetId = String(body.id);
+      var updated  = false;
+
+      for (var i = 1; i < data.length; i++) {
+        var actionId = String(data[i][6]); // G 欄（index 6）= 行動編號
+        if (actionId === targetId) {
+          var rowNum = i + 1;
+
+          // J（欄 10）= 負責人
+          if (body.assignee !== undefined) {
+            sheet.getRange(rowNum, 10).setValue(body.assignee);
+          }
+          // L（欄 12）= 截止日期
+          if (body.due_date !== undefined) {
+            sheet.getRange(rowNum, 12).setValue(body.due_date);
+          }
+          // M（欄 13）= 行動進度
+          if (body.progress !== undefined) {
+            sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+          }
+          // N（欄 14）= 狀態
+          if (body.status !== undefined) {
+            sheet.getRange(rowNum, 14).setValue(body.status);
+          }
+
+          updated = true;
+          break;
+        }
+      }
+
+      result = JSON.stringify({
+        success: updated,
+        message: updated ? '更新成功' : '找不到行動編號：' + targetId
+      });
+    }
 
     var output = ContentService
       .createTextOutput(result)
