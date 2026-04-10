@@ -110,18 +110,6 @@ body {
   gap: 8px;
   margin-bottom: 10px;
 }
-.obj-pill {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #5B4FCF;
-  background: rgba(83,75,183,.1);
-  border: 1px solid rgba(83,75,183,.3);
-  padding: 3px 10px;
-  border-radius: 99px;
-  text-transform: uppercase;
-  font-family: var(--mono);
-}
 .obj-line { flex: 1; height: 1px; background: var(--border); }
 .obj-pct-badge {
   font-size: 13px;
@@ -183,6 +171,7 @@ body {
   border-radius: 99px;
   font-family: var(--mono);
 }
+.col-tag-o { background: rgba(83,75,183,.1); color: #5B4FCF; border: 1px solid rgba(83,75,183,.3); }
 .col-tag-g { background: rgba(43,127,224,.12); color: #1a6fd4; border: 1px solid rgba(43,127,224,.3); }
 .col-tag-s { background: rgba(13,147,115,.12); color: #0a7a60; border: 1px solid rgba(13,147,115,.3); }
 .col-tag-m { background: rgba(196,122,21,.12); color: #a06210; border: 1px solid rgba(196,122,21,.3); }
@@ -486,7 +475,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7Ld
 <!-- Objective -->
 <div class="obj-section" id="obj-section" style="display:none">
   <div class="obj-eyebrow">
-    <span class="obj-pill">O · 目的</span>
+    <span class="col-tag col-tag-o">O</span>
+    <span class="col-title">目的</span>
     <div class="obj-line"></div>
     <span class="obj-pct-badge" id="obj-pct-badge">0%</span>
   </div>
