@@ -1,4 +1,3 @@
-<script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7LdRHWiViQTCrte3fL2ySS49nPb_w3Zk7ctX1dyb1A0zDmMXw/exec';
 
 // ── Color Map ──
@@ -21,10 +20,11 @@ function initials(name) { return name ? name.slice(0,2) : '?'; }
 
 // ── State ──
 let state = { objectives: [], goals: [], actions: [] };
-let selectedGoalId     = null;
-let selectedStrategy   = null;
-let editingActionId    = null;
-let addingToGoalId     = null;
+let selectedGoalId        = null;
+let selectedStrategy      = null;
+let editingActionId       = null;
+let addingToGoalId        = null;
+let editingTrafficGoalId  = null;
 
 // ── Fetch / Post ──
 async function fetchData() {
@@ -91,21 +91,40 @@ function renderColumns() {
       const item = document.createElement('div');
       item.className = 'goal-item' + (selectedGoalId === goal.id ? ' active' : '');
       item.style.setProperty('--goal-color', color);
+      const tl = goal.traffic_light || 'green';
+      const tdefs = getTrafficDefs(goal.id);
       item.innerHTML = `
         <div class="goal-item-num">目標 ${idx+1}</div>
         <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
-        <div class="goal-item-bar"><div class="goal-item-fill" style="width:${goal.progress}%;background:${color}"></div></div>
         <div class="goal-item-meta">
-          <span class="goal-item-pct" style="color:${color}">${goal.progress}%</span>
+          <div class="goal-traffic-wrap">
+            <span class="traffic-dot traffic-dot-red${tl==='red'?' active':''}" title="${escHtml(tdefs.red||'紅燈')}" data-light="red"></span>
+            <span class="traffic-dot traffic-dot-yellow${tl==='yellow'?' active':''}" title="${escHtml(tdefs.yellow||'黃燈')}" data-light="yellow"></span>
+            <span class="traffic-dot traffic-dot-green${tl==='green'?' active':''}" title="${escHtml(tdefs.green||'綠燈')}" data-light="green"></span>
+            <button class="traffic-def-btn" title="定義燈號意思">✎</button>
+          </div>
           <span class="goal-item-arrow">→</span>
         </div>
       `;
       // Click to select
       item.addEventListener('click', function(e) {
         if (e.target.classList.contains('goal-item-name')) return;
+        if (e.target.closest('.goal-traffic-wrap')) return;
         selectedGoalId = selectedGoalId === goal.id ? null : goal.id;
         selectedStrategy = null;
         renderColumns();
+      });
+      // Traffic dots
+      item.querySelectorAll('.traffic-dot').forEach(dot => {
+        dot.addEventListener('click', function(e) {
+          e.stopPropagation();
+          updateGoalTraffic(goal.id, dot.dataset.light);
+        });
+      });
+      // Define button
+      item.querySelector('.traffic-def-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        openTrafficDefModal(goal.id);
       });
       // Inline edit goal name
       const nameEl = item.querySelector('.goal-item-name');
@@ -153,14 +172,20 @@ function renderColumns() {
   } else {
     strategies.forEach((strat, idx) => {
       const acts = goalActions.filter(a => (a.strategy_name||'（未分類）') === strat);
+      const completedActs = acts.filter(a => a.status === '完成').length;
+      const stratPct = acts.length > 0 ? Math.round(completedActs / acts.length * 100) : 0;
+      const stratColor = COLOR_MAP[selectedGoal?.color] || COLOR_MAP.blue;
       const item = document.createElement('div');
       item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
-      item.style.setProperty('--goal-color', COLOR_MAP[selectedGoal?.color] || COLOR_MAP.blue);
+      item.style.setProperty('--goal-color', stratColor);
       item.innerHTML = `
         <div class="strategy-item-num">S${idx+1}</div>
         <div class="strategy-item-name" contenteditable="true" spellcheck="false">${escHtml(strat)}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <span class="strategy-item-count">${acts.length} 項行動</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="strategy-progress-wrap">
+            <div class="strategy-mini-bar"><div class="strategy-mini-fill" style="width:${stratPct}%;background:${stratColor}"></div></div>
+            <span class="strategy-pct" style="color:${stratColor}">${completedActs}/${acts.length}</span>
+          </div>
           <span class="strategy-item-arrow">→</span>
         </div>
       `;
@@ -218,9 +243,7 @@ function renderColumns() {
   } else if (!mActions.length) {
     mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📝</div><span>尚無行動項目</span></div>';
   } else {
-    const color = selectedGoal ? (COLOR_MAP[selectedGoal.color] || COLOR_MAP.blue) : COLOR_MAP.blue;
     mActions.forEach(a => {
-      const barColor = a.status === '卡關' ? '#D44E28' : a.status === '完成' ? '#0D9373' : color;
       const item = document.createElement('div');
       item.className = 'action-item';
       item.innerHTML = `
@@ -233,16 +256,39 @@ function renderColumns() {
             <span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>
             ${escHtml(a.assignee)}
           </span>` : '<span></span>'}
-          <div class="action-meta-right">
-            ${a.due_date ? `<span class="action-meta-date">${fmtDate(a.due_date)}</span>` : ''}
-            <div class="action-mini-bar"><div class="action-mini-fill" style="width:${a.progress}%;background:${barColor}"></div></div>
-            <span class="action-pct" style="color:${barColor}">${a.progress}%</span>
-          </div>
+          ${a.due_date ? `<span class="action-meta-date">${fmtDate(a.due_date)}</span>` : ''}
         </div>
       `;
       item.addEventListener('click', function(e) {
         if (e.target.classList.contains('action-item-name')) return;
+        if (e.target.classList.contains('action-badge')) return;
         openEditModal(a.id);
+      });
+      // Inline status change via badge click
+      const badge = item.querySelector('.action-badge');
+      badge.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeStatusPopup();
+        const rect = badge.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.id = 'action-status-popup-fl';
+        popup.className = 'action-status-popup-fl';
+        popup.style.top  = (rect.bottom + 4) + 'px';
+        popup.style.right = (window.innerWidth - rect.right) + 'px';
+        popup.innerHTML = `
+          <div class="action-status-opt" data-status="未開始">未開始</div>
+          <div class="action-status-opt" data-status="進行中">進行中</div>
+          <div class="action-status-opt" data-status="完成">完成</div>
+          <div class="action-status-opt" data-status="卡關">卡關</div>
+        `;
+        popup.querySelectorAll('.action-status-opt').forEach(opt => {
+          opt.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            closeStatusPopup();
+            updateActionStatus(a.id, opt.dataset.status);
+          });
+        });
+        document.body.appendChild(popup);
       });
       // Inline edit action name
       const aNameEl = item.querySelector('.action-item-name');
@@ -398,6 +444,7 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
+document.addEventListener('click', function() { closeStatusPopup(); });
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
 });
@@ -425,6 +472,70 @@ function fmtDate(s) {
   return isNaN(d) ? '' : (d.getMonth()+1)+'/'+d.getDate();
 }
 
+// ── Traffic Light helpers ──
+function getTrafficDefs(goalId) {
+  try { return JSON.parse(localStorage.getItem('ogsm-tdefs-' + goalId) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveTrafficDefs(goalId, defs) {
+  localStorage.setItem('ogsm-tdefs-' + goalId, JSON.stringify(defs));
+}
+async function updateGoalTraffic(goalId, light) {
+  const goal = state.goals.find(g => g.id === goalId);
+  if (!goal) return;
+  const prev = goal.traffic_light;
+  goal.traffic_light = light;
+  renderColumns();
+  try {
+    await postData({ type: 'update_goal_traffic', goal_id: goalId, traffic_light: light });
+  } catch(e) {
+    goal.traffic_light = prev;
+    renderColumns();
+    showToast('❌ 網路錯誤', true);
+  }
+}
+function openTrafficDefModal(goalId) {
+  editingTrafficGoalId = goalId;
+  const goal = state.goals.find(g => g.id === goalId);
+  document.getElementById('traffic-def-goal-name').textContent = goal ? goal.name : '';
+  const defs = getTrafficDefs(goalId);
+  document.getElementById('tdef-red').value    = defs.red    || '';
+  document.getElementById('tdef-yellow').value = defs.yellow || '';
+  document.getElementById('tdef-green').value  = defs.green  || '';
+  openOverlay('modal-traffic-def');
+}
+function saveTrafficDefsUI() {
+  if (!editingTrafficGoalId) return;
+  saveTrafficDefs(editingTrafficGoalId, {
+    red:    document.getElementById('tdef-red').value.trim(),
+    yellow: document.getElementById('tdef-yellow').value.trim(),
+    green:  document.getElementById('tdef-green').value.trim(),
+  });
+  closeOverlay('modal-traffic-def');
+  renderColumns();
+  showToast('✅ 燈號定義已儲存');
+}
+
+// ── Action status inline update ──
+function closeStatusPopup() {
+  const p = document.getElementById('action-status-popup-fl');
+  if (p) p.remove();
+}
+async function updateActionStatus(actionId, status) {
+  const a = state.actions.find(x => x.id === actionId);
+  if (!a) return;
+  const prev = a.status;
+  a.status = status;
+  renderColumns();
+  try {
+    await postData({ type: 'update_action', id: actionId, status });
+  } catch(e) {
+    a.status = prev;
+    renderColumns();
+    showToast('❌ 網路錯誤', true);
+  }
+}
+
 // ── Main ──
 async function loadAndRender() {
   try {
@@ -438,4 +549,3 @@ async function loadAndRender() {
 }
 
 loadAndRender();
-</script>
