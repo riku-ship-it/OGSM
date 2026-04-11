@@ -775,9 +775,21 @@ async function updateActionStatus(actionId, status) {
 function renderStaffList() {
   const container = document.getElementById('topbar-staff-list');
   if (!container) return;
-  container.innerHTML = staffList.map(name =>
-    `<button class="staff-chip${name === currentStaff ? ' active' : ''}" onclick="switchStaff('${name}')">${escHtml(name)}</button>`
-  ).join('');
+  container.innerHTML = '';
+  staffList.forEach(name => {
+    const chip = document.createElement('button');
+    chip.className = 'staff-chip' + (name === currentStaff ? ' active' : '');
+    chip.innerHTML = `<span class="staff-chip-label">${escHtml(name)}</span><span class="staff-chip-del" title="刪除職員">✕</span>`;
+    chip.addEventListener('click', function(e) {
+      if (e.target.classList.contains('staff-chip-del')) {
+        e.stopPropagation();
+        openDeleteStaffConfirm(name);
+      } else {
+        switchStaff(name);
+      }
+    });
+    container.appendChild(chip);
+  });
 }
 
 async function switchStaff(name) {
@@ -827,6 +839,44 @@ async function saveNewStaff() {
     } else { showToast('❌ '+(res.message||'新增失敗'), true); }
   } catch(e) { showToast('❌ 網路錯誤', true); }
   finally { btn.disabled = false; btn.textContent = '新增職員'; }
+}
+
+function openDeleteStaffConfirm(name) {
+  document.getElementById('confirm-delete-desc').textContent =
+    `確定要刪除職員「${name}」？\n此操作將一併刪除該職員的所有資料（試算表），無法復原。`;
+  pendingDeleteFn = () => deleteStaff(name);
+  openOverlay('modal-confirm-delete');
+}
+
+async function deleteStaff(name) {
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'delete_staff', staff_name: name })
+    });
+    const data = await res.json();
+    if (data.success) {
+      staffList = staffList.filter(n => n !== name);
+      if (currentStaff === name) {
+        currentStaff = staffList[0] || '';
+        localStorage.setItem('ogsm-current-staff', currentStaff);
+        selectedGoalId = null;
+        selectedStrategy = null;
+      }
+      renderStaffList();
+      if (currentStaff) {
+        await loadAndRender();
+      } else {
+        document.getElementById('obj-section').style.display = 'none';
+        document.getElementById('three-col-wrap').innerHTML = '';
+      }
+      showToast('✅ 職員已刪除');
+    } else {
+      showToast('❌ ' + (data.message || '刪除失敗'), true);
+    }
+  } catch(e) {
+    showToast('❌ 網路錯誤', true);
+  }
 }
 
 // ── Main ──

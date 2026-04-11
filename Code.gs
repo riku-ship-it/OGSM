@@ -177,6 +177,20 @@ function doPost(e) {
         result = JSON.stringify({ success: true, message: '新增成功' });
       }
 
+    // ---- delete_staff：刪除職員工作表 ----
+    } else if (body.type === 'delete_staff') {
+      var staffName = String(body.staff_name || '').trim();
+      if (!staffName) throw new Error('職員名稱不能為空');
+      var targetSheet = ss.getSheetByName(staffName);
+      if (!targetSheet) {
+        result = JSON.stringify({ success: false, message: '找不到職員：' + staffName });
+      } else if (ss.getSheets().length <= 1) {
+        result = JSON.stringify({ success: false, message: '無法刪除最後一個工作表' });
+      } else {
+        ss.deleteSheet(targetSheet);
+        result = JSON.stringify({ success: true, message: '刪除成功' });
+      }
+
     } else {
       // 所有其他操作使用 body.staff 指定的工作表
       var staffName = String(body.staff || 'Riku');
