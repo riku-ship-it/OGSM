@@ -209,6 +209,22 @@
   </div>
 </div>
 
+<!-- ── Confirm Delete Modal ── -->
+<div class="modal-overlay" id="modal-confirm-delete">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title">確認刪除</div>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-delete-desc" style="color:var(--text2);font-size:14px;line-height:1.6;margin:0"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeOverlay('modal-confirm-delete')">取消</button>
+      <button class="btn btn-delete" onclick="executeDelete()">刪除</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script src="script.js"></script>
 

@@ -25,6 +25,7 @@ let selectedStrategy      = null;
 let editingActionId       = null;
 let addingToGoalId        = null;
 let editingTrafficGoalId  = null;
+let pendingDeleteFn       = null;
 
 // ── Fetch / Post ──
 async function fetchData() {
@@ -173,6 +174,18 @@ function renderColumns() {
         if (e.key==='Enter') { e.preventDefault(); nameEl.blur(); }
         if (e.key==='Escape') { nameEl.textContent = goal.name; nameEl.blur(); }
       });
+      item.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e.clientX, e.clientY, [
+          { label: '刪除目標', icon: '🗑', danger: true, action: () => {
+            openConfirmDelete(
+              `確定要刪除目標「${goal.name}」？\n此操作將一併刪除所有策略與行動，無法復原。`,
+              () => deleteGoal(goal.id)
+            );
+          }}
+        ]);
+      });
       gBody.appendChild(item);
     });
   }
@@ -247,6 +260,18 @@ function renderColumns() {
       sNameEl.addEventListener('keydown', function(e) {
         if (e.key==='Enter') { e.preventDefault(); sNameEl.blur(); }
         if (e.key==='Escape') { sNameEl.textContent = strat; sNameEl.blur(); }
+      });
+      item.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e.clientX, e.clientY, [
+          { label: '刪除策略', icon: '🗑', danger: true, action: () => {
+            openConfirmDelete(
+              `確定要刪除策略「${strat}」？\n此操作將一併刪除其下所有行動，無法復原。`,
+              () => deleteStrategy(selectedGoalId, strat)
+            );
+          }}
+        ]);
       });
       sBody.appendChild(item);
     });
@@ -339,6 +364,18 @@ function renderColumns() {
       aNameEl.addEventListener('keydown', function(e) {
         if (e.key==='Enter') { e.preventDefault(); aNameEl.blur(); }
         if (e.key==='Escape') { aNameEl.textContent = a.action_name; aNameEl.blur(); }
+      });
+      item.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showContextMenu(e.clientX, e.clientY, [
+          { label: '刪除行動', icon: '🗑', danger: true, action: () => {
+            openConfirmDelete(
+              `確定要刪除行動「${a.action_name}」？\n此操作無法復原。`,
+              () => deleteAction(a.id)
+            );
+          }}
+        ]);
       });
       mBody.appendChild(item);
     });
@@ -479,9 +516,13 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
-document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); });
+document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); closeContextMenu(); });
+document.addEventListener('contextmenu', function() { closeContextMenu(); });
 document.addEventListener('keydown', e => {
-  if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
+  if (e.key==='Escape') {
+    closeContextMenu();
+    document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
+  }
 });
 
 // ── Toast ──
@@ -549,6 +590,76 @@ function saveTrafficDefsUI() {
   closeOverlay('modal-traffic-def');
   renderColumns();
   showToast('✅ 燈號定義已儲存');
+}
+
+// ── Context Menu ──
+function showContextMenu(x, y, items) {
+  closeContextMenu();
+  const menu = document.createElement('div');
+  menu.id = 'context-menu-fl';
+  menu.className = 'context-menu-fl';
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'context-menu-item' + (item.danger ? ' danger' : '');
+    div.innerHTML = `<span class="context-menu-icon">${item.icon || ''}</span>${escHtml(item.label)}`;
+    div.addEventListener('click', function(e) {
+      e.stopPropagation();
+      closeContextMenu();
+      item.action();
+    });
+    menu.appendChild(div);
+  });
+  document.body.appendChild(menu);
+  // Adjust if overflowing the viewport
+  const rect = menu.getBoundingClientRect();
+  if (rect.right  > window.innerWidth)  menu.style.left = (x - rect.width)  + 'px';
+  if (rect.bottom > window.innerHeight) menu.style.top  = (y - rect.height) + 'px';
+}
+function closeContextMenu() {
+  const m = document.getElementById('context-menu-fl');
+  if (m) m.remove();
+}
+function openConfirmDelete(desc, onConfirm) {
+  document.getElementById('confirm-delete-desc').textContent = desc;
+  pendingDeleteFn = onConfirm;
+  openOverlay('modal-confirm-delete');
+}
+function executeDelete() {
+  closeOverlay('modal-confirm-delete');
+  if (pendingDeleteFn) { pendingDeleteFn(); pendingDeleteFn = null; }
+}
+
+// ── Delete operations ──
+async function deleteGoal(goalId) {
+  try {
+    const res = await postData({ type: 'delete_goal', goal_id: goalId });
+    if (res.success) {
+      showToast('✅ 目標已刪除');
+      if (selectedGoalId === goalId) { selectedGoalId = null; selectedStrategy = null; }
+      await loadAndRender();
+    } else { showToast('❌ ' + (res.message || '刪除失敗'), true); }
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+}
+async function deleteStrategy(goalId, strategyName) {
+  try {
+    const res = await postData({ type: 'delete_strategy', goal_id: goalId, strategy_name: strategyName });
+    if (res.success) {
+      showToast('✅ 策略已刪除');
+      if (selectedStrategy === strategyName) selectedStrategy = null;
+      await loadAndRender();
+    } else { showToast('❌ ' + (res.message || '刪除失敗'), true); }
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+}
+async function deleteAction(actionId) {
+  try {
+    const res = await postData({ type: 'delete_action', action_id: actionId });
+    if (res.success) {
+      showToast('✅ 行動已刪除');
+      await loadAndRender();
+    } else { showToast('❌ ' + (res.message || '刪除失敗'), true); }
+  } catch(e) { showToast('❌ 網路錯誤', true); }
 }
 
 // ── Traffic popup ──

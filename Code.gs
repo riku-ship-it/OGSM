@@ -222,6 +222,49 @@ function doPost(e) {
       }
       result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
 
+    // ---- delete_action：刪除指定行動項目 ----
+    } else if (body.type === 'delete_action') {
+      var targetId = String(body.action_id);
+      var rowsToDelete = [];
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][6]) === targetId) {
+          rowsToDelete.push(i + 1);
+        }
+      }
+      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
+        sheet.deleteRow(rowsToDelete[j]);
+      }
+      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到行動：' + targetId });
+
+    // ---- delete_strategy：刪除指定策略（含所有行動）----
+    } else if (body.type === 'delete_strategy') {
+      var goalId    = String(body.goal_id);
+      var stratName = String(body.strategy_name || '');
+      var rowsToDelete = [];
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId && String(data[i][7]) === stratName) {
+          rowsToDelete.push(i + 1);
+        }
+      }
+      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
+        sheet.deleteRow(rowsToDelete[j]);
+      }
+      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到策略：' + stratName });
+
+    // ---- delete_goal：刪除整個支線目標（含所有策略與行動）----
+    } else if (body.type === 'delete_goal') {
+      var goalId = String(body.goal_id);
+      var rowsToDelete = [];
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId) {
+          rowsToDelete.push(i + 1);
+        }
+      }
+      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
+        sheet.deleteRow(rowsToDelete[j]);
+      }
+      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到目標：' + goalId });
+
     // ---- 預設：依行動編號更新行動欄位 ----
     } else {
       var targetId = String(body.id);
