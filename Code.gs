@@ -83,7 +83,8 @@ function doGet(e) {
           name:         String(row[3] || ''),
           progress:     Number(row[4])  || 0,
           color:        String(row[5]  || 'blue').toLowerCase().trim(),
-          traffic_light: String(row[14] || '')
+          traffic_light: String(row[14] || ''),
+          deadline:      formatDate(row[15])
         };
       }
 
@@ -209,6 +210,19 @@ function doPost(e) {
       }
       result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動：' + targetId });
 
+    // ---- update_goal_deadline：更新目標截止日期（P欄，col 16）----
+    } else if (body.type === 'update_goal_deadline') {
+      var goalId   = String(body.goal_id);
+      var deadline = String(body.deadline || '');
+      var count    = 0;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId) {
+          sheet.getRange(i + 1, 16).setValue(deadline);
+          count++;
+        }
+      }
+      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
+
     // ---- update_goal_traffic：更新目標交通燈（O欄，col 15）----
     } else if (body.type === 'update_goal_traffic') {
       var goalId = String(body.goal_id);
@@ -282,7 +296,8 @@ function doPost(e) {
         '',   // L - due_date
         0,    // M - progress
         '',   // N - status
-        ''    // O - traffic_light
+        '',   // O - traffic_light
+        String(body.goal_deadline || '')  // P - goal_deadline
       ];
       sheet.appendRow(newRow);
       result = JSON.stringify({ success: true, message: '新增成功' });
@@ -304,7 +319,8 @@ function doPost(e) {
         String(body.due_date     || ''),
         Number(body.progress)    || 0,
         String(body.status       || '未開始'),
-        ''    // O - traffic_light
+        '',   // O - traffic_light
+        ''    // P - goal_deadline（繼承，由目標列更新）
       ];
       sheet.appendRow(newRow);
       result = JSON.stringify({ success: true, message: '新增成功' });
