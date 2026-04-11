@@ -101,13 +101,6 @@ body {
   gap: 8px;
   margin-bottom: 10px;
 }
-.obj-line { flex: 1; height: 1px; background: var(--border); }
-.obj-pct-badge {
-  font-size: 13px;
-  font-weight: 700;
-  color: #5B4FCF;
-  font-family: var(--mono);
-}
 .obj-name {
   font-size: 20px;
   font-weight: 700;
@@ -211,7 +204,14 @@ body {
 }
 .goal-item.active::before { opacity: 1; }
 
-.goal-item-num { font-size: 10px; font-weight: 600; color: var(--text3); font-family: var(--mono); margin-bottom: 4px; }
+.goal-item-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.goal-item-num { font-size: 10px; font-weight: 600; color: var(--text3); font-family: var(--mono); }
 .goal-item-name {
   font-size: 13px; font-weight: 600; color: var(--text);
   line-height: 1.4; margin-bottom: 8px;
@@ -247,7 +247,17 @@ body {
   background: color-mix(in srgb, var(--goal-color, var(--teal)) 12%, transparent);
   border-color: color-mix(in srgb, var(--goal-color, var(--teal)) 40%, transparent);
 }
-.strategy-item-num { font-size: 10px; font-weight: 600; color: var(--text3); font-family: var(--mono); margin-bottom: 4px; }
+.strategy-item-top-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 4px;
+}
+.strategy-item-num { font-size: 10px; font-weight: 600; color: var(--text3); font-family: var(--mono); }
+.strategy-pct-badge {
+  font-size: 11px; font-weight: 700; font-family: var(--mono);
+  padding: 1px 6px; border-radius: 99px;
+  border: 1px solid; flex-shrink: 0;
+  background: transparent;
+}
 .strategy-item-name {
   font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 6px;
   outline: none; cursor: text;
@@ -441,17 +451,28 @@ body {
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.error { background: #7f1d1d; border-color: #b91c1c; color: #fca5a5; }
 
-/* ── Goal Traffic Light ── */
-.goal-traffic-wrap { display: flex; align-items: center; gap: 5px; }
-.traffic-dot {
-  width: 10px; height: 10px; border-radius: 50%; cursor: pointer;
-  opacity: .25; transition: opacity .15s, transform .15s; flex-shrink: 0;
+/* ── Goal Traffic Light Badge ── */
+.goal-traffic-badge-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+.traffic-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px 2px 5px; border-radius: 99px;
+  border: 1px solid transparent;
+  cursor: pointer; font-size: 11px; font-weight: 600;
+  transition: filter .15s; white-space: nowrap;
 }
-.traffic-dot:hover { opacity: .6; transform: scale(1.2); }
-.traffic-dot.active { opacity: 1; transform: scale(1.1); }
-.traffic-dot-red    { background: #ef4444; }
-.traffic-dot-yellow { background: #f59e0b; }
-.traffic-dot-green  { background: #10b981; }
+.traffic-badge:hover { filter: brightness(.92); }
+.traffic-badge-red    { background: rgba(239,68,68,.1);   color: #dc2626; border-color: rgba(239,68,68,.35); }
+.traffic-badge-yellow { background: rgba(245,158,11,.1);  color: #b45309; border-color: rgba(245,158,11,.35); }
+.traffic-badge-green  { background: rgba(16,185,129,.1);  color: #059669; border-color: rgba(16,185,129,.35); }
+
+.traffic-badge-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.traffic-badge-dot-red    { background: #ef4444; }
+.traffic-badge-dot-yellow { background: #f59e0b; }
+.traffic-badge-dot-green  { background: #10b981; }
+
 .traffic-def-btn {
   background: none; border: none; cursor: pointer; padding: 1px 3px;
   color: var(--text3); font-size: 10px; border-radius: 3px;
@@ -460,6 +481,36 @@ body {
 .goal-item:hover .traffic-def-btn,
 .goal-item.active .traffic-def-btn { opacity: 1; }
 .traffic-def-btn:hover { color: var(--text2); }
+
+/* ── Traffic Light Popup ── */
+.traffic-popup-fl {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  min-width: 110px; position: fixed; z-index: 600;
+}
+.traffic-popup-opt {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: 4px; cursor: pointer;
+  font-size: 11px; font-weight: 600; transition: background .1s;
+  color: var(--text2);
+}
+.traffic-popup-opt:hover { background: rgba(0,0,0,.06); }
+.traffic-popup-opt.current { color: var(--text); }
+.traffic-popup-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.traffic-popup-dot-red    { background: #ef4444; }
+.traffic-popup-dot-yellow { background: #f59e0b; }
+.traffic-popup-dot-green  { background: #10b981; }
+.traffic-popup-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.traffic-popup-edit {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: 4px; cursor: pointer;
+  font-size: 11px; font-weight: 500; color: var(--text3);
+  transition: background .1s;
+}
+.traffic-popup-edit:hover { background: rgba(0,0,0,.06); color: var(--text2); }
 
 /* ── Action status floating popup ── */
 .action-status-popup-fl {
