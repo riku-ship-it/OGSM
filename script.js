@@ -776,7 +776,7 @@ function renderStaffList() {
   const container = document.getElementById('topbar-staff-list');
   if (!container) return;
   container.innerHTML = staffList.map(name =>
-    `<button class="staff-chip${name === currentStaff ? ' active' : ''}" onclick="switchStaff(${JSON.stringify(name)})">${escHtml(name)}</button>`
+    `<button class="staff-chip${name === currentStaff ? ' active' : ''}" onclick="switchStaff('${name}')">${escHtml(name)}</button>`
   ).join('');
 }
 
