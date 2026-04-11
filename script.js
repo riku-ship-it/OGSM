@@ -43,15 +43,11 @@ function render() {
 }
 
 function renderObjective() {
-  const { objectives, goals } = state;
+  const { objectives } = state;
   const obj = objectives[0] || { title: '請設定目的', id: '' };
-  const avg = goals.length
-    ? Math.round(goals.reduce((s,g) => s + (g.progress||0), 0) / goals.length)
-    : 0;
 
   const section = document.getElementById('obj-section');
   section.style.display = 'block';
-  document.getElementById('obj-pct-badge').textContent = avg + '%';
 
   const nameEl = document.getElementById('obj-name');
   if (nameEl.textContent !== obj.title) nameEl.textContent = obj.title;
@@ -93,33 +89,69 @@ function renderColumns() {
       item.style.setProperty('--goal-color', color);
       const tl = goal.traffic_light || 'green';
       const tdefs = getTrafficDefs(goal.id);
+      const tlLabel = tdefs[tl] || (tl === 'red' ? '紅燈' : tl === 'yellow' ? '黃燈' : '綠燈');
       item.innerHTML = `
-        <div class="goal-item-num">目標 ${idx+1}</div>
-        <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
-        <div class="goal-item-meta">
-          <div class="goal-traffic-wrap">
-            <span class="traffic-dot traffic-dot-red${tl==='red'?' active':''}" title="${escHtml(tdefs.red||'紅燈')}" data-light="red"></span>
-            <span class="traffic-dot traffic-dot-yellow${tl==='yellow'?' active':''}" title="${escHtml(tdefs.yellow||'黃燈')}" data-light="yellow"></span>
-            <span class="traffic-dot traffic-dot-green${tl==='green'?' active':''}" title="${escHtml(tdefs.green||'綠燈')}" data-light="green"></span>
+        <div class="goal-item-top-row">
+          <div class="goal-item-num">目標 ${idx+1}</div>
+          <div class="goal-traffic-badge-wrap">
+            <span class="traffic-badge traffic-badge-${escHtml(tl)}">
+              <span class="traffic-badge-dot traffic-badge-dot-${escHtml(tl)}"></span>
+              <span class="traffic-badge-label">${escHtml(tlLabel)}</span>
+            </span>
             <button class="traffic-def-btn" title="定義燈號意思">✎</button>
           </div>
+        </div>
+        <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
+        <div class="goal-item-meta">
           <span class="goal-item-arrow">→</span>
         </div>
       `;
       // Click to select
       item.addEventListener('click', function(e) {
         if (e.target.classList.contains('goal-item-name')) return;
-        if (e.target.closest('.goal-traffic-wrap')) return;
+        if (e.target.closest('.goal-traffic-badge-wrap')) return;
         selectedGoalId = selectedGoalId === goal.id ? null : goal.id;
         selectedStrategy = null;
         renderColumns();
       });
-      // Traffic dots
-      item.querySelectorAll('.traffic-dot').forEach(dot => {
-        dot.addEventListener('click', function(e) {
-          e.stopPropagation();
-          updateGoalTraffic(goal.id, dot.dataset.light);
+      // Traffic badge click → popup
+      item.querySelector('.traffic-badge').addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeTrafficPopup();
+        const rect = this.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.id = 'traffic-popup-fl';
+        popup.className = 'traffic-popup-fl';
+        popup.style.top  = (rect.bottom + 4) + 'px';
+        popup.style.right = (window.innerWidth - rect.right) + 'px';
+        const currentDefs = getTrafficDefs(goal.id);
+        const lights = [
+          { key: 'green',  label: currentDefs.green  || '綠燈' },
+          { key: 'yellow', label: currentDefs.yellow || '黃燈' },
+          { key: 'red',    label: currentDefs.red    || '紅燈' },
+        ];
+        popup.innerHTML = lights.map(l => `
+          <div class="traffic-popup-opt${tl === l.key ? ' current' : ''}" data-light="${escHtml(l.key)}">
+            <span class="traffic-popup-dot traffic-popup-dot-${escHtml(l.key)}"></span>
+            <span>${escHtml(l.label)}</span>
+          </div>
+        `).join('') + `
+          <div class="traffic-popup-sep"></div>
+          <div class="traffic-popup-edit"><span>✎ 編輯定義</span></div>
+        `;
+        popup.querySelectorAll('.traffic-popup-opt').forEach(opt => {
+          opt.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            closeTrafficPopup();
+            updateGoalTraffic(goal.id, opt.dataset.light);
+          });
         });
+        popup.querySelector('.traffic-popup-edit').addEventListener('click', function(ev) {
+          ev.stopPropagation();
+          closeTrafficPopup();
+          openTrafficDefModal(goal.id);
+        });
+        document.body.appendChild(popup);
       });
       // Define button
       item.querySelector('.traffic-def-btn').addEventListener('click', function(e) {
@@ -179,7 +211,10 @@ function renderColumns() {
       item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
       item.style.setProperty('--goal-color', stratColor);
       item.innerHTML = `
-        <div class="strategy-item-num">S${idx+1}</div>
+        <div class="strategy-item-top-row">
+          <div class="strategy-item-num">S${idx+1}</div>
+          <span class="strategy-pct-badge" style="color:${stratColor};border-color:color-mix(in srgb,${stratColor} 50%,transparent)">${stratPct}%</span>
+        </div>
         <div class="strategy-item-name" contenteditable="true" spellcheck="false">${escHtml(strat)}</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="strategy-progress-wrap">
@@ -444,7 +479,7 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
-document.addEventListener('click', function() { closeStatusPopup(); });
+document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); });
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
 });
@@ -514,6 +549,12 @@ function saveTrafficDefsUI() {
   closeOverlay('modal-traffic-def');
   renderColumns();
   showToast('✅ 燈號定義已儲存');
+}
+
+// ── Traffic popup ──
+function closeTrafficPopup() {
+  const p = document.getElementById('traffic-popup-fl');
+  if (p) p.remove();
 }
 
 // ── Action status inline update ──
