@@ -91,6 +91,7 @@ function renderColumns() {
       const tl = goal.traffic_light || 'green';
       const tdefs = getTrafficDefs(goal.id);
       const tlLabel = tdefs[tl] || (tl === 'red' ? '紅燈' : tl === 'yellow' ? '黃燈' : '綠燈');
+      const deadline = getGoalDeadline(goal.id);
       item.innerHTML = `
         <div class="goal-item-top-row">
           <div class="goal-item-num">目標 ${idx+1}</div>
@@ -104,6 +105,7 @@ function renderColumns() {
         </div>
         <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
         <div class="goal-item-meta">
+          <span class="goal-deadline-btn ${deadline ? 'has-date' : ''}">${deadline ? fmtDate(deadline) : '+ 截止日'}</span>
           <span class="goal-item-arrow">→</span>
         </div>
       `;
@@ -158,6 +160,12 @@ function renderColumns() {
       item.querySelector('.traffic-def-btn').addEventListener('click', function(e) {
         e.stopPropagation();
         openTrafficDefModal(goal.id);
+      });
+      // Deadline button
+      item.querySelector('.goal-deadline-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeDeadlinePopup();
+        showGoalDeadlinePopup(e.currentTarget, goal.id);
       });
       // Inline edit goal name
       const nameEl = item.querySelector('.goal-item-name');
@@ -443,28 +451,35 @@ async function saveEditModal() {
 }
 
 // ── Add Goal Modal ──
-function openAddGoalModal() { openOverlay('modal-add-goal'); }
+function openAddGoalModal() {
+  document.getElementById('new-goal-due').value = '';
+  openOverlay('modal-add-goal');
+}
 function closeAddGoalModal() { closeOverlay('modal-add-goal'); }
 async function saveNewGoal() {
   const name = document.getElementById('new-goal-name').value.trim();
   const color = document.getElementById('new-goal-color').value;
   const progress = Number(document.getElementById('new-goal-progress').value);
+  const due = document.getElementById('new-goal-due').value;
   if (!name) { showToast('❌ 請填寫支線名稱', true); return; }
   const btn = document.getElementById('add-goal-save-btn');
   btn.disabled = true; btn.textContent = '新增中';
   const obj = state.objectives[0] || { id:'1' };
+  const newGoalId = 'G'+Date.now();
   const payload = {
     type:'add_goal', obj_id:obj.id, obj_title:obj.title,
-    goal_id:'G'+Date.now(), goal_name:name, goal_progress:progress, goal_color:color,
+    goal_id:newGoalId, goal_name:name, goal_progress:progress, goal_color:color,
     action_id:'A'+Date.now(),
   };
   try {
     const res = await postData(payload);
     if (res.success) {
+      if (due) saveGoalDeadline(newGoalId, due);
       showToast('✅ 新增成功'); closeAddGoalModal();
       document.getElementById('new-goal-name').value = '';
       document.getElementById('new-goal-progress').value = 0;
       document.getElementById('new-goal-progress-display').textContent = '0%';
+      document.getElementById('new-goal-due').value = '';
       await loadAndRender();
     } else showToast('❌ '+(res.message||'新增失敗'), true);
   } catch(e) { showToast('❌ 網路錯誤', true); }
@@ -516,7 +531,7 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
-document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); closeContextMenu(); });
+document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); closeContextMenu(); closeDeadlinePopup(); });
 document.addEventListener('contextmenu', function() { closeContextMenu(); });
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') {
@@ -546,6 +561,57 @@ function fmtDate(s) {
   if (m) return parseInt(m[2])+'/'+parseInt(m[3]);
   const d = new Date(s);
   return isNaN(d) ? '' : (d.getMonth()+1)+'/'+d.getDate();
+}
+
+// ── Goal Deadline helpers ──
+function getGoalDeadline(goalId) {
+  return localStorage.getItem('ogsm-goal-deadline-' + goalId) || '';
+}
+function saveGoalDeadline(goalId, date) {
+  if (date) localStorage.setItem('ogsm-goal-deadline-' + goalId, date);
+  else localStorage.removeItem('ogsm-goal-deadline-' + goalId);
+}
+function closeDeadlinePopup() {
+  const p = document.getElementById('goal-deadline-popup-fl');
+  if (p) p.remove();
+}
+function showGoalDeadlinePopup(anchor, goalId) {
+  const rect = anchor.getBoundingClientRect();
+  const popup = document.createElement('div');
+  popup.id = 'goal-deadline-popup-fl';
+  popup.className = 'goal-deadline-popup-fl';
+  const current = getGoalDeadline(goalId);
+  popup.innerHTML = `
+    <input type="date" class="deadline-popup-input" value="${escHtml(current)}" />
+    <div class="deadline-popup-actions">
+      <button class="deadline-popup-clear">清除</button>
+      <button class="deadline-popup-save">確認</button>
+    </div>
+  `;
+  // Position: prefer below the anchor, align left
+  document.body.appendChild(popup);
+  const popRect = popup.getBoundingClientRect();
+  let top = rect.bottom + 4;
+  let left = rect.left;
+  if (top + popRect.height > window.innerHeight) top = rect.top - popRect.height - 4;
+  if (left + popRect.width > window.innerWidth) left = window.innerWidth - popRect.width - 8;
+  popup.style.top  = top + 'px';
+  popup.style.left = left + 'px';
+  popup.querySelector('.deadline-popup-save').addEventListener('click', function(e) {
+    e.stopPropagation();
+    const date = popup.querySelector('.deadline-popup-input').value;
+    saveGoalDeadline(goalId, date);
+    closeDeadlinePopup();
+    renderColumns();
+  });
+  popup.querySelector('.deadline-popup-clear').addEventListener('click', function(e) {
+    e.stopPropagation();
+    saveGoalDeadline(goalId, '');
+    closeDeadlinePopup();
+    renderColumns();
+  });
+  popup.addEventListener('click', function(e) { e.stopPropagation(); });
+  popup.querySelector('.deadline-popup-input').focus();
 }
 
 // ── Traffic Light helpers ──
