@@ -105,8 +105,11 @@ function renderColumns() {
         </div>
         <div class="goal-item-name" contenteditable="true" spellcheck="false">${escHtml(goal.name)}</div>
         <div class="goal-item-meta">
-          <span class="goal-deadline-btn ${deadline ? 'has-date' : ''}">${deadline ? fmtDate(deadline) : '+ 截止日'}</span>
-          <span class="goal-item-arrow">→</span>
+          <span></span>
+          <div class="goal-meta-right">
+            <span class="goal-deadline-btn ${deadline ? 'has-date' : ''}">${deadline ? fmtDate(deadline) : '+ 截止日'}</span>
+            <span class="goal-item-arrow">→</span>
+          </div>
         </div>
       `;
       // Click to select
@@ -565,11 +568,18 @@ function fmtDate(s) {
 
 // ── Goal Deadline helpers ──
 function getGoalDeadline(goalId) {
-  return localStorage.getItem('ogsm-goal-deadline-' + goalId) || '';
+  const goal = state.goals.find(g => g.id === goalId);
+  return goal ? (goal.deadline || '') : '';
 }
-function saveGoalDeadline(goalId, date) {
-  if (date) localStorage.setItem('ogsm-goal-deadline-' + goalId, date);
-  else localStorage.removeItem('ogsm-goal-deadline-' + goalId);
+async function saveGoalDeadline(goalId, date) {
+  const goal = state.goals.find(g => g.id === goalId);
+  if (goal) goal.deadline = date;
+  try {
+    const res = await postData({ type: 'update_goal_deadline', goal_id: goalId, deadline: date });
+    if (!res.success) showToast('❌ 日期儲存失敗', true);
+  } catch(e) {
+    showToast('❌ 網路錯誤', true);
+  }
 }
 function closeDeadlinePopup() {
   const p = document.getElementById('goal-deadline-popup-fl');
