@@ -15,14 +15,10 @@
 <div class="topbar">
   <span class="topbar-logo">OGSM</span>
   <div class="topbar-sep"></div>
-  <span class="topbar-meta" id="topbar-meta">載入中</span>
-  <button class="topbar-btn" onclick="showToast('篩選功能開發中')">
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2h14v1.5L9 9v5l-2-1V9L1 3.5V2z"/></svg>
-    篩選成員
-  </button>
-  <button class="topbar-btn topbar-btn-primary" onclick="openAddGoalModal()">
+  <div class="topbar-staff-list" id="topbar-staff-list"></div>
+  <button class="topbar-btn topbar-btn-primary" onclick="openAddStaffModal()">
     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 010 2H9v4a1 1 0 01-2 0V9H3a1 1 0 010-2h4V3a1 1 0 011-1z"/></svg>
-    新增目標
+    新增職員
   </button>
 </div>
 
@@ -225,6 +221,29 @@
     <div class="modal-footer">
       <button class="btn btn-cancel" onclick="closeOverlay('modal-confirm-delete')">取消</button>
       <button class="btn btn-delete" onclick="executeDelete()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Staff Modal ── -->
+<div class="modal-overlay" id="modal-add-staff">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">新增職員</div>
+        <div class="modal-sub">新增後可切換至該職員的 OGSM 看板</div>
+      </div>
+      <button class="modal-close" onclick="closeAddStaffModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">職員名稱 <span style="color:#f5876e">*</span></label>
+        <input type="text" class="form-input" id="new-staff-name" placeholder="例：Riku" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddStaffModal()">取消</button>
+      <button class="btn btn-save" id="add-staff-save-btn" onclick="saveNewStaff()">新增職員</button>
     </div>
   </div>
 </div>

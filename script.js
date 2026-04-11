@@ -27,13 +27,23 @@ let addingToGoalId        = null;
 let editingTrafficGoalId  = null;
 let pendingDeleteFn       = null;
 
+// ── Staff State ──
+let currentStaff = localStorage.getItem('ogsm-current-staff') || 'Riku';
+let staffList    = [];
+
 // ── Fetch / Post ──
 async function fetchData() {
-  const res = await fetch(GAS_URL + '?api=1', { method: 'GET' });
+  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(currentStaff), { method: 'GET' });
   return await res.json();
 }
+async function fetchStaffList() {
+  const res = await fetch(GAS_URL + '?api=1&action=staff_list', { method: 'GET' });
+  const data = await res.json();
+  return data.staff || [];
+}
 async function postData(payload) {
-  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+  const body = { ...payload, staff: currentStaff };
+  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(body) });
   return await res.json();
 }
 
@@ -67,9 +77,6 @@ function renderObjective() {
     if (e.key==='Escape') { nameEl.textContent = obj.title; nameEl.blur(); }
   };
 
-  const year = new Date().getFullYear();
-  document.getElementById('topbar-meta').textContent =
-    `${year} 年度・${state.goals.length} 個目標・${state.actions.length} 項行動`;
 }
 
 function renderColumns() {
@@ -764,6 +771,64 @@ async function updateActionStatus(actionId, status) {
   }
 }
 
+// ── Staff Management ──
+function renderStaffList() {
+  const container = document.getElementById('topbar-staff-list');
+  if (!container) return;
+  container.innerHTML = staffList.map(name =>
+    `<button class="staff-chip${name === currentStaff ? ' active' : ''}" onclick="switchStaff(${JSON.stringify(name)})">${escHtml(name)}</button>`
+  ).join('');
+}
+
+async function switchStaff(name) {
+  if (name === currentStaff) return;
+  currentStaff = name;
+  localStorage.setItem('ogsm-current-staff', name);
+  selectedGoalId = null;
+  selectedStrategy = null;
+  renderStaffList();
+  await loadAndRender();
+}
+
+async function initStaff() {
+  try {
+    staffList = await fetchStaffList();
+    if (!staffList.length) {
+      await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ type: 'add_staff', staff_name: 'Riku' }) });
+      staffList = ['Riku'];
+    }
+    if (!staffList.includes(currentStaff)) {
+      currentStaff = staffList[0];
+      localStorage.setItem('ogsm-current-staff', currentStaff);
+    }
+  } catch(e) {
+    staffList = [currentStaff];
+  }
+}
+
+function openAddStaffModal() {
+  document.getElementById('new-staff-name').value = '';
+  openOverlay('modal-add-staff');
+}
+function closeAddStaffModal() { closeOverlay('modal-add-staff'); }
+async function saveNewStaff() {
+  const name = document.getElementById('new-staff-name').value.trim();
+  if (!name) { showToast('❌ 請填寫職員名稱', true); return; }
+  if (staffList.includes(name)) { showToast('❌ 此職員已存在', true); return; }
+  const btn = document.getElementById('add-staff-save-btn');
+  btn.disabled = true; btn.textContent = '新增中';
+  try {
+    const res = await postData({ type: 'add_staff', staff_name: name });
+    if (res.success) {
+      staffList.push(name);
+      renderStaffList();
+      showToast('✅ 職員新增成功');
+      closeAddStaffModal();
+    } else { showToast('❌ '+(res.message||'新增失敗'), true); }
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '新增職員'; }
+}
+
 // ── Main ──
 async function loadAndRender() {
   try {
@@ -776,4 +841,10 @@ async function loadAndRender() {
   }
 }
 
-loadAndRender();
+async function init() {
+  await initStaff();
+  renderStaffList();
+  await loadAndRender();
+}
+
+init();
