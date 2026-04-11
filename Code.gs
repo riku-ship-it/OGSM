@@ -82,7 +82,8 @@ function doGet(e) {
           objective_id: objId,
           name:         String(row[3] || ''),
           progress:     Number(row[4])  || 0,
-          color:        String(row[5]  || 'blue').toLowerCase().trim()
+          color:        String(row[5]  || 'blue').toLowerCase().trim(),
+          traffic_light: String(row[14] || '')
         };
       }
 
@@ -207,6 +208,19 @@ function doPost(e) {
         }
       }
       result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動：' + targetId });
+
+    // ---- update_goal_traffic：更新目標交通燈（O欄，col 15）----
+    } else if (body.type === 'update_goal_traffic') {
+      var goalId = String(body.goal_id);
+      var light  = String(body.traffic_light || 'green');
+      var count  = 0;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][2]) === goalId) {
+          sheet.getRange(i + 1, 15).setValue(light);
+          count++;
+        }
+      }
+      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
 
     // ---- 預設：依行動編號更新行動欄位 ----
     } else {
