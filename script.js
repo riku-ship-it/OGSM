@@ -775,20 +775,23 @@ async function updateActionStatus(actionId, status) {
 function renderStaffList() {
   const container = document.getElementById('topbar-staff-list');
   if (!container) return;
-  container.innerHTML = '';
-  staffList.forEach(name => {
-    const chip = document.createElement('button');
-    chip.className = 'staff-chip' + (name === currentStaff ? ' active' : '');
-    chip.innerHTML = `<span class="staff-chip-label">${escHtml(name)}</span><span class="staff-chip-del" title="刪除職員">✕</span>`;
-    chip.addEventListener('click', function(e) {
-      if (e.target.classList.contains('staff-chip-del')) {
-        e.stopPropagation();
-        openDeleteStaffConfirm(name);
-      } else {
-        switchStaff(name);
-      }
+  container.innerHTML = staffList.map(name =>
+    `<button class="staff-chip${name === currentStaff ? ' active' : ''}" onclick="switchStaff('${name}')">${escHtml(name)}</button>`
+  ).join('');
+  container.querySelectorAll('.staff-chip').forEach((chip, i) => {
+    const name = staffList[i];
+    chip.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showContextMenu(e.clientX, e.clientY, [
+        { label: '刪除職員', icon: '🗑', danger: true, action: () => {
+          openConfirmDelete(
+            `確定要刪除職員「${name}」？\n此操作將一併刪除該職員的所有資料，無法復原。`,
+            () => deleteStaff(name)
+          );
+        }}
+      ]);
     });
-    container.appendChild(chip);
   });
 }
 
