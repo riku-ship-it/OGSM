@@ -265,6 +265,68 @@ function doPost(e) {
       }
       result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到目標：' + goalId });
 
+    // ---- add_goal：新增支線目標（寫入一列佔位列，action 欄留空）----
+    } else if (body.type === 'add_goal') {
+      var newRow = [
+        String(body.obj_id    || ''),
+        String(body.obj_title || ''),
+        String(body.goal_id   || ''),
+        String(body.goal_name || ''),
+        Number(body.goal_progress) || 0,
+        String(body.goal_color || 'blue'),
+        '',   // G - action_id（空，尚無行動）
+        '',   // H - strategy_name
+        '',   // I - action_name
+        '',   // J - assignee
+        '',   // K - start_date
+        '',   // L - due_date
+        0,    // M - progress
+        '',   // N - status
+        ''    // O - traffic_light
+      ];
+      sheet.appendRow(newRow);
+      result = JSON.stringify({ success: true, message: '新增成功' });
+
+    // ---- add_action：新增行動項目（含目標資料整列寫入）----
+    } else if (body.type === 'add_action') {
+      var newRow = [
+        String(body.obj_id       || ''),
+        String(body.obj_title    || ''),
+        String(body.goal_id      || ''),
+        String(body.goal_name    || ''),
+        Number(body.goal_progress) || 0,
+        String(body.goal_color   || 'blue'),
+        String(body.action_id    || ''),
+        String(body.strategy_name|| ''),
+        String(body.action_name  || ''),
+        String(body.assignee     || ''),
+        '',   // K - start_date
+        String(body.due_date     || ''),
+        Number(body.progress)    || 0,
+        String(body.status       || '未開始'),
+        ''    // O - traffic_light
+      ];
+      sheet.appendRow(newRow);
+      result = JSON.stringify({ success: true, message: '新增成功' });
+
+    // ---- update_action：依行動編號更新行動欄位（含行動名稱）----
+    } else if (body.type === 'update_action') {
+      var targetId = String(body.id);
+      var updated  = false;
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][6]) === targetId) {
+          var rowNum = i + 1;
+          if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
+          if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
+          if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
+          if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+          if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
+          updated = true;
+          break;
+        }
+      }
+      result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動編號：' + targetId });
+
     // ---- 預設：依行動編號更新行動欄位 ----
     } else {
       var targetId = String(body.id);
