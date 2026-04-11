@@ -1,5 +1,7 @@
 // ====================================================
-//  OGSM 策略看板系統 - Google Apps Script 後端（單一工作表版）
+//  OGSM 策略看板系統 - Google Apps Script 後端（多職員版）
+//
+//  工作表結構：每位職員一個工作表，工作表名稱 = 職員姓名
 //
 //  工作表欄位對應（1列 = 1筆行動項目，目標/支線資訊重複填入）：
 //    A(0)  編號       → Objective id
@@ -8,14 +10,16 @@
 //    D(3)  支線名稱   → Goal name
 //    E(4)  進度       → Goal progress
 //    F(5)  顏色       → Goal color
-//    G(6)  行動編號   → Action id  ← POST 以此欄定位列
+//    G(6)  行動編號   → Action id
 //    H(7)  策略名稱   → Action strategy_name
 //    I(8)  行動項目   → Action action_name
-//    J(9)  負責人     → Action assignee      ← POST 更新
+//    J(9)  負責人     → Action assignee
 //    K(10) 開始日期   → Action start_date
-//    L(11) 截止日期   → Action due_date      ← POST 更新
-//    M(12) 行動進度   → Action progress      ← POST 更新
-//    N(13) 狀態       → Action status        ← POST 更新
+//    L(11) 截止日期   → Action due_date
+//    M(12) 行動進度   → Action progress
+//    N(13) 狀態       → Action status
+//    O(14) 交通燈     → Goal traffic_light
+//    P(15) 截止日     → Goal deadline
 //
 //  部署方式：
 //    發布 → 部署為 Web 應用程式
@@ -23,22 +27,33 @@
 //    存取權限：所有人（含匿名）
 // ====================================================
 
-// ★ 如果你的工作表名稱不是「工作表1」，請修改這裡
-var SHEET_NAME = '工作表1';
+var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日'];
 
-// ====================================================
-//  HTML include 輔助函數
-//  用法：在 HTML 中以 <?!= include('css'); ?> 引入外部 HTML 檔案
-// ====================================================
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+// ── 取得或建立職員工作表 ──
+function getSheetForStaff(ss, staffName) {
+  var sheet = ss.getSheetByName(staffName);
+  if (sheet) return sheet;
+
+  // 遷移：若請求 Riku 且存在舊的「工作表1」，自動重新命名
+  if (staffName === 'Riku') {
+    var legacy = ss.getSheetByName('工作表1');
+    if (legacy) {
+      legacy.setName('Riku');
+      return legacy;
+    }
+  }
+
+  // 建立新工作表並加上標題列
+  var newSheet = ss.insertSheet(staffName);
+  newSheet.appendRow(HEADER_ROW);
+  return newSheet;
 }
 
-var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-
-
 // ====================================================
-//  GET：讀取單一工作表，回傳 { objectives, goals, actions }
+//  GET：
+//    ?api=1&action=staff_list → 回傳所有職員名稱（工作表名稱）
+//    ?api=1&staff=Riku        → 回傳 Riku 的 OGSM 資料
 // ====================================================
 function doGet(e) {
   if (!e || !e.parameter || !e.parameter.api) {
@@ -46,49 +61,56 @@ function doGet(e) {
       .setTitle('OGSM 策略看板')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
-  try {
-    var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-    var sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error('找不到工作表：' + SHEET_NAME);
 
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+    // ---- 回傳職員清單 ----
+    if (e.parameter.action === 'staff_list') {
+      // 遷移：若有「工作表1」且沒有「Riku」，先重新命名
+      var legacy = ss.getSheetByName('工作表1');
+      if (legacy && !ss.getSheetByName('Riku')) {
+        legacy.setName('Riku');
+      }
+      var names = ss.getSheets().map(function(s) { return s.getName(); });
+      return ContentService
+        .createTextOutput(JSON.stringify({ staff: names }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳指定職員的 OGSM 資料 ----
+    var staffName = e.parameter.staff || 'Riku';
+    var sheet = getSheetForStaff(ss, staffName);
     var data = sheet.getDataRange().getValues();
 
-    var objMap    = {};  // key = Objective id
-    var goalMap   = {};  // key = Goal id
-    var actions   = [];
+    var objMap  = {};
+    var goalMap = {};
+    var actions = [];
 
-    for (var i = 1; i < data.length; i++) {   // 跳過第 0 列（標題）
+    for (var i = 1; i < data.length; i++) {
       var row = data[i];
-
-      // 跳過完全空白的列
       if (!row[0] && row[0] !== 0 && !row[6] && row[6] !== 0) continue;
 
       var objId  = String(row[0] || '');
       var goalId = String(row[2] || '');
       var actId  = String(row[6] || '');
 
-      // ---- Objective 去重 ----
       if (objId && !objMap[objId]) {
-        objMap[objId] = {
-          id:    objId,
-          title: String(row[1] || '')
-        };
+        objMap[objId] = { id: objId, title: String(row[1] || '') };
       }
 
-      // ---- Goal 去重 ----
       if (goalId && !goalMap[goalId]) {
         goalMap[goalId] = {
-          id:           goalId,
-          objective_id: objId,
-          name:         String(row[3] || ''),
-          progress:     Number(row[4])  || 0,
-          color:        String(row[5]  || 'blue').toLowerCase().trim(),
+          id:            goalId,
+          objective_id:  objId,
+          name:          String(row[3] || ''),
+          progress:      Number(row[4])  || 0,
+          color:         String(row[5]  || 'blue').toLowerCase().trim(),
           traffic_light: String(row[14] || ''),
           deadline:      formatDate(row[15])
         };
       }
 
-      // ---- Action（每列都加） ----
       if (actId) {
         actions.push({
           id:            actId,
@@ -110,11 +132,9 @@ function doGet(e) {
       actions:    actions
     });
 
-    var output = ContentService
+    return ContentService
       .createTextOutput(payload)
       .setMimeType(ContentService.MimeType.JSON);
-
-    return output;
 
   } catch (err) {
     return ContentService
@@ -136,260 +156,232 @@ function formatDate(value) {
 }
 
 // ====================================================
-//  POST：依「行動編號（G欄）」定位列，更新指定欄位
-//  接收 JSON：{ id, progress, status, assignee, due_date }
-//
-//  欄位對應（1-indexed 給 getRange 使用）：
-//    J = 欄 10 → 負責人
-//    L = 欄 12 → 截止日期
-//    M = 欄 13 → 行動進度
-//    N = 欄 14 → 狀態
+//  POST：依 body.staff 決定使用哪張工作表
 // ====================================================
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
-
-    var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-    var sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) throw new Error('找不到工作表：' + SHEET_NAME);
-
-    var data = sheet.getDataRange().getValues();
+    var ss   = SpreadsheetApp.openById(SPREADSHEET_ID);
     var result;
 
-    // ---- rename_objective：更新所有符合 obj_id 的列的 B 欄（目標標題）----
-    if (body.type === 'rename_objective') {
-      var objId    = String(body.obj_id);
-      var newTitle = String(body.new_title || '').trim();
-      var count    = 0;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][0]) === objId) {
-          sheet.getRange(i + 1, 2).setValue(newTitle);
-          count++;
-        }
+    // ---- add_staff：新增職員工作表 ----
+    if (body.type === 'add_staff') {
+      var staffName = String(body.staff_name || '').trim();
+      if (!staffName) throw new Error('職員名稱不能為空');
+      var existing = ss.getSheetByName(staffName);
+      if (existing) {
+        result = JSON.stringify({ success: false, message: '職員已存在：' + staffName });
+      } else {
+        var newSheet = ss.insertSheet(staffName);
+        newSheet.appendRow(HEADER_ROW);
+        result = JSON.stringify({ success: true, message: '新增成功' });
       }
-      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + objId });
 
-    // ---- rename_goal：更新所有符合 goal_id 的列的 D 欄（支線名稱）----
-    } else if (body.type === 'rename_goal') {
-      var goalId  = String(body.goal_id);
-      var newName = String(body.new_name || '').trim();
-      var count   = 0;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId) {
-          sheet.getRange(i + 1, 4).setValue(newName);
-          count++;
-        }
-      }
-      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到支線：' + goalId });
-
-    // ---- rename_strategy：更新符合 goal_id + old_name 的列的 H 欄（策略名稱）----
-    } else if (body.type === 'rename_strategy') {
-      var goalId  = String(body.goal_id);
-      var oldName = String(body.old_name || '');
-      var newName = String(body.new_name || '').trim();
-      var count   = 0;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId && String(data[i][7]) === oldName) {
-          sheet.getRange(i + 1, 8).setValue(newName);
-          count++;
-        }
-      }
-      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略：' + oldName });
-
-    // ---- rename_action：更新符合 action_id 的列的 I 欄（行動名稱）----
-    } else if (body.type === 'rename_action') {
-      var targetId = String(body.action_id);
-      var newName  = String(body.new_name || '').trim();
-      var updated  = false;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][6]) === targetId) {
-          sheet.getRange(i + 1, 9).setValue(newName);
-          updated = true;
-          break;
-        }
-      }
-      result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動：' + targetId });
-
-    // ---- update_goal_deadline：更新目標截止日期（P欄，col 16）----
-    } else if (body.type === 'update_goal_deadline') {
-      var goalId   = String(body.goal_id);
-      var deadline = String(body.deadline || '');
-      var count    = 0;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId) {
-          sheet.getRange(i + 1, 16).setValue(deadline);
-          count++;
-        }
-      }
-      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
-
-    // ---- update_goal_traffic：更新目標交通燈（O欄，col 15）----
-    } else if (body.type === 'update_goal_traffic') {
-      var goalId = String(body.goal_id);
-      var light  = String(body.traffic_light || 'green');
-      var count  = 0;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId) {
-          sheet.getRange(i + 1, 15).setValue(light);
-          count++;
-        }
-      }
-      result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
-
-    // ---- delete_action：刪除指定行動項目 ----
-    } else if (body.type === 'delete_action') {
-      var targetId = String(body.action_id);
-      var rowsToDelete = [];
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][6]) === targetId) {
-          rowsToDelete.push(i + 1);
-        }
-      }
-      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
-        sheet.deleteRow(rowsToDelete[j]);
-      }
-      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到行動：' + targetId });
-
-    // ---- delete_strategy：刪除指定策略（含所有行動）----
-    } else if (body.type === 'delete_strategy') {
-      var goalId    = String(body.goal_id);
-      var stratName = String(body.strategy_name || '');
-      var rowsToDelete = [];
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId && String(data[i][7]) === stratName) {
-          rowsToDelete.push(i + 1);
-        }
-      }
-      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
-        sheet.deleteRow(rowsToDelete[j]);
-      }
-      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到策略：' + stratName });
-
-    // ---- delete_goal：刪除整個支線目標（含所有策略與行動）----
-    } else if (body.type === 'delete_goal') {
-      var goalId = String(body.goal_id);
-      var rowsToDelete = [];
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][2]) === goalId) {
-          rowsToDelete.push(i + 1);
-        }
-      }
-      for (var j = rowsToDelete.length - 1; j >= 0; j--) {
-        sheet.deleteRow(rowsToDelete[j]);
-      }
-      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到目標：' + goalId });
-
-    // ---- add_goal：新增支線目標（寫入一列佔位列，action 欄留空）----
-    } else if (body.type === 'add_goal') {
-      var newRow = [
-        String(body.obj_id    || ''),
-        String(body.obj_title || ''),
-        String(body.goal_id   || ''),
-        String(body.goal_name || ''),
-        Number(body.goal_progress) || 0,
-        String(body.goal_color || 'blue'),
-        '',   // G - action_id（空，尚無行動）
-        '',   // H - strategy_name
-        '',   // I - action_name
-        '',   // J - assignee
-        '',   // K - start_date
-        '',   // L - due_date
-        0,    // M - progress
-        '',   // N - status
-        '',   // O - traffic_light
-        String(body.goal_deadline || '')  // P - goal_deadline
-      ];
-      sheet.appendRow(newRow);
-      result = JSON.stringify({ success: true, message: '新增成功' });
-
-    // ---- add_action：新增行動項目（含目標資料整列寫入）----
-    } else if (body.type === 'add_action') {
-      var newRow = [
-        String(body.obj_id       || ''),
-        String(body.obj_title    || ''),
-        String(body.goal_id      || ''),
-        String(body.goal_name    || ''),
-        Number(body.goal_progress) || 0,
-        String(body.goal_color   || 'blue'),
-        String(body.action_id    || ''),
-        String(body.strategy_name|| ''),
-        String(body.action_name  || ''),
-        String(body.assignee     || ''),
-        '',   // K - start_date
-        String(body.due_date     || ''),
-        Number(body.progress)    || 0,
-        String(body.status       || '未開始'),
-        '',   // O - traffic_light
-        ''    // P - goal_deadline（繼承，由目標列更新）
-      ];
-      sheet.appendRow(newRow);
-      result = JSON.stringify({ success: true, message: '新增成功' });
-
-    // ---- update_action：依行動編號更新行動欄位（含行動名稱）----
-    } else if (body.type === 'update_action') {
-      var targetId = String(body.id);
-      var updated  = false;
-      for (var i = 1; i < data.length; i++) {
-        if (String(data[i][6]) === targetId) {
-          var rowNum = i + 1;
-          if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
-          if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
-          if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
-          if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
-          if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
-          updated = true;
-          break;
-        }
-      }
-      result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動編號：' + targetId });
-
-    // ---- 預設：依行動編號更新行動欄位 ----
     } else {
-      var targetId = String(body.id);
-      var updated  = false;
+      // 所有其他操作使用 body.staff 指定的工作表
+      var staffName = String(body.staff || 'Riku');
+      var sheet = getSheetForStaff(ss, staffName);
+      var data  = sheet.getDataRange().getValues();
 
-      for (var i = 1; i < data.length; i++) {
-        var actionId = String(data[i][6]); // G 欄（index 6）= 行動編號
-        if (actionId === targetId) {
-          var rowNum = i + 1;
-
-          // J（欄 10）= 負責人
-          if (body.assignee !== undefined) {
-            sheet.getRange(rowNum, 10).setValue(body.assignee);
+      // ---- rename_objective ----
+      if (body.type === 'rename_objective') {
+        var objId    = String(body.obj_id);
+        var newTitle = String(body.new_title || '').trim();
+        var count    = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][0]) === objId) {
+            sheet.getRange(i + 1, 2).setValue(newTitle);
+            count++;
           }
-          // L（欄 12）= 截止日期
-          if (body.due_date !== undefined) {
-            sheet.getRange(rowNum, 12).setValue(body.due_date);
-          }
-          // M（欄 13）= 行動進度
-          if (body.progress !== undefined) {
-            sheet.getRange(rowNum, 13).setValue(Number(body.progress));
-          }
-          // N（欄 14）= 狀態
-          if (body.status !== undefined) {
-            sheet.getRange(rowNum, 14).setValue(body.status);
-          }
-
-          updated = true;
-          break;
         }
-      }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + objId });
 
-      result = JSON.stringify({
-        success: updated,
-        message: updated ? '更新成功' : '找不到行動編號：' + targetId
-      });
+      // ---- rename_goal ----
+      } else if (body.type === 'rename_goal') {
+        var goalId  = String(body.goal_id);
+        var newName = String(body.new_name || '').trim();
+        var count   = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId) {
+            sheet.getRange(i + 1, 4).setValue(newName);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到支線：' + goalId });
+
+      // ---- rename_strategy ----
+      } else if (body.type === 'rename_strategy') {
+        var goalId  = String(body.goal_id);
+        var oldName = String(body.old_name || '');
+        var newName = String(body.new_name || '').trim();
+        var count   = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId && String(data[i][7]) === oldName) {
+            sheet.getRange(i + 1, 8).setValue(newName);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略：' + oldName });
+
+      // ---- rename_action ----
+      } else if (body.type === 'rename_action') {
+        var targetId = String(body.action_id);
+        var newName  = String(body.new_name || '').trim();
+        var updated  = false;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][6]) === targetId) {
+            sheet.getRange(i + 1, 9).setValue(newName);
+            updated = true;
+            break;
+          }
+        }
+        result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動：' + targetId });
+
+      // ---- update_goal_deadline ----
+      } else if (body.type === 'update_goal_deadline') {
+        var goalId   = String(body.goal_id);
+        var deadline = String(body.deadline || '');
+        var count    = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId) {
+            sheet.getRange(i + 1, 16).setValue(deadline);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
+
+      // ---- update_goal_traffic ----
+      } else if (body.type === 'update_goal_traffic') {
+        var goalId = String(body.goal_id);
+        var light  = String(body.traffic_light || 'green');
+        var count  = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId) {
+            sheet.getRange(i + 1, 15).setValue(light);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
+
+      // ---- delete_action ----
+      } else if (body.type === 'delete_action') {
+        var targetId = String(body.action_id);
+        var rowsToDelete = [];
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][6]) === targetId) rowsToDelete.push(i + 1);
+        }
+        for (var j = rowsToDelete.length - 1; j >= 0; j--) sheet.deleteRow(rowsToDelete[j]);
+        result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到行動：' + targetId });
+
+      // ---- delete_strategy ----
+      } else if (body.type === 'delete_strategy') {
+        var goalId    = String(body.goal_id);
+        var stratName = String(body.strategy_name || '');
+        var rowsToDelete = [];
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId && String(data[i][7]) === stratName) rowsToDelete.push(i + 1);
+        }
+        for (var j = rowsToDelete.length - 1; j >= 0; j--) sheet.deleteRow(rowsToDelete[j]);
+        result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到策略：' + stratName });
+
+      // ---- delete_goal ----
+      } else if (body.type === 'delete_goal') {
+        var goalId = String(body.goal_id);
+        var rowsToDelete = [];
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId) rowsToDelete.push(i + 1);
+        }
+        for (var j = rowsToDelete.length - 1; j >= 0; j--) sheet.deleteRow(rowsToDelete[j]);
+        result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到目標：' + goalId });
+
+      // ---- add_goal ----
+      } else if (body.type === 'add_goal') {
+        var newRow = [
+          String(body.obj_id    || ''),
+          String(body.obj_title || ''),
+          String(body.goal_id   || ''),
+          String(body.goal_name || ''),
+          Number(body.goal_progress) || 0,
+          String(body.goal_color || 'blue'),
+          '', '', '', '', '', '', 0, '', '',
+          String(body.goal_deadline || '')
+        ];
+        sheet.appendRow(newRow);
+        result = JSON.stringify({ success: true, message: '新增成功' });
+
+      // ---- add_action ----
+      } else if (body.type === 'add_action') {
+        var newRow = [
+          String(body.obj_id        || ''),
+          String(body.obj_title     || ''),
+          String(body.goal_id       || ''),
+          String(body.goal_name     || ''),
+          Number(body.goal_progress) || 0,
+          String(body.goal_color    || 'blue'),
+          String(body.action_id     || ''),
+          String(body.strategy_name || ''),
+          String(body.action_name   || ''),
+          String(body.assignee      || ''),
+          '',
+          String(body.due_date      || ''),
+          Number(body.progress)     || 0,
+          String(body.status        || '未開始'),
+          '', ''
+        ];
+        sheet.appendRow(newRow);
+        result = JSON.stringify({ success: true, message: '新增成功' });
+
+      // ---- update_action ----
+      } else if (body.type === 'update_action') {
+        var targetId = String(body.id);
+        var updated  = false;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][6]) === targetId) {
+            var rowNum = i + 1;
+            if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
+            if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
+            if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
+            if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
+            updated = true;
+            break;
+          }
+        }
+        result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動編號：' + targetId });
+
+      // ---- 預設：依行動編號更新欄位 ----
+      } else {
+        var targetId = String(body.id);
+        var updated  = false;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][6]) === targetId) {
+            var rowNum = i + 1;
+            if (body.assignee !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
+            if (body.due_date !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
+            if (body.progress !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.status   !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
+            updated = true;
+            break;
+          }
+        }
+        result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動編號：' + targetId });
+      }
     }
 
-    var output = ContentService
+    return ContentService
       .createTextOutput(result)
       .setMimeType(ContentService.MimeType.JSON);
-
-    return output;
 
   } catch (err) {
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ====================================================
+//  HTML include 輔助函數
+// ====================================================
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }

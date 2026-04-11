@@ -54,7 +54,40 @@ body {
   -webkit-text-fill-color: transparent;
 }
 .topbar-sep { width: 1px; height: 18px; background: var(--border2); }
-.topbar-meta { font-size: 12px; color: var(--text3); flex: 1; }
+
+.topbar-staff-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topbar-staff-list::-webkit-scrollbar { display: none; }
+
+.staff-chip {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg3);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: var(--font);
+  white-space: nowrap;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.staff-chip:hover { background: var(--border2); color: var(--text); }
+.staff-chip.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: transparent;
+}
 
 .topbar-btn {
   display: flex; align-items: center; gap: 6px;
