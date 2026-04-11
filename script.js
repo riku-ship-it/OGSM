@@ -68,7 +68,7 @@ function renderObjective() {
 
   const year = new Date().getFullYear();
   document.getElementById('topbar-meta').textContent =
-    `${year} 年度・${goals.length} 個目標・${state.actions.length} 項行動`;
+    `${year} 年度・${state.goals.length} 個目標・${state.actions.length} 項行動`;
 }
 
 function renderColumns() {
