@@ -324,6 +324,7 @@ body {
 .strategy-item-name:hover { background: rgba(0,0,0,.04); }
 .strategy-item-name:focus { background: rgba(0,0,0,.06); box-shadow: 0 0 0 2px rgba(0,0,0,.1); }
 .strategy-item-count { font-size: 11px; color: var(--text3); }
+.strategy-success-def { font-size: 11px; color: var(--text3); line-height: 1.4; margin-bottom: 6px; font-style: italic; }
 .strategy-item-arrow { font-size: 12px; color: var(--text3); opacity: 0; transition: opacity .18s; }
 .strategy-item:hover .strategy-item-arrow,
 .strategy-item.active .strategy-item-arrow { opacity: 1; }
