@@ -102,9 +102,13 @@ function renderColumns() {
       const tdefs = getTrafficDefs(goal.id);
       const tlLabel = tdefs[tl] || (tl === 'red' ? '紅燈' : tl === 'yellow' ? '黃燈' : '綠燈');
       const deadline = getGoalDeadline(goal.id);
+      item.dataset.dragId = goal.id;
       item.innerHTML = `
         <div class="goal-item-top-row">
-          <div class="goal-item-num">目標 ${idx+1}</div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span class="drag-handle" title="拖移排序">⠿</span>
+            <div class="goal-item-num">目標 ${idx+1}</div>
+          </div>
           <div class="goal-traffic-badge-wrap">
             <span class="traffic-badge traffic-badge-${escHtml(tl)}">
               <span class="traffic-badge-dot traffic-badge-dot-${escHtml(tl)}"></span>
@@ -212,6 +216,7 @@ function renderColumns() {
     });
   }
 
+  setupDragDrop(gBody, onGoalsDrop);
   // Add goal btn
   const gAddBtn = document.createElement('button');
   gAddBtn.className = 'btn-col-add';
@@ -247,9 +252,11 @@ function renderColumns() {
       const item = document.createElement('div');
       item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
       item.style.setProperty('--goal-color', stratColor);
+      item.dataset.dragId = strat;
       item.innerHTML = `
         <div class="strategy-item-top-row">
           <div style="display:flex;align-items:center;gap:6px">
+            <span class="drag-handle" title="拖移排序">⠿</span>
             <div class="strategy-item-num">S${idx+1}</div>
             <span class="strategy-status-badge strategy-status-badge-${escHtml(stratStatus)}">
               <span class="strategy-status-dot strategy-status-dot-${escHtml(stratStatus)}"></span>
@@ -339,6 +346,7 @@ function renderColumns() {
       });
       sBody.appendChild(item);
     });
+    setupDragDrop(sBody, onStrategiesDrop);
   }
 
   // Add action btn for S
@@ -370,8 +378,10 @@ function renderColumns() {
     mActions.forEach(a => {
       const item = document.createElement('div');
       item.className = 'action-item';
+      item.dataset.dragId = a.id;
       item.innerHTML = `
         <div class="action-item-top">
+          <span class="drag-handle" title="拖移排序" style="margin-right:4px">⠿</span>
           <span class="action-item-name" contenteditable="true" spellcheck="false">${escHtml(a.action_name)}</span>
           <span class="action-badge badge-${a.status}">${escHtml(a.status)}</span>
         </div>
@@ -443,6 +453,8 @@ function renderColumns() {
       });
       mBody.appendChild(item);
     });
+    const _mRef = mActions.slice();
+    setupDragDrop(mBody, function(o) { onActionsDrop(o, _mRef); });
   }
 
   if (selectedGoalId) {
@@ -1072,6 +1084,90 @@ async function deleteStaff(name) {
   } catch(e) {
     showToast('❌ 網路錯誤', true);
   }
+}
+
+// ── Drag-and-Drop Reorder ──
+function setupDragDrop(container, onDrop) {
+  let dragSrc = null;
+  const items = container.querySelectorAll('[data-drag-id]');
+  if (items.length < 2) return;
+  items.forEach(function(item) {
+    item.setAttribute('draggable', 'true');
+    item.addEventListener('dragstart', function(e) {
+      if (e.target.closest('[contenteditable="true"]')) { e.preventDefault(); return; }
+      dragSrc = item;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.dragId);
+      requestAnimationFrame(function() { item.classList.add('drag-ghost'); });
+    });
+    item.addEventListener('dragend', function() {
+      item.classList.remove('drag-ghost');
+      container.querySelectorAll('.drag-indicator').forEach(function(el) { el.remove(); });
+      dragSrc = null;
+    });
+    item.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === item) return;
+      container.querySelectorAll('.drag-indicator').forEach(function(el) { el.remove(); });
+      const rect = item.getBoundingClientRect();
+      const ind = document.createElement('div');
+      ind.className = 'drag-indicator';
+      if (e.clientY < rect.top + rect.height / 2) item.before(ind);
+      else item.after(ind);
+    });
+    item.addEventListener('drop', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      if (!dragSrc || dragSrc === item) return;
+      container.querySelectorAll('.drag-indicator').forEach(function(el) { el.remove(); });
+      const allIds = Array.from(container.querySelectorAll('[data-drag-id]')).map(function(el) { return el.dataset.dragId; });
+      const srcId = dragSrc.dataset.dragId;
+      const dstId = item.dataset.dragId;
+      const rect = item.getBoundingClientRect();
+      const insertBefore = e.clientY < rect.top + rect.height / 2;
+      const ordered = allIds.filter(function(id) { return id !== srcId; });
+      const dstPos = ordered.indexOf(dstId);
+      ordered.splice(insertBefore ? dstPos : dstPos + 1, 0, srcId);
+      onDrop(ordered);
+    });
+  });
+}
+
+function onGoalsDrop(newOrder) {
+  const idToGoal = {};
+  state.goals.forEach(function(g) { idToGoal[g.id] = g; });
+  state.goals = newOrder.map(function(id) { return idToGoal[id]; }).filter(Boolean);
+  renderColumns();
+  postData({ type: 'reorder_goals', goal_ids: newOrder }).catch(function() { showToast('❌ 排序儲存失敗', true); });
+}
+
+function onStrategiesDrop(newOrder) {
+  const goalId = selectedGoalId;
+  const goalActs = state.actions.filter(function(a) { return a.goal_id === goalId; });
+  const otherActs = state.actions.filter(function(a) { return a.goal_id !== goalId; });
+  const byStrat = {};
+  goalActs.forEach(function(a) {
+    const s = a.strategy_name || '（未分類）';
+    if (!byStrat[s]) byStrat[s] = [];
+    byStrat[s].push(a);
+  });
+  const reordered = [];
+  newOrder.forEach(function(s) { if (byStrat[s]) byStrat[s].forEach(function(a) { reordered.push(a); }); });
+  const reorderedIds = new Set(reordered.map(function(a) { return a.id; }));
+  goalActs.forEach(function(a) { if (!reorderedIds.has(a.id)) reordered.push(a); });
+  state.actions = otherActs.concat(reordered);
+  renderColumns();
+  postData({ type: 'reorder_strategies', goal_id: goalId, strategy_names: newOrder }).catch(function() { showToast('❌ 排序儲存失敗', true); });
+}
+
+function onActionsDrop(newOrder, currentActions) {
+  const currentIds = new Set(currentActions.map(function(a) { return a.id; }));
+  const idToAction = {};
+  currentActions.forEach(function(a) { idToAction[a.id] = a; });
+  const otherActs = state.actions.filter(function(a) { return !currentIds.has(a.id); });
+  const reordered = newOrder.map(function(id) { return idToAction[id]; }).filter(Boolean);
+  state.actions = otherActs.concat(reordered);
+  renderColumns();
+  postData({ type: 'reorder_actions', action_ids: newOrder }).catch(function() { showToast('❌ 排序儲存失敗', true); });
 }
 
 // ── Main ──

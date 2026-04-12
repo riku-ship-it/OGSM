@@ -732,3 +732,23 @@ body {
 .strategy-status-opt[data-status="需要協助"] { color: #b45309; }
 .strategy-status-opt[data-status="受阻"]    { color: #dc2626; }
 .strategy-status-opt[data-status="成功"]    { color: #059669; }
+
+/* ── Drag-and-Drop ── */
+.drag-handle {
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; color: var(--text3);
+  font-size: 13px; line-height: 1;
+  opacity: 0; transition: opacity .15s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.goal-item:hover .drag-handle,
+.strategy-item:hover .drag-handle,
+.action-item:hover .drag-handle { opacity: 1; }
+.drag-ghost { opacity: .3 !important; }
+.drag-indicator {
+  height: 2px; background: var(--blue);
+  border-radius: 99px; margin: 2px 4px;
+  pointer-events: none; flex-shrink: 0;
+}
