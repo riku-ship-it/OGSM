@@ -694,3 +694,41 @@ body {
 .deadline-popup-clear:hover { background: var(--border2); }
 .deadline-popup-save { background: var(--blue); color: #fff; }
 .deadline-popup-save:hover { background: #1a6fd4; }
+
+/* ── Strategy Status Badge ── */
+.strategy-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px 2px 5px; border-radius: 99px;
+  border: 1px solid transparent;
+  cursor: pointer; font-size: 11px; font-weight: 600;
+  transition: filter .15s; white-space: nowrap;
+}
+.strategy-status-badge:hover { filter: brightness(.92); }
+.strategy-status-badge-進行中  { background: rgba(43,127,224,.1);  color: #1a6fd4; border-color: rgba(43,127,224,.35); }
+.strategy-status-badge-需要協助 { background: rgba(245,158,11,.1); color: #b45309; border-color: rgba(245,158,11,.35); }
+.strategy-status-badge-受阻    { background: rgba(239,68,68,.1);   color: #dc2626; border-color: rgba(239,68,68,.35); }
+.strategy-status-badge-成功    { background: rgba(16,185,129,.1);  color: #059669; border-color: rgba(16,185,129,.35); }
+
+.strategy-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.strategy-status-dot-進行中  { background: #2B7FE0; }
+.strategy-status-dot-需要協助 { background: #f59e0b; }
+.strategy-status-dot-受阻    { background: #ef4444; }
+.strategy-status-dot-成功    { background: #10b981; }
+
+/* ── Strategy Status Popup ── */
+.strategy-status-popup-fl {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  min-width: 100px; position: fixed; z-index: 600;
+}
+.strategy-status-opt {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: 4px; cursor: pointer;
+  font-size: 11px; font-weight: 600; transition: background .1s;
+}
+.strategy-status-opt:hover { background: rgba(0,0,0,.06); }
+.strategy-status-opt[data-status="進行中"]  { color: #1a6fd4; }
+.strategy-status-opt[data-status="需要協助"] { color: #b45309; }
+.strategy-status-opt[data-status="受阻"]    { color: #dc2626; }
+.strategy-status-opt[data-status="成功"]    { color: #059669; }

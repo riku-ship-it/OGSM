@@ -28,7 +28,7 @@
 // ====================================================
 
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日'];
+var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
 
 // ── 取得或建立職員工作表 ──
 function getSheetForStaff(ss, staffName) {
@@ -83,17 +83,19 @@ function doGet(e) {
     var sheet = getSheetForStaff(ss, staffName);
     var data = sheet.getDataRange().getValues();
 
-    var objMap  = {};
-    var goalMap = {};
-    var actions = [];
+    var objMap   = {};
+    var goalMap  = {};
+    var stratMap = {};
+    var actions  = [];
 
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       if (!row[0] && row[0] !== 0 && !row[6] && row[6] !== 0) continue;
 
-      var objId  = String(row[0] || '');
-      var goalId = String(row[2] || '');
-      var actId  = String(row[6] || '');
+      var objId     = String(row[0] || '');
+      var goalId    = String(row[2] || '');
+      var actId     = String(row[6] || '');
+      var stratName = String(row[7] || '');
 
       if (objId && !objMap[objId]) {
         objMap[objId] = { id: objId, title: String(row[1] || '') };
@@ -111,11 +113,21 @@ function doGet(e) {
         };
       }
 
+      if (goalId && stratName) {
+        var stratKey = goalId + '||' + stratName;
+        if (!stratMap[stratKey]) {
+          stratMap[stratKey] = { goal_id: goalId, name: stratName, status: String(row[16] || ''), success_def: String(row[17] || '') };
+        } else {
+          if (!stratMap[stratKey].status && row[16]) stratMap[stratKey].status = String(row[16]);
+          if (!stratMap[stratKey].success_def && row[17]) stratMap[stratKey].success_def = String(row[17]);
+        }
+      }
+
       if (actId) {
         actions.push({
           id:            actId,
           goal_id:       goalId,
-          strategy_name: String(row[7]  || ''),
+          strategy_name: stratName,
           action_name:   String(row[8]  || ''),
           assignee:      String(row[9]  || ''),
           start_date:    formatDate(row[10]),
@@ -129,6 +141,7 @@ function doGet(e) {
     var payload = JSON.stringify({
       objectives: Object.values(objMap),
       goals:      Object.values(goalMap),
+      strategies: Object.values(stratMap),
       actions:    actions
     });
 
@@ -318,7 +331,8 @@ function doPost(e) {
           Number(body.goal_progress) || 0,
           String(body.goal_color || 'blue'),
           '', '', '', '', '', '', 0, '', '',
-          String(body.goal_deadline || '')
+          String(body.goal_deadline || ''),
+          '', ''
         ];
         sheet.appendRow(newRow);
         result = JSON.stringify({ success: true, message: '新增成功' });
@@ -340,6 +354,7 @@ function doPost(e) {
           String(body.due_date      || ''),
           Number(body.progress)     || 0,
           String(body.status        || '未開始'),
+          '', '',
           '', ''
         ];
         sheet.appendRow(newRow);
@@ -362,6 +377,47 @@ function doPost(e) {
           }
         }
         result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到行動編號：' + targetId });
+
+      // ---- update_goal_color ----
+      } else if (body.type === 'update_goal_color') {
+        var goalId = String(body.goal_id);
+        var color  = String(body.color || 'blue');
+        var count  = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId) {
+            sheet.getRange(i + 1, 6).setValue(color);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + goalId });
+
+      // ---- update_strategy_status ----
+      } else if (body.type === 'update_strategy_status') {
+        var goalId    = String(body.goal_id);
+        var stratName = String(body.strategy_name || '');
+        var status    = String(body.status || '進行中');
+        var count     = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId && String(data[i][7]) === stratName) {
+            sheet.getRange(i + 1, 17).setValue(status);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略' });
+
+      // ---- update_strategy_success_def ----
+      } else if (body.type === 'update_strategy_success_def') {
+        var goalId     = String(body.goal_id);
+        var stratName  = String(body.strategy_name || '');
+        var successDef = String(body.success_def || '');
+        var count      = 0;
+        for (var i = 1; i < data.length; i++) {
+          if (String(data[i][2]) === goalId && String(data[i][7]) === stratName) {
+            sheet.getRange(i + 1, 18).setValue(successDef);
+            count++;
+          }
+        }
+        result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略' });
 
       // ---- 預設：依行動編號更新欄位 ----
       } else {

@@ -275,6 +275,58 @@
   </div>
 </div>
 
+<!-- ── Edit Goal Modal ── -->
+<div class="modal-overlay" id="modal-edit-goal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">編輯目標</div>
+        <div class="modal-sub" id="edit-goal-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeOverlay('modal-edit-goal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">顏色</label>
+        <select class="form-select" id="edit-goal-color">
+          <option value="teal">🟢 翠綠</option>
+          <option value="blue">🔵 藍色</option>
+          <option value="amber">🟡 琥珀</option>
+          <option value="coral">🟠 珊瑚</option>
+          <option value="purple">🟣 紫色</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeOverlay('modal-edit-goal')">取消</button>
+      <button class="btn btn-save" id="edit-goal-save-btn" onclick="saveEditGoal()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Strategy Modal ── -->
+<div class="modal-overlay" id="modal-edit-strategy">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">編輯策略</div>
+        <div class="modal-sub" id="edit-strategy-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeOverlay('modal-edit-strategy')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">策略執行成功定義</label>
+        <input type="text" class="form-input" id="edit-strategy-success-def" placeholder="例：每月新增 10 篇高品質文章" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeOverlay('modal-edit-strategy')">取消</button>
+      <button class="btn btn-save" id="edit-strategy-save-btn" onclick="saveEditStrategy()">儲存</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script src="script.js"></script>
 
