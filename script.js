@@ -19,12 +19,15 @@ function avatarColor(name) {
 function initials(name) { return name ? name.slice(0,2) : '?'; }
 
 // ── State ──
-let state = { objectives: [], goals: [], actions: [] };
+let state = { objectives: [], goals: [], actions: [], strategies: [] };
 let selectedGoalId        = null;
 let selectedStrategy      = null;
 let editingActionId       = null;
 let addingToGoalId        = null;
 let editingTrafficGoalId  = null;
+let editingGoalId         = null;
+let editingStrategyGoalId = null;
+let editingStrategyName   = null;
 let pendingDeleteFn       = null;
 
 // ── Staff State ──
@@ -196,6 +199,7 @@ function renderColumns() {
         e.preventDefault();
         e.stopPropagation();
         showContextMenu(e.clientX, e.clientY, [
+          { label: '編輯目標', icon: '✏️', action: () => openEditGoalModal(goal.id) },
           { label: '刪除目標', icon: '🗑', danger: true, action: () => {
             openConfirmDelete(
               `確定要刪除目標「${goal.name}」？\n此操作將一併刪除所有策略與行動，無法復原。`,
@@ -239,12 +243,19 @@ function renderColumns() {
       const stratPct = acts.length > 0 ? Math.round(completedActs / acts.length * 100) : 0;
       const stratColor = COLOR_MAP[selectedGoal?.color] || COLOR_MAP.blue;
       const successDef = getStrategySuccessDef(selectedGoalId, strat);
+      const stratStatus = getStrategyStatus(selectedGoalId, strat);
       const item = document.createElement('div');
       item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
       item.style.setProperty('--goal-color', stratColor);
       item.innerHTML = `
         <div class="strategy-item-top-row">
-          <div class="strategy-item-num">S${idx+1}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="strategy-item-num">S${idx+1}</div>
+            <span class="strategy-status-badge strategy-status-badge-${escHtml(stratStatus)}">
+              <span class="strategy-status-dot strategy-status-dot-${escHtml(stratStatus)}"></span>
+              <span>${escHtml(stratStatus)}</span>
+            </span>
+          </div>
           <span class="strategy-pct-badge" style="color:${stratColor};border-color:color-mix(in srgb,${stratColor} 50%,transparent)">${stratPct}%</span>
         </div>
         <div class="strategy-item-name" contenteditable="true" spellcheck="false">${escHtml(strat)}</div>
@@ -259,8 +270,37 @@ function renderColumns() {
       `;
       item.addEventListener('click', function(e) {
         if (e.target.classList.contains('strategy-item-name')) return;
+        if (e.target.closest('.strategy-status-badge')) return;
         selectedStrategy = selectedStrategy === strat ? null : strat;
         renderColumns();
+      });
+      // Strategy status badge click
+      item.querySelector('.strategy-status-badge').addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeStrategyStatusPopup();
+        const rect = this.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.id = 'strategy-status-popup-fl';
+        popup.className = 'strategy-status-popup-fl';
+        const statuses = ['進行中','需要協助','受阻','成功'];
+        popup.innerHTML = statuses.map(s => `
+          <div class="strategy-status-opt${stratStatus === s ? ' current' : ''}" data-status="${escHtml(s)}">${escHtml(s)}</div>
+        `).join('');
+        popup.querySelectorAll('.strategy-status-opt').forEach(opt => {
+          opt.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            closeStrategyStatusPopup();
+            updateStrategyStatus(selectedGoalId, strat, opt.dataset.status);
+          });
+        });
+        document.body.appendChild(popup);
+        const pr = popup.getBoundingClientRect();
+        let top  = rect.bottom + 4;
+        let left = rect.left;
+        if (left + pr.width > window.innerWidth) left = window.innerWidth - pr.width - 8;
+        if (top  + pr.height > window.innerHeight) top = rect.top - pr.height - 4;
+        popup.style.top  = top  + 'px';
+        popup.style.left = left + 'px';
       });
       // Inline edit strategy name
       const sNameEl = item.querySelector('.strategy-item-name');
@@ -271,6 +311,7 @@ function renderColumns() {
           const res = await postData({ type:'rename_strategy', goal_id:selectedGoalId, old_name:strat, new_name:newName });
           if (res.success) {
             state.actions.forEach(a => { if (a.goal_id === selectedGoalId && (a.strategy_name||'（未分類）') === strat) a.strategy_name = newName; });
+            state.strategies.forEach(s => { if (s.goal_id === selectedGoalId && s.name === strat) s.name = newName; });
             if (selectedStrategy === strat) selectedStrategy = newName;
             const oldDef = getStrategySuccessDef(selectedGoalId, strat);
             if (oldDef) { saveStrategySuccessDef(selectedGoalId, newName, oldDef); saveStrategySuccessDef(selectedGoalId, strat, ''); }
@@ -287,6 +328,7 @@ function renderColumns() {
         e.preventDefault();
         e.stopPropagation();
         showContextMenu(e.clientX, e.clientY, [
+          { label: '編輯策略', icon: '✏️', action: () => openEditStrategyModal(selectedGoalId, strat) },
           { label: '刪除策略', icon: '🗑', danger: true, action: () => {
             openConfirmDelete(
               `確定要刪除策略「${strat}」？\n此操作將一併刪除其下所有行動，無法復原。`,
@@ -539,17 +581,40 @@ async function saveNewAction() {
   finally { btn.disabled = false; btn.textContent = '新增行動'; }
 }
 
-// ── Strategy Success Definition (localStorage) ──
+// ── Strategy Data helpers ──
+function getStrategyData(goalId, stratName) {
+  return state.strategies.find(s => s.goal_id === goalId && s.name === stratName) || { status: '', success_def: '' };
+}
 function getStrategySuccessDef(goalId, strategyName) {
+  const sd = getStrategyData(goalId, strategyName);
+  if (sd.success_def) return sd.success_def;
+  // fallback to localStorage
   try { return JSON.parse(localStorage.getItem('ogsm-sdefs-' + goalId) || '{}')[strategyName] || ''; }
   catch(e) { return ''; }
 }
+function getStrategyStatus(goalId, stratName) {
+  return getStrategyData(goalId, stratName).status || '進行中';
+}
 function saveStrategySuccessDef(goalId, strategyName, def) {
+  // update in-memory state
+  const sd = state.strategies.find(s => s.goal_id === goalId && s.name === strategyName);
+  if (sd) sd.success_def = def;
+  else state.strategies.push({ goal_id: goalId, name: strategyName, status: '', success_def: def });
+  // keep localStorage for backward compat
   try {
     const defs = JSON.parse(localStorage.getItem('ogsm-sdefs-' + goalId) || '{}');
     if (def) defs[strategyName] = def; else delete defs[strategyName];
     localStorage.setItem('ogsm-sdefs-' + goalId, JSON.stringify(defs));
   } catch(e) {}
+}
+async function updateStrategyStatus(goalId, stratName, status) {
+  const sd = state.strategies.find(s => s.goal_id === goalId && s.name === stratName);
+  if (sd) sd.status = status;
+  else state.strategies.push({ goal_id: goalId, name: stratName, status: status, success_def: '' });
+  renderColumns();
+  try {
+    await postData({ type: 'update_strategy_status', goal_id: goalId, strategy_name: stratName, status: status });
+  } catch(e) { showToast('❌ 網路錯誤', true); }
 }
 
 // ── Add Strategy Modal ──
@@ -578,7 +643,10 @@ async function saveNewStrategy() {
   try {
     const res = await postData(payload);
     if (res.success) {
-      if (successDef) saveStrategySuccessDef(addingToGoalId, strategyName, successDef);
+      if (successDef) {
+        saveStrategySuccessDef(addingToGoalId, strategyName, successDef);
+        await postData({ type: 'update_strategy_success_def', goal_id: addingToGoalId, strategy_name: strategyName, success_def: successDef });
+      }
       showToast('✅ 新增策略成功');
       closeAddStrategyModal();
       await loadAndRender();
@@ -593,7 +661,7 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
-document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); closeContextMenu(); closeDeadlinePopup(); });
+document.addEventListener('click', function() { closeStatusPopup(); closeTrafficPopup(); closeContextMenu(); closeDeadlinePopup(); closeStrategyStatusPopup(); });
 document.addEventListener('contextmenu', function() { closeContextMenu(); });
 document.addEventListener('keydown', e => {
   if (e.key==='Escape') {
@@ -803,6 +871,63 @@ function closeTrafficPopup() {
   if (p) p.remove();
 }
 
+// ── Strategy Status popup ──
+function closeStrategyStatusPopup() {
+  const p = document.getElementById('strategy-status-popup-fl');
+  if (p) p.remove();
+}
+
+// ── Edit Goal Modal ──
+function openEditGoalModal(goalId) {
+  editingGoalId = goalId;
+  const goal = state.goals.find(g => g.id === goalId);
+  document.getElementById('edit-goal-modal-sub').textContent = goal ? goal.name : '';
+  document.getElementById('edit-goal-color').value = goal ? (goal.color || 'blue') : 'blue';
+  openOverlay('modal-edit-goal');
+}
+async function saveEditGoal() {
+  if (!editingGoalId) return;
+  const color = document.getElementById('edit-goal-color').value;
+  const btn = document.getElementById('edit-goal-save-btn');
+  btn.disabled = true; btn.textContent = '儲存中';
+  try {
+    const res = await postData({ type: 'update_goal_color', goal_id: editingGoalId, color: color });
+    if (res.success) {
+      const goal = state.goals.find(g => g.id === editingGoalId);
+      if (goal) goal.color = color;
+      showToast('✅ 目標顏色已更新');
+      closeOverlay('modal-edit-goal');
+      renderColumns();
+    } else showToast('❌ '+(res.message||'更新失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '儲存'; }
+}
+
+// ── Edit Strategy Modal ──
+function openEditStrategyModal(goalId, stratName) {
+  editingStrategyGoalId = goalId;
+  editingStrategyName   = stratName;
+  document.getElementById('edit-strategy-modal-sub').textContent = stratName;
+  document.getElementById('edit-strategy-success-def').value = getStrategySuccessDef(goalId, stratName);
+  openOverlay('modal-edit-strategy');
+}
+async function saveEditStrategy() {
+  if (!editingStrategyGoalId || !editingStrategyName) return;
+  const successDef = document.getElementById('edit-strategy-success-def').value.trim();
+  const btn = document.getElementById('edit-strategy-save-btn');
+  btn.disabled = true; btn.textContent = '儲存中';
+  try {
+    const res = await postData({ type: 'update_strategy_success_def', goal_id: editingStrategyGoalId, strategy_name: editingStrategyName, success_def: successDef });
+    if (res.success) {
+      saveStrategySuccessDef(editingStrategyGoalId, editingStrategyName, successDef);
+      showToast('✅ 成功定義已更新');
+      closeOverlay('modal-edit-strategy');
+      renderColumns();
+    } else showToast('❌ '+(res.message||'更新失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '儲存'; }
+}
+
 // ── Action status inline update ──
 function closeStatusPopup() {
   const p = document.getElementById('action-status-popup-fl');
@@ -935,7 +1060,7 @@ async function deleteStaff(name) {
 async function loadAndRender() {
   try {
     const data = await fetchData();
-    state = data;
+    state = { strategies: [], ...data };
     render();
   } catch(e) {
     document.getElementById('three-col-wrap').innerHTML =
