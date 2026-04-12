@@ -372,6 +372,7 @@ function doPost(e) {
             if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
             if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
             if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
+            if (body.success_def !== undefined) sheet.getRange(rowNum, 18).setValue(body.success_def);
             updated = true;
             break;
           }

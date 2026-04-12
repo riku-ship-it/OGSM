@@ -634,10 +634,11 @@ async function saveNewStrategy() {
   btn.disabled = true; btn.textContent = '新增中';
   const goal = state.goals.find(g => g.id === addingToGoalId);
   const obj = state.objectives[0] || { id:'1', title:'' };
+  const actionId = 'A'+Date.now();
   const payload = {
     type:'add_action', obj_id:obj.id, obj_title:obj.title,
     goal_id:addingToGoalId, goal_name:goal?.name||'', goal_progress:goal?.progress||0, goal_color:goal?.color||'blue',
-    action_id:'A'+Date.now(), strategy_name:strategyName, action_name:'',
+    action_id:actionId, strategy_name:strategyName, action_name:'',
     assignee:'', due_date:'', progress:0, status:'未開始',
   };
   try {
@@ -645,7 +646,7 @@ async function saveNewStrategy() {
     if (res.success) {
       if (successDef) {
         saveStrategySuccessDef(addingToGoalId, strategyName, successDef);
-        await postData({ type: 'update_strategy_success_def', goal_id: addingToGoalId, strategy_name: strategyName, success_def: successDef });
+        await postData({ type: 'update_action', id: actionId, success_def: successDef });
       }
       showToast('✅ 新增策略成功');
       closeAddStrategyModal();
@@ -917,7 +918,10 @@ async function saveEditStrategy() {
   const btn = document.getElementById('edit-strategy-save-btn');
   btn.disabled = true; btn.textContent = '儲存中';
   try {
-    const res = await postData({ type: 'update_strategy_success_def', goal_id: editingStrategyGoalId, strategy_name: editingStrategyName, success_def: successDef });
+    const placeholder = state.actions.find(a => a.goal_id === editingStrategyGoalId && a.strategy_name === editingStrategyName && !a.action_name);
+    const res = placeholder?.id
+      ? await postData({ type: 'update_action', id: placeholder.id, success_def: successDef })
+      : await postData({ type: 'update_strategy_success_def', goal_id: editingStrategyGoalId, strategy_name: editingStrategyName, success_def: successDef });
     if (res.success) {
       saveStrategySuccessDef(editingStrategyGoalId, editingStrategyName, successDef);
       showToast('✅ 成功定義已更新');
