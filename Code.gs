@@ -421,6 +421,91 @@ function doPost(e) {
         }
         result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到策略' });
 
+      // ---- reorder_goals ----
+      } else if (body.type === 'reorder_goals') {
+        var goalIds = (body.goal_ids || []).map(String);
+        var rows = data.slice(1);
+        var goalRowsMap = {};
+        var seenGoals = [];
+        rows.forEach(function(row) {
+          var gid = String(row[2] || '');
+          if (!goalRowsMap[gid]) { goalRowsMap[gid] = []; seenGoals.push(gid); }
+          goalRowsMap[gid].push(row);
+        });
+        var reordered = [];
+        goalIds.forEach(function(gid) {
+          if (goalRowsMap[gid]) goalRowsMap[gid].forEach(function(r) { reordered.push(r); });
+        });
+        seenGoals.forEach(function(gid) {
+          if (goalIds.indexOf(gid) === -1 && goalRowsMap[gid]) {
+            goalRowsMap[gid].forEach(function(r) { reordered.push(r); });
+          }
+        });
+        var numCols = HEADER_ROW.length;
+        var numRows = sheet.getLastRow() - 1;
+        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
+        if (reordered.length > 0) sheet.getRange(2, 1, reordered.length, numCols).setValues(reordered);
+        result = JSON.stringify({ success: true });
+
+      // ---- reorder_strategies ----
+      } else if (body.type === 'reorder_strategies') {
+        var goalId = String(body.goal_id);
+        var stratNames = (body.strategy_names || []).map(String);
+        var rows = data.slice(1);
+        var goalRowIndices = [];
+        var stratRowsMap = {};
+        var seenStrats = [];
+        rows.forEach(function(row, i) {
+          if (String(row[2]) === goalId) {
+            goalRowIndices.push(i);
+            var sn = String(row[7] || '');
+            if (!stratRowsMap[sn]) { stratRowsMap[sn] = []; seenStrats.push(sn); }
+            stratRowsMap[sn].push(row);
+          }
+        });
+        var reorderedGoalRows = [];
+        stratNames.forEach(function(sn) {
+          if (stratRowsMap[sn]) stratRowsMap[sn].forEach(function(r) { reorderedGoalRows.push(r); });
+        });
+        seenStrats.forEach(function(sn) {
+          if (stratNames.indexOf(sn) === -1 && stratRowsMap[sn]) {
+            stratRowsMap[sn].forEach(function(r) { reorderedGoalRows.push(r); });
+          }
+        });
+        var newRows = rows.slice();
+        goalRowIndices.forEach(function(idx, i) {
+          if (reorderedGoalRows[i]) newRows[idx] = reorderedGoalRows[i];
+        });
+        var numCols = HEADER_ROW.length;
+        var numRows = sheet.getLastRow() - 1;
+        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
+        if (newRows.length > 0) sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+        result = JSON.stringify({ success: true });
+
+      // ---- reorder_actions ----
+      } else if (body.type === 'reorder_actions') {
+        var actionIds = (body.action_ids || []).map(String);
+        var rows = data.slice(1);
+        var actionRowIndices = [];
+        var idToRow = {};
+        rows.forEach(function(row, i) {
+          var aid = String(row[6] || '');
+          if (actionIds.indexOf(aid) !== -1) {
+            actionRowIndices.push(i);
+            idToRow[aid] = row;
+          }
+        });
+        var reorderedActionRows = actionIds.map(function(aid) { return idToRow[aid]; }).filter(Boolean);
+        var newRows = rows.slice();
+        actionRowIndices.forEach(function(idx, i) {
+          if (reorderedActionRows[i]) newRows[idx] = reorderedActionRows[i];
+        });
+        var numCols = HEADER_ROW.length;
+        var numRows = sheet.getLastRow() - 1;
+        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
+        if (newRows.length > 0) sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+        result = JSON.stringify({ success: true });
+
       // ---- 預設：依行動編號更新欄位 ----
       } else {
         var targetId = String(body.id);
