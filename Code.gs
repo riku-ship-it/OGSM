@@ -367,6 +367,7 @@ function doPost(e) {
         for (var i = 1; i < data.length; i++) {
           if (String(data[i][6]) === targetId) {
             var rowNum = i + 1;
+            if (body.strategy_name !== undefined) sheet.getRange(rowNum, 8).setValue(body.strategy_name);
             if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
             if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
             if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
