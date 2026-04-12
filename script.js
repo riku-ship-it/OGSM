@@ -36,7 +36,7 @@ let staffList    = [];
 
 // ── Fetch / Post ──
 async function fetchData() {
-  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(currentStaff), { method: 'GET' });
+  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
   return await res.json();
 }
 async function fetchStaffList() {
@@ -504,8 +504,18 @@ async function saveEditModal() {
   };
   try {
     const res = await postData(payload);
-    if (res.success) { showToast('✅ 更新成功'); closeEditModal(); await loadAndRender(); }
-    else showToast('❌ '+(res.message||'更新失敗'), true);
+    if (res.success) {
+      const a = state.actions.find(x => x.id === editingActionId);
+      if (a) {
+        a.strategy_name = payload.strategy_name;
+        a.action_name   = payload.action_name;
+        a.progress      = payload.progress;
+        a.status        = payload.status;
+        a.assignee      = payload.assignee;
+        a.due_date      = payload.due_date;
+      }
+      showToast('✅ 更新成功'); closeEditModal(); renderColumns(); await loadAndRender();
+    } else showToast('❌ '+(res.message||'更新失敗'), true);
   } catch(e) { showToast('❌ 網路錯誤', true); }
   finally { btn.disabled = false; btn.textContent = '儲存更新'; }
 }
