@@ -514,7 +514,7 @@ async function saveEditModal() {
         a.assignee      = payload.assignee;
         a.due_date      = payload.due_date;
       }
-      showToast('✅ 更新成功'); closeEditModal(); renderColumns(); await loadAndRender();
+      showToast('✅ 更新成功'); closeEditModal(); renderColumns();
     } else showToast('❌ '+(res.message||'更新失敗'), true);
   } catch(e) { showToast('❌ 網路錯誤', true); }
   finally { btn.disabled = false; btn.textContent = '儲存更新'; }
