@@ -178,6 +178,33 @@
   </div>
 </div>
 
+<!-- ── Add Strategy Modal ── -->
+<div class="modal-overlay" id="modal-add-strategy">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">新增策略</div>
+        <div class="modal-sub" id="add-strategy-goal-name"></div>
+      </div>
+      <button class="modal-close" onclick="closeAddStrategyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">策略名稱 <span style="color:#f5876e">*</span></label>
+        <input type="text" class="form-input" id="new-strategy-name" placeholder="例：建立內容行銷飛輪" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">策略執行成功定義</label>
+        <input type="text" class="form-input" id="new-strategy-success-def" placeholder="例：每月新增 10 篇高品質文章" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddStrategyModal()">取消</button>
+      <button class="btn btn-save" id="add-strategy-save-btn" onclick="saveNewStrategy()">新增策略</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Traffic Light Definition Modal ── -->
 <div class="modal-overlay" id="modal-traffic-def">
   <div class="modal">

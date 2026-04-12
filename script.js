@@ -234,10 +234,11 @@ function renderColumns() {
     sBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📋</div><span>此目標尚無策略</span></div>';
   } else {
     strategies.forEach((strat, idx) => {
-      const acts = goalActions.filter(a => (a.strategy_name||'（未分類）') === strat);
+      const acts = goalActions.filter(a => (a.strategy_name||'（未分類）') === strat && a.action_name);
       const completedActs = acts.filter(a => a.status === '完成').length;
       const stratPct = acts.length > 0 ? Math.round(completedActs / acts.length * 100) : 0;
       const stratColor = COLOR_MAP[selectedGoal?.color] || COLOR_MAP.blue;
+      const successDef = getStrategySuccessDef(selectedGoalId, strat);
       const item = document.createElement('div');
       item.className = 'strategy-item' + (selectedStrategy === strat ? ' active' : '');
       item.style.setProperty('--goal-color', stratColor);
@@ -247,6 +248,7 @@ function renderColumns() {
           <span class="strategy-pct-badge" style="color:${stratColor};border-color:color-mix(in srgb,${stratColor} 50%,transparent)">${stratPct}%</span>
         </div>
         <div class="strategy-item-name" contenteditable="true" spellcheck="false">${escHtml(strat)}</div>
+        ${successDef ? `<div class="strategy-success-def">${escHtml(successDef)}</div>` : ''}
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="strategy-progress-wrap">
             <div class="strategy-mini-bar"><div class="strategy-mini-fill" style="width:${stratPct}%;background:${stratColor}"></div></div>
@@ -270,6 +272,8 @@ function renderColumns() {
           if (res.success) {
             state.actions.forEach(a => { if (a.goal_id === selectedGoalId && (a.strategy_name||'（未分類）') === strat) a.strategy_name = newName; });
             if (selectedStrategy === strat) selectedStrategy = newName;
+            const oldDef = getStrategySuccessDef(selectedGoalId, strat);
+            if (oldDef) { saveStrategySuccessDef(selectedGoalId, newName, oldDef); saveStrategySuccessDef(selectedGoalId, strat, ''); }
             showToast('✅ 策略名稱已更新');
             renderColumns();
           } else { showToast('❌ '+(res.message||'更新失敗'), true); sNameEl.textContent = strat; }
@@ -300,16 +304,16 @@ function renderColumns() {
     const sAddBtn = document.createElement('button');
     sAddBtn.className = 'btn-col-add';
     sAddBtn.textContent = '+ 新增策略';
-    sAddBtn.onclick = () => openAddActionModal(selectedGoalId, selectedGoal?.name || '');
+    sAddBtn.onclick = () => openAddStrategyModal(selectedGoalId, selectedGoal?.name || '');
     sCol.appendChild(sAddBtn);
   }
 
   wrap.appendChild(sCol);
 
   // -- M column --
-  const mActions = selectedStrategy
+  const mActions = (selectedStrategy
     ? goalActions.filter(a => (a.strategy_name||'（未分類）') === selectedStrategy)
-    : selectedGoalId ? goalActions : [];
+    : selectedGoalId ? goalActions : []).filter(a => a.action_name);
 
   const mLabel = selectedStrategy ? selectedStrategy : (selectedGoalId ? '全部行動' : '');
   const mCount = selectedGoalId ? mActions.length : '';
@@ -533,6 +537,54 @@ async function saveNewAction() {
     else showToast('❌ '+(res.message||'新增失敗'), true);
   } catch(e) { showToast('❌ 網路錯誤', true); }
   finally { btn.disabled = false; btn.textContent = '新增行動'; }
+}
+
+// ── Strategy Success Definition (localStorage) ──
+function getStrategySuccessDef(goalId, strategyName) {
+  try { return JSON.parse(localStorage.getItem('ogsm-sdefs-' + goalId) || '{}')[strategyName] || ''; }
+  catch(e) { return ''; }
+}
+function saveStrategySuccessDef(goalId, strategyName, def) {
+  try {
+    const defs = JSON.parse(localStorage.getItem('ogsm-sdefs-' + goalId) || '{}');
+    if (def) defs[strategyName] = def; else delete defs[strategyName];
+    localStorage.setItem('ogsm-sdefs-' + goalId, JSON.stringify(defs));
+  } catch(e) {}
+}
+
+// ── Add Strategy Modal ──
+function openAddStrategyModal(goalId, goalName) {
+  addingToGoalId = goalId;
+  document.getElementById('add-strategy-goal-name').textContent = goalName;
+  document.getElementById('new-strategy-name').value = '';
+  document.getElementById('new-strategy-success-def').value = '';
+  openOverlay('modal-add-strategy');
+}
+function closeAddStrategyModal() { closeOverlay('modal-add-strategy'); addingToGoalId = null; }
+async function saveNewStrategy() {
+  const strategyName = document.getElementById('new-strategy-name').value.trim();
+  if (!strategyName) { showToast('❌ 請填寫策略名稱', true); return; }
+  const successDef = document.getElementById('new-strategy-success-def').value.trim();
+  const btn = document.getElementById('add-strategy-save-btn');
+  btn.disabled = true; btn.textContent = '新增中';
+  const goal = state.goals.find(g => g.id === addingToGoalId);
+  const obj = state.objectives[0] || { id:'1', title:'' };
+  const payload = {
+    type:'add_action', obj_id:obj.id, obj_title:obj.title,
+    goal_id:addingToGoalId, goal_name:goal?.name||'', goal_progress:goal?.progress||0, goal_color:goal?.color||'blue',
+    action_id:'A'+Date.now(), strategy_name:strategyName, action_name:'',
+    assignee:'', due_date:'', progress:0, status:'未開始',
+  };
+  try {
+    const res = await postData(payload);
+    if (res.success) {
+      if (successDef) saveStrategySuccessDef(addingToGoalId, strategyName, successDef);
+      showToast('✅ 新增策略成功');
+      closeAddStrategyModal();
+      await loadAndRender();
+    } else showToast('❌ '+(res.message||'新增失敗'), true);
+  } catch(e) { showToast('❌ 網路錯誤', true); }
+  finally { btn.disabled = false; btn.textContent = '新增策略'; }
 }
 
 // ── Overlay helpers ──
