@@ -52,6 +52,10 @@
         <input type="text" class="form-input" id="edit-action-name" />
       </div>
       <div class="form-group">
+        <label class="form-label">策略</label>
+        <select class="form-select" id="edit-action-strategy"></select>
+      </div>
+      <div class="form-group">
         <label class="form-label">進度（%）</label>
         <div class="progress-row">
           <input type="range" id="edit-progress" min="0" max="100" step="1" oninput="document.getElementById('edit-progress-display').textContent=this.value+'%'"/>

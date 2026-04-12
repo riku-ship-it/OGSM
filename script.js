@@ -483,6 +483,9 @@ function openEditModal(actionId) {
   document.getElementById('edit-assignee').value  = a.assignee || '';
   document.getElementById('edit-due-date').value  = a.due_date || '';
   document.getElementById('edit-action-name').value = a.action_name || '';
+  const goalStratList = state.strategies.filter(s => s.goal_id === a.goal_id).map(s => s.name);
+  const stratSel = document.getElementById('edit-action-strategy');
+  stratSel.innerHTML = goalStratList.map(s => `<option value="${escHtml(s)}"${s === a.strategy_name ? ' selected' : ''}>${escHtml(s)}</option>`).join('');
   openOverlay('modal-edit');
 }
 function closeEditModal() { closeOverlay('modal-edit'); editingActionId = null; }
@@ -497,6 +500,7 @@ async function saveEditModal() {
     assignee: document.getElementById('edit-assignee').value.trim(),
     due_date: document.getElementById('edit-due-date').value,
     action_name: document.getElementById('edit-action-name').value.trim(),
+    strategy_name: document.getElementById('edit-action-strategy').value,
   };
   try {
     const res = await postData(payload);
