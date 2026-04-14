@@ -1220,15 +1220,21 @@ function sendChatMessage() {
   messages.appendChild(thinking);
   messages.scrollTop = messages.scrollHeight;
 
-  // Placeholder — will be replaced with real API call
-  setTimeout(() => {
+  postData({ type: 'ai_chat', message: msg }).then(res => {
     thinking.remove();
     const aiBubble = document.createElement('div');
     aiBubble.className = 'chat-bubble ai';
-    aiBubble.textContent = '（API 尚未串接，這裡將顯示 AI 回覆）';
+    aiBubble.textContent = res.success ? res.reply : ('❌ ' + (res.error || '發生錯誤'));
     messages.appendChild(aiBubble);
     messages.scrollTop = messages.scrollHeight;
-  }, 1200);
+  }).catch(() => {
+    thinking.remove();
+    const aiBubble = document.createElement('div');
+    aiBubble.className = 'chat-bubble ai';
+    aiBubble.textContent = '❌ 網路錯誤，請稍後再試';
+    messages.appendChild(aiBubble);
+    messages.scrollTop = messages.scrollHeight;
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
