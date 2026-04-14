@@ -1189,3 +1189,59 @@ async function init() {
 }
 
 init();
+
+// ── Chat Panel ──
+function toggleChat() {
+  const panel = document.getElementById('chat-panel');
+  const btn = document.getElementById('chat-toggle-btn');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const messages = document.getElementById('chat-messages');
+
+  const userBubble = document.createElement('div');
+  userBubble.className = 'chat-bubble user';
+  userBubble.textContent = msg;
+  messages.appendChild(userBubble);
+
+  input.value = '';
+  input.style.height = '38px';
+  messages.scrollTop = messages.scrollHeight;
+
+  const thinking = document.createElement('div');
+  thinking.className = 'chat-thinking';
+  thinking.innerHTML = '<span></span><span></span><span></span>';
+  messages.appendChild(thinking);
+  messages.scrollTop = messages.scrollHeight;
+
+  // Placeholder — will be replaced with real API call
+  setTimeout(() => {
+    thinking.remove();
+    const aiBubble = document.createElement('div');
+    aiBubble.className = 'chat-bubble ai';
+    aiBubble.textContent = '（API 尚未串接，這裡將顯示 AI 回覆）';
+    messages.appendChild(aiBubble);
+    messages.scrollTop = messages.scrollHeight;
+  }, 1200);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const chatInput = document.getElementById('chat-input');
+  if (!chatInput) return;
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+  chatInput.addEventListener('input', () => {
+    chatInput.style.height = '38px';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 110) + 'px';
+  });
+});

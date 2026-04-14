@@ -16,11 +16,18 @@
   <span class="topbar-logo">OGSM</span>
   <div class="topbar-sep"></div>
   <div class="topbar-staff-list" id="topbar-staff-list"></div>
+  <button class="topbar-btn topbar-btn-chat" id="chat-toggle-btn" onclick="toggleChat()">
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v7a2 2 0 01-2 2H6l-4 4V5z"/></svg>
+    AI 助手
+  </button>
   <button class="topbar-btn topbar-btn-primary" onclick="openAddStaffModal()">
     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a1 1 0 011 1v4h4a1 1 0 010 2H9v4a1 1 0 01-2 0V9H3a1 1 0 010-2h4V3a1 1 0 011-1z"/></svg>
     新增職員
   </button>
 </div>
+
+<div class="app-body">
+<div class="main-content-wrap">
 
 <!-- Objective -->
 <div class="obj-section" id="obj-section" style="display:none">
@@ -35,6 +42,32 @@
 <div class="three-col-wrap" id="three-col-wrap">
   <div class="loading-overlay" style="grid-column:1/-1"><div class="spinner"></div><span>載入中</span></div>
 </div>
+
+</div><!-- /main-content-wrap -->
+
+<!-- ── Chat Panel ── -->
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-panel-inner">
+    <div class="chat-panel-header">
+      <div class="chat-panel-icon">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v7a2 2 0 01-2 2H6l-4 4V5z"/></svg>
+      </div>
+      <span class="chat-panel-title">AI 對話助手</span>
+      <button class="chat-close-btn" onclick="toggleChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-bubble ai">嗨！我是你的 OGSM 策略助手。你可以問我關於目標、策略或行動項目的問題，我會盡力協助你分析與優化。</div>
+    </div>
+    <div class="chat-input-wrap">
+      <textarea class="chat-input" id="chat-input" placeholder="輸入訊息… (Enter 送出，Shift+Enter 換行)" rows="1"></textarea>
+      <button class="chat-send-btn" onclick="sendChatMessage()">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app-body -->
 
 <!-- ── Edit Action Modal ── -->
 <div class="modal-overlay" id="modal-edit">
