@@ -579,3 +579,12 @@ function doPost(e) {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+// ====================================================
+//  授權觸發函式（手動執行一次即可，之後可刪除）
+//  用途：強制觸發 UrlFetchApp 的授權視窗
+// ====================================================
+function authorizeUrlFetch() {
+  UrlFetchApp.fetch('https://www.google.com');
+  Logger.log('UrlFetchApp 授權成功');
+}
