@@ -204,6 +204,44 @@ function doPost(e) {
         result = JSON.stringify({ success: true, message: '刪除成功' });
       }
 
+    // ---- ai_chat：透過後端代理呼叫 AI API ----
+    } else if (body.type === 'ai_chat') {
+      var props     = PropertiesService.getScriptProperties();
+      var apiKey    = props.getProperty('API_KEY');
+      var chatbotId = props.getProperty('CHATBOT_ID');
+      var apiUrl    = props.getProperty('API_URL');
+      if (!apiKey || !chatbotId || !apiUrl) {
+        result = JSON.stringify({ success: false, error: '請先在指令碼屬性設定 API_KEY、CHATBOT_ID、API_URL' });
+      } else {
+        try {
+          var aiRes = UrlFetchApp.fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + apiKey
+            },
+            payload: JSON.stringify({
+              chatbot_id: chatbotId,
+              messages: [{ role: 'user', content: String(body.message || '') }],
+              stream: false
+            }),
+            muteHttpExceptions: true
+          });
+          var aiStatus = aiRes.getResponseCode();
+          var aiData   = JSON.parse(aiRes.getContentText());
+          if (aiStatus === 200) {
+            var reply = aiData.answer || aiData.text || aiData.reply ||
+                        (aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) ||
+                        JSON.stringify(aiData);
+            result = JSON.stringify({ success: true, reply: reply });
+          } else {
+            result = JSON.stringify({ success: false, error: 'AI API 回傳錯誤 ' + aiStatus });
+          }
+        } catch (aiErr) {
+          result = JSON.stringify({ success: false, error: aiErr.message });
+        }
+      }
+
     } else {
       // 所有其他操作使用 body.staff 指定的工作表
       var staffName = String(body.staff || 'Riku');
