@@ -229,7 +229,8 @@ function doPost(e) {
           var aiStatus = aiRes.getResponseCode();
           var aiData   = JSON.parse(aiRes.getContentText());
           if (aiStatus === 200 || aiStatus === 201) {
-            var reply = (aiData.message && aiData.message.content) ||
+            var reply = aiData.content ||
+                        (aiData.message && aiData.message.content) ||
                         aiData.answer || aiData.text || aiData.reply ||
                         JSON.stringify(aiData);
             result = JSON.stringify({ success: true, reply: reply });
