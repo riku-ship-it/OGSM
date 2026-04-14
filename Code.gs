@@ -204,34 +204,34 @@ function doPost(e) {
         result = JSON.stringify({ success: true, message: '刪除成功' });
       }
 
-    // ---- ai_chat：透過後端代理呼叫 AI API ----
+    // ---- ai_chat：透過後端代理呼叫 Maiagent API ----
     } else if (body.type === 'ai_chat') {
       var props     = PropertiesService.getScriptProperties();
       var apiKey    = props.getProperty('API_KEY');
       var chatbotId = props.getProperty('CHATBOT_ID');
-      var apiUrl    = props.getProperty('API_URL');
-      if (!apiKey || !chatbotId || !apiUrl) {
-        result = JSON.stringify({ success: false, error: '請先在指令碼屬性設定 API_KEY、CHATBOT_ID、API_URL' });
+      if (!apiKey || !chatbotId) {
+        result = JSON.stringify({ success: false, error: '請先在指令碼屬性設定 API_KEY、CHATBOT_ID' });
       } else {
+        var aiEndpoint = 'https://api.maiagent.ai/api/v1/chatbots/' + chatbotId + '/completions/';
         try {
-          var aiRes = UrlFetchApp.fetch(apiUrl, {
+          var aiRes = UrlFetchApp.fetch(aiEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + apiKey
+              'Authorization': 'Api-Key ' + apiKey
             },
             payload: JSON.stringify({
-              chatbot_id: chatbotId,
-              messages: [{ role: 'user', content: String(body.message || '') }],
-              stream: false
+              conversation: null,
+              message: { content: String(body.message || ''), attachments: [] },
+              is_streaming: false
             }),
             muteHttpExceptions: true
           });
           var aiStatus = aiRes.getResponseCode();
           var aiData   = JSON.parse(aiRes.getContentText());
-          if (aiStatus === 200) {
-            var reply = aiData.answer || aiData.text || aiData.reply ||
-                        (aiData.choices && aiData.choices[0] && aiData.choices[0].message && aiData.choices[0].message.content) ||
+          if (aiStatus === 200 || aiStatus === 201) {
+            var reply = (aiData.message && aiData.message.content) ||
+                        aiData.answer || aiData.text || aiData.reply ||
                         JSON.stringify(aiData);
             result = JSON.stringify({ success: true, reply: reply });
           } else {
