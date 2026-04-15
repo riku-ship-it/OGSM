@@ -1220,7 +1220,7 @@ function sendChatMessage() {
   messages.appendChild(thinking);
   messages.scrollTop = messages.scrollHeight;
 
-  postData({ type: 'ai_chat', message: msg }).then(res => {
+  postData({ type: 'ai_chat', message: msg, staff: currentStaff }).then(res => {
     thinking.remove();
     const aiBubble = document.createElement('div');
     aiBubble.className = 'chat-bubble ai';

@@ -213,6 +213,24 @@ function doPost(e) {
         result = JSON.stringify({ success: false, error: '請先在指令碼屬性設定 API_KEY、CHATBOT_ID' });
       } else {
         try {
+          // 取得職員 OGSM 資料並組成 context
+          var aiStaff  = String(body.staff || 'Riku');
+          var ogsmRows = getSheetForStaff(ss, aiStaff).getDataRange().getValues();
+          var ctxLines = ['# Current User Data', '當前職員：' + aiStaff, '', '## OGSM 資料'];
+          var seenObj = {}, seenGoal = {}, seenStrat = {};
+          for (var r = 1; r < ogsmRows.length; r++) {
+            var row = ogsmRows[r];
+            if (!row[0] && !row[6]) continue;
+            var oKey = String(row[0] || '');
+            var gKey = String(row[2] || '');
+            var sKey = gKey + '||' + String(row[7] || '');
+            if (oKey && !seenObj[oKey])     { seenObj[oKey]   = true; ctxLines.push('- 目標：'   + String(row[1] || '')); }
+            if (gKey && !seenGoal[gKey])    { seenGoal[gKey]  = true; ctxLines.push('  - 支線：' + String(row[3] || '') + '（進度 ' + (row[4] || 0) + '%）'); }
+            if (row[7] && !seenStrat[sKey]) { seenStrat[sKey] = true; ctxLines.push('    - 策略：' + String(row[7]) + (row[16] ? '（' + row[16] + '）' : '')); }
+            if (row[6]) { ctxLines.push('      - 行動：' + String(row[8] || '') + '（負責人：' + String(row[9] || '') + '，截止：' + formatDate(row[11]) + '，狀態：' + String(row[13] || '') + '）'); }
+          }
+          var fullMessage = ctxLines.join('\n') + '\n\n---\n\n' + String(body.message || '');
+
           var apiUrl = 'https://api.maiagent.ai/api/v1/chatbots/' + chatbotId + '/completions/';
           var aiRes = UrlFetchApp.fetch(apiUrl, {
             method: 'POST',
@@ -221,7 +239,7 @@ function doPost(e) {
               'Authorization': 'Api-Key ' + apiKey
             },
             payload: JSON.stringify({
-              message: { content: String(body.message || '') },
+              message: { content: fullMessage },
               is_streaming: false
             }),
             muteHttpExceptions: true
