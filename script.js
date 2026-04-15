@@ -1190,6 +1190,14 @@ async function init() {
 
 init();
 
+function renderMarkdown(text) {
+  let s = escHtml(text);
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
 // ── Chat Panel ──
 function toggleChat() {
   const panel = document.getElementById('chat-panel');
@@ -1224,7 +1232,7 @@ function sendChatMessage() {
     thinking.remove();
     const aiBubble = document.createElement('div');
     aiBubble.className = 'chat-bubble ai';
-    aiBubble.textContent = res.success ? res.reply : ('❌ ' + (res.error || '發生錯誤'));
+    aiBubble.innerHTML = res.success ? renderMarkdown(res.reply) : ('❌ ' + escHtml(res.error || '發生錯誤'));
     messages.appendChild(aiBubble);
     messages.scrollTop = messages.scrollHeight;
   }).catch(() => {
@@ -1241,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatInput = document.getElementById('chat-input');
   if (!chatInput) return;
   chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       sendChatMessage();
     }
