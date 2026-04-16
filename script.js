@@ -37,6 +37,7 @@ let staffList    = [];
 // ── Tab State ──
 let currentTab = 'ogsm';
 let statsWeekOffset = 0;
+let statsEditingId = null;
 
 const TYPE_SCORES = {
   '大型・新機制': 10,
@@ -68,11 +69,11 @@ function getPersonStats(person) { return getStatsData()[person] || []; }
 function getWeekStart(offsetWeeks) {
   const d = new Date();
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const mon = new Date(d);
-  mon.setDate(diff + offsetWeeks * 7);
-  mon.setHours(0, 0, 0, 0);
-  return mon;
+  const diff = (day - 4 + 7) % 7;
+  const thu = new Date(d);
+  thu.setDate(d.getDate() - diff + offsetWeeks * 7);
+  thu.setHours(0, 0, 0, 0);
+  return thu;
 }
 function getWeekEnd(weekStart) {
   const d = new Date(weekStart);
@@ -90,33 +91,48 @@ function renderStats() {
   const weekStartStr = isoDate(weekStart);
   const weekEndStr = isoDate(weekEnd);
 
-  const personItems = getPersonStats(currentStaff).filter(function(i) { return i.date >= weekStartStr && i.date <= weekEndStr; });
+  const personItems = getPersonStats(currentStaff).filter(function(i) {
+    const d = i.launchDate || i.date;
+    return d >= weekStartStr && d <= weekEndStr;
+  });
   const totalScore = personItems.reduce(function(s, i) { return s + (i.score || 0); }, 0);
-
-  const allData = getStatsData();
-  const ranking = staffList.map(function(name) {
-    const items = (allData[name] || []).filter(function(i) { return i.date >= weekStartStr && i.date <= weekEndStr; });
-    return { name: name, score: items.reduce(function(s, i) { return s + (i.score || 0); }, 0) };
-  }).sort(function(a, b) { return b.score - a.score; });
 
   const wrap = document.getElementById('tab-content-stats');
   const showAddForm = wrap.dataset.showForm === '1';
 
-  const rankingHtml = ranking.map(function(r) {
-    const color = avatarColor(r.name);
-    return '<div class="stats-rank-item">' +
-      '<div class="stats-avatar" style="background:' + escHtml(color) + '">' + escHtml(initials(r.name)) + '</div>' +
-      '<span class="stats-rank-name">' + escHtml(r.name) + '</span>' +
-      '<span class="stats-rank-score">' + r.score + '</span>' +
-      '</div>';
-  }).join('');
+  const noteHtml = '<textarea id="stats-note-textarea" class="stats-note-textarea" placeholder="記錄本週成果或發現的問題..."></textarea>';
 
+  const targetOpts = ['全公司','特定部門','內部協作','外部企業'];
   const itemsHtml = personItems.map(function(item) {
+    if (statsEditingId === item.id) {
+      const typeOpts = Object.keys(TYPE_SCORES).map(function(t) {
+        return '<option value="' + escHtml(t) + '"' + (t === item.type ? ' selected' : '') + '>' + escHtml(t) + '</option>';
+      }).join('');
+      const tgOpts = targetOpts.map(function(t) {
+        return '<option value="' + escHtml(t) + '"' + (t === (item.target||'') ? ' selected' : '') + '>' + escHtml(t) + '</option>';
+      }).join('');
+      return '<div class="stats-item-row stats-item-edit-row">' +
+        '<input type="date" class="stats-form-input stats-form-date" id="ei-date" value="' + escHtml(item.launchDate || item.date || '') + '" />' +
+        '<input type="text" class="stats-form-input" id="ei-platform" value="' + escHtml(item.platform || '') + '" placeholder="系統平台" />' +
+        '<select class="stats-form-select" id="ei-target">' + tgOpts + '</select>' +
+        '<input type="text" class="stats-form-input" id="ei-desc" value="' + escHtml(item.description || '') + '" placeholder="項目說明" style="flex:2" />' +
+        '<select class="stats-form-select" id="ei-type" onchange="statsEditTypeChange()">' + typeOpts + '</select>' +
+        '<input type="number" class="stats-form-input stats-form-score" id="ei-score" value="' + escHtml(String(item.score || '')) + '" />' +
+        '<button class="stats-form-confirm" onclick="saveStatsItemEdit(\'' + escHtml(item.id) + '\')">儲存</button>' +
+        '<button class="stats-form-cancel" onclick="cancelEditStatsItem()">取消</button>' +
+        '</div>';
+    }
     return '<div class="stats-item-row">' +
+      '<div class="stats-item-date">' + escHtml(item.launchDate ? fmtDate(item.launchDate) : (item.date ? fmtDate(item.date) : '')) + '</div>' +
       '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
+      (item.target ? '<div class="stats-item-target">' + escHtml(item.target) + '</div>' : '<div class="stats-item-target"></div>') +
       '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
       '<div class="stats-item-type">' + escHtml(item.type || '') + '</div>' +
       '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
+      '<div class="stats-item-actions">' +
+        '<button class="stats-item-edit-btn" onclick="startEditStatsItem(\'' + escHtml(item.id) + '\')">編輯</button>' +
+        '<button class="stats-item-del-btn" onclick="deleteStatsItem(\'' + escHtml(item.id) + '\')">刪除</button>' +
+      '</div>' +
       '</div>';
   }).join('');
 
@@ -124,9 +140,14 @@ function renderStats() {
     return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>';
   }).join('');
 
+  const targetOptsHtml = targetOpts.map(function(t) {
+    return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>';
+  }).join('');
   const addFormHtml = showAddForm
     ? '<div class="stats-add-form" id="stats-add-form">' +
-        '<input type="text" class="stats-form-input" id="sf-platform" placeholder="平台（如 BBP）" />' +
+        '<input type="date" class="stats-form-input stats-form-date" id="sf-date" />' +
+        '<input type="text" class="stats-form-input" id="sf-platform" placeholder="系統平台（如 BBP）" />' +
+        '<select class="stats-form-select" id="sf-target">' + targetOptsHtml + '</select>' +
         '<input type="text" class="stats-form-input" id="sf-desc" placeholder="項目說明" style="flex:2" />' +
         '<select class="stats-form-select" id="sf-type" onchange="statsTypeChange()">' + typeOptions + '</select>' +
         '<input type="number" class="stats-form-input stats-form-score" id="sf-score" placeholder="分數" />' +
@@ -146,16 +167,25 @@ function renderStats() {
           '<button class="stats-week-nav" onclick="statsNavWeek(1)">›</button>' +
         '</div>' +
       '</div>' +
-      '<div class="stats-ranking">' +
-        '<div class="stats-ranking-label">部門本週排名</div>' +
-        '<div class="stats-ranking-list">' + rankingHtml + '</div>' +
+      '<div class="stats-note-area">' +
+        '<div class="stats-ranking-label">本週成果／發現問題</div>' +
+        noteHtml +
       '</div>' +
     '</div>' +
     '<div class="stats-items-label">本週上線項目（' + personItems.length + ' 筆）</div>' +
     '<div class="stats-items-list">' + itemsHtml + '</div>' +
     addFormHtml;
 
-  if (showAddForm) statsTypeChange();
+  if (showAddForm) {
+    statsTypeChange();
+    const dateEl = document.getElementById('sf-date');
+    if (dateEl) dateEl.value = isoDate(new Date());
+  }
+  const noteEl = document.getElementById('stats-note-textarea');
+  if (noteEl) {
+    noteEl.value = getWeekNote(currentStaff, weekStartStr);
+    noteEl.oninput = function() { saveWeekNote(currentStaff, weekStartStr, noteEl.value); };
+  }
 }
 
 function statsNavWeek(dir) {
@@ -182,8 +212,61 @@ function cancelAddStatsItem() {
   renderStats();
 }
 
+function getWeekNote(person, weekStartStr) {
+  return localStorage.getItem('ogsm-weeknote-' + person + '-' + weekStartStr) || '';
+}
+function saveWeekNote(person, weekStartStr, text) {
+  localStorage.setItem('ogsm-weeknote-' + person + '-' + weekStartStr, text);
+}
+function startEditStatsItem(id) {
+  statsEditingId = id;
+  renderStats();
+}
+function cancelEditStatsItem() {
+  statsEditingId = null;
+  renderStats();
+}
+function statsEditTypeChange() {
+  const typeEl = document.getElementById('ei-type');
+  const scoreEl = document.getElementById('ei-score');
+  if (typeEl && scoreEl) scoreEl.value = TYPE_SCORES[typeEl.value] || '';
+}
+function saveStatsItemEdit(id) {
+  const launchDate = (document.getElementById('ei-date').value || '').trim();
+  const platform = (document.getElementById('ei-platform').value || '').trim();
+  const target = document.getElementById('ei-target').value;
+  const desc = (document.getElementById('ei-desc').value || '').trim();
+  const type = document.getElementById('ei-type').value;
+  const score = parseInt(document.getElementById('ei-score').value) || TYPE_SCORES[type] || 0;
+  if (!platform || !desc) { showToast('❌ 請填寫平台與項目說明', true); return; }
+  const allData = getStatsData();
+  const items = allData[currentStaff] || [];
+  const idx = items.findIndex(function(i) { return i.id === id; });
+  if (idx >= 0) {
+    items[idx] = Object.assign({}, items[idx], { launchDate: launchDate, platform: platform, target: target, description: desc, type: type, score: score });
+    allData[currentStaff] = items;
+    saveStatsData(allData);
+  }
+  statsEditingId = null;
+  renderStats();
+  showToast('✅ 已更新');
+}
+function deleteStatsItem(id) {
+  openConfirmDelete('確定要刪除此上線項目？此操作無法復原。', function() {
+    const allData = getStatsData();
+    if (allData[currentStaff]) {
+      allData[currentStaff] = allData[currentStaff].filter(function(i) { return i.id !== id; });
+      saveStatsData(allData);
+    }
+    renderStats();
+    showToast('✅ 已刪除');
+  });
+}
+
 function confirmAddStatsItem() {
+  const launchDate = (document.getElementById('sf-date').value || '').trim();
   const platform = (document.getElementById('sf-platform').value || '').trim();
+  const target = document.getElementById('sf-target').value;
   const desc = (document.getElementById('sf-desc').value || '').trim();
   const type = document.getElementById('sf-type').value;
   const scoreRaw = document.getElementById('sf-score').value;
@@ -198,7 +281,7 @@ function confirmAddStatsItem() {
 
   const allData = getStatsData();
   if (!allData[currentStaff]) allData[currentStaff] = [];
-  allData[currentStaff].push({ id: Date.now().toString(), platform: platform, description: desc, type: type, score: score, date: isoDate(clampedDate) });
+  allData[currentStaff].push({ id: Date.now().toString(), launchDate: launchDate || isoDate(clampedDate), platform: platform, target: target, description: desc, type: type, score: score, date: isoDate(clampedDate) });
   saveStatsData(allData);
 
   document.getElementById('tab-content-stats').dataset.showForm = '0';

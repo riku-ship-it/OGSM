@@ -1199,3 +1199,65 @@ body {
   flex-shrink: 0;
 }
 .stats-form-cancel:hover { background: var(--bg3); }
+.stats-form-date { flex: 0 0 120px; min-width: 120px; }
+.stats-note-area {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex: 1;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stats-note-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.stats-note-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(43,127,224,.15); }
+.stats-item-date { font-size: 12px; color: var(--text3); flex-shrink: 0; min-width: 36px; }
+.stats-item-target {
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--bg3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: center;
+}
+.stats-item-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
+.stats-item-edit-btn, .stats-item-del-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.stats-item-edit-btn {
+  background: transparent;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+}
+.stats-item-edit-btn:hover { background: rgba(43,127,224,.08); }
+.stats-item-del-btn {
+  background: transparent;
+  color: #d44e28;
+  border: 1px solid #d44e28;
+}
+.stats-item-del-btn:hover { background: rgba(212,78,40,.08); }
+.stats-item-edit-row { flex-wrap: wrap; }
