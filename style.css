@@ -950,3 +950,252 @@ body {
   color: #fff;
   border-color: transparent;
 }
+
+/* ── Main Tabs ── */
+.main-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+.main-tab {
+  padding: 14px 18px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+.main-tab:hover { color: var(--text2); }
+.main-tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+/* ── Tab Content Wrappers ── */
+#tab-content-ogsm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+#tab-content-stats {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Stats Page ── */
+.stats-header {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+.stats-score-card {
+  background: var(--bg3);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stats-score-label { font-size: 13px; color: var(--text2); font-weight: 500; }
+.stats-score-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.stats-score-value span { font-size: 16px; font-weight: 500; color: var(--text2); }
+.stats-week-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+.stats-week-nav {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text2);
+  padding: 0;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.stats-week-nav:hover { background: var(--bg3); color: var(--text); }
+.stats-ranking {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stats-ranking-label { font-size: 12px; font-weight: 600; color: var(--text3); }
+.stats-ranking-list { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg3);
+  border-radius: 99px;
+  padding: 6px 14px 6px 8px;
+}
+.stats-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.stats-rank-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.stats-rank-score { font-size: 13px; font-weight: 700; color: var(--text); margin-left: 2px; }
+.stats-items-label { font-size: 13px; font-weight: 500; color: var(--text2); }
+.stats-items-list { display: flex; flex-direction: column; gap: 8px; }
+.stats-item-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.stats-platform-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--mono);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.stats-item-desc { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
+.stats-item-type {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg3);
+  border-radius: 99px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+.stats-item-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue);
+  font-family: var(--mono);
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: right;
+}
+.stats-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1.5px dashed var(--border2);
+  border-radius: 10px;
+  padding: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text3);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+  width: 100%;
+}
+.stats-add-btn:hover { border-color: var(--blue); color: var(--blue); background: rgba(43,127,224,.04); }
+.stats-add-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  flex-wrap: wrap;
+}
+.stats-form-input {
+  flex: 1;
+  min-width: 80px;
+  height: 34px;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+}
+.stats-form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(43,127,224,.15); }
+.stats-form-score { flex: 0 0 70px; min-width: 70px; }
+.stats-form-select {
+  flex: 1;
+  min-width: 120px;
+  height: 34px;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  cursor: pointer;
+}
+.stats-form-select:focus { border-color: var(--blue); }
+.stats-form-confirm {
+  height: 34px;
+  padding: 0 16px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.stats-form-confirm:hover { background: #1a6fd4; }
+.stats-form-cancel {
+  height: 34px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.stats-form-cancel:hover { background: var(--bg3); }
