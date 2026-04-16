@@ -34,6 +34,178 @@ let pendingDeleteFn       = null;
 let currentStaff = localStorage.getItem('ogsm-current-staff') || 'Riku';
 let staffList    = [];
 
+// ── Tab State ──
+let currentTab = 'ogsm';
+let statsWeekOffset = 0;
+
+const TYPE_SCORES = {
+  '大型・新機制': 10,
+  '中型・新機制': 5,
+  '小型・新機制': 3,
+  '大型・功能修改': 5,
+  '中型・功能修改': 3,
+  '小型・功能修改': 1,
+};
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-content-ogsm').style.display = tab === 'ogsm' ? '' : 'none';
+  document.getElementById('tab-content-stats').style.display = tab === 'stats' ? '' : 'none';
+  document.getElementById('tab-btn-ogsm').classList.toggle('active', tab === 'ogsm');
+  document.getElementById('tab-btn-stats').classList.toggle('active', tab === 'stats');
+  if (tab === 'stats') renderStats();
+  else loadAndRender();
+}
+
+// ── Stats Data ──
+function getStatsData() {
+  try { return JSON.parse(localStorage.getItem('ogsm-stats') || '{}'); }
+  catch(e) { return {}; }
+}
+function saveStatsData(data) { localStorage.setItem('ogsm-stats', JSON.stringify(data)); }
+function getPersonStats(person) { return getStatsData()[person] || []; }
+
+function getWeekStart(offsetWeeks) {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(d);
+  mon.setDate(diff + offsetWeeks * 7);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+function getWeekEnd(weekStart) {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + 6);
+  return d;
+}
+function fmtMD(date) { return (date.getMonth() + 1) + '/' + date.getDate(); }
+function isoDate(date) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
+function renderStats() {
+  const weekStart = getWeekStart(statsWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const weekStartStr = isoDate(weekStart);
+  const weekEndStr = isoDate(weekEnd);
+
+  const personItems = getPersonStats(currentStaff).filter(function(i) { return i.date >= weekStartStr && i.date <= weekEndStr; });
+  const totalScore = personItems.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+
+  const allData = getStatsData();
+  const ranking = staffList.map(function(name) {
+    const items = (allData[name] || []).filter(function(i) { return i.date >= weekStartStr && i.date <= weekEndStr; });
+    return { name: name, score: items.reduce(function(s, i) { return s + (i.score || 0); }, 0) };
+  }).sort(function(a, b) { return b.score - a.score; });
+
+  const wrap = document.getElementById('tab-content-stats');
+  const showAddForm = wrap.dataset.showForm === '1';
+
+  const rankingHtml = ranking.map(function(r) {
+    const color = avatarColor(r.name);
+    return '<div class="stats-rank-item">' +
+      '<div class="stats-avatar" style="background:' + escHtml(color) + '">' + escHtml(initials(r.name)) + '</div>' +
+      '<span class="stats-rank-name">' + escHtml(r.name) + '</span>' +
+      '<span class="stats-rank-score">' + r.score + '</span>' +
+      '</div>';
+  }).join('');
+
+  const itemsHtml = personItems.map(function(item) {
+    return '<div class="stats-item-row">' +
+      '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
+      '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
+      '<div class="stats-item-type">' + escHtml(item.type || '') + '</div>' +
+      '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
+      '</div>';
+  }).join('');
+
+  const typeOptions = Object.keys(TYPE_SCORES).map(function(t) {
+    return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>';
+  }).join('');
+
+  const addFormHtml = showAddForm
+    ? '<div class="stats-add-form" id="stats-add-form">' +
+        '<input type="text" class="stats-form-input" id="sf-platform" placeholder="平台（如 BBP）" />' +
+        '<input type="text" class="stats-form-input" id="sf-desc" placeholder="項目說明" style="flex:2" />' +
+        '<select class="stats-form-select" id="sf-type" onchange="statsTypeChange()">' + typeOptions + '</select>' +
+        '<input type="number" class="stats-form-input stats-form-score" id="sf-score" placeholder="分數" />' +
+        '<button class="stats-form-confirm" onclick="confirmAddStatsItem()">確認</button>' +
+        '<button class="stats-form-cancel" onclick="cancelAddStatsItem()">取消</button>' +
+        '</div>'
+    : '<button class="stats-add-btn" onclick="openAddStatsForm()">+ 新增上線項目</button>';
+
+  wrap.innerHTML =
+    '<div class="stats-header">' +
+      '<div class="stats-score-card">' +
+        '<div class="stats-score-label">' + escHtml(currentStaff) + ' 本週得分</div>' +
+        '<div class="stats-score-value">' + totalScore + ' <span>分</span></div>' +
+        '<div class="stats-week-range">' +
+          '<button class="stats-week-nav" onclick="statsNavWeek(-1)">‹</button>' +
+          '<span>' + fmtMD(weekStart) + ' – ' + fmtMD(weekEnd) + '</span>' +
+          '<button class="stats-week-nav" onclick="statsNavWeek(1)">›</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="stats-ranking">' +
+        '<div class="stats-ranking-label">部門本週排名</div>' +
+        '<div class="stats-ranking-list">' + rankingHtml + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="stats-items-label">本週上線項目（' + personItems.length + ' 筆）</div>' +
+    '<div class="stats-items-list">' + itemsHtml + '</div>' +
+    addFormHtml;
+
+  if (showAddForm) statsTypeChange();
+}
+
+function statsNavWeek(dir) {
+  statsWeekOffset += dir;
+  renderStats();
+}
+
+function openAddStatsForm() {
+  const wrap = document.getElementById('tab-content-stats');
+  wrap.dataset.showForm = '1';
+  renderStats();
+}
+
+function statsTypeChange() {
+  const typeEl = document.getElementById('sf-type');
+  const scoreEl = document.getElementById('sf-score');
+  if (typeEl && scoreEl && !scoreEl.dataset.manual) {
+    scoreEl.value = TYPE_SCORES[typeEl.value] || '';
+  }
+}
+
+function cancelAddStatsItem() {
+  document.getElementById('tab-content-stats').dataset.showForm = '0';
+  renderStats();
+}
+
+function confirmAddStatsItem() {
+  const platform = (document.getElementById('sf-platform').value || '').trim();
+  const desc = (document.getElementById('sf-desc').value || '').trim();
+  const type = document.getElementById('sf-type').value;
+  const scoreRaw = document.getElementById('sf-score').value;
+  const score = parseInt(scoreRaw) || TYPE_SCORES[type] || 0;
+
+  if (!platform || !desc) { showToast('❌ 請填寫平台與項目說明', true); return; }
+
+  const weekStart = getWeekStart(statsWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const today = new Date();
+  const clampedDate = today < weekStart ? weekStart : today > weekEnd ? weekEnd : today;
+
+  const allData = getStatsData();
+  if (!allData[currentStaff]) allData[currentStaff] = [];
+  allData[currentStaff].push({ id: Date.now().toString(), platform: platform, description: desc, type: type, score: score, date: isoDate(clampedDate) });
+  saveStatsData(allData);
+
+  document.getElementById('tab-content-stats').dataset.showForm = '0';
+  renderStats();
+  showToast('✅ 上線項目已新增');
+}
+
 // ── Fetch / Post ──
 async function fetchData() {
   const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
@@ -1006,7 +1178,8 @@ async function switchStaff(name) {
   selectedGoalId = null;
   selectedStrategy = null;
   renderStaffList();
-  await loadAndRender();
+  if (currentTab === 'stats') { renderStats(); }
+  else { await loadAndRender(); }
 }
 
 async function initStaff() {

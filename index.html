@@ -29,6 +29,15 @@
 <div class="app-body">
 <div class="main-content-wrap">
 
+<!-- Tab Bar -->
+<div class="main-tabs">
+  <button class="main-tab active" id="tab-btn-ogsm" onclick="switchTab('ogsm')">OGSM</button>
+  <button class="main-tab" id="tab-btn-stats" onclick="switchTab('stats')">New統計</button>
+</div>
+
+<!-- OGSM Tab Content -->
+<div id="tab-content-ogsm">
+
 <!-- Objective -->
 <div class="obj-section" id="obj-section" style="display:none">
   <div class="obj-eyebrow">
@@ -42,6 +51,11 @@
 <div class="three-col-wrap" id="three-col-wrap">
   <div class="loading-overlay" style="grid-column:1/-1"><div class="spinner"></div><span>載入中</span></div>
 </div>
+
+</div><!-- /tab-content-ogsm -->
+
+<!-- Stats Tab Content -->
+<div id="tab-content-stats" style="display:none"></div>
 
 </div><!-- /main-content-wrap -->
 
