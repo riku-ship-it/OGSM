@@ -1496,6 +1496,11 @@ function toggleChat() {
   const btn = document.getElementById('chat-toggle-btn');
   const isOpen = panel.classList.toggle('open');
   btn.classList.toggle('active', isOpen);
+  if (!isOpen) {
+    panel.style.width = '';
+    const inner = panel.querySelector('.chat-panel-inner');
+    if (inner) inner.style.width = '';
+  }
 }
 
 function sendChatMessage() {
