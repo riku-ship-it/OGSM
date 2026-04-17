@@ -41,20 +41,20 @@ let statsWeekOffset = 0;
 let statsEditingId = null;
 
 const TYPE_SCORES = {
-  '(小型)舊流程/規則優化': 2,
-  '(小型)小功能修改': 3,
+  '(小型)舊流程/規則優化': 1,
+  '(小型)小功能修改': 1,
   '(中型)新機制建立': 5,
   '(中型)系統功能新增': 5,
   '(中型)系統發布推廣': 5,
   '(大型)重大系統改版': 10,
   '(大型)重大功能導入': 10,
-  '(超大型)全新平台導入': 15,
+  '(超大型)全新平台導入': 20,
   // legacy keys for backward compat
   '大型・新機制': 10,
   '中型・新機制': 5,
-  '小型・新機制': 3,
-  '大型・功能修改': 5,
-  '中型・功能修改': 3,
+  '小型・新機制': 1,
+  '大型・功能修改': 10,
+  '中型・功能修改': 5,
   '小型・功能修改': 1,
 };
 const TYPE_OPTIONS = [
@@ -213,6 +213,13 @@ function renderStats() {
         '<div class="stats-ranking-label">本週成果／發現問題</div>' +
         noteHtml +
       '</div>' +
+    '</div>' +
+    '<div class="stats-scoring-legend">' +
+      '<span class="stats-legend-title">計分標準</span>' +
+      '<span class="stats-legend-chip stats-legend-small">小型 · 1分</span>' +
+      '<span class="stats-legend-chip stats-legend-medium">中型 · 5分</span>' +
+      '<span class="stats-legend-chip stats-legend-large">大型 · 10分</span>' +
+      '<span class="stats-legend-chip stats-legend-xlarge">超大型 · 20分</span>' +
     '</div>' +
     '<div class="stats-items-label">本週上線項目（' + personItems.length + ' 筆）</div>' +
     '<div class="stats-items-list">' + itemsHtml + '</div>' +
