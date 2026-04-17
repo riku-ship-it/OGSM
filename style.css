@@ -1106,6 +1106,30 @@ body {
 }
 .stats-rank-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .stats-rank-score { font-size: 13px; font-weight: 700; color: var(--text); margin-left: 2px; }
+.stats-scoring-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.stats-legend-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-right: 4px;
+}
+.stats-legend-chip {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 99px;
+  padding: 3px 12px;
+  color: #fff;
+}
+.stats-legend-small  { background: #0D9373; }
+.stats-legend-medium { background: #2B7FE0; }
+.stats-legend-large  { background: #C47A15; }
+.stats-legend-xlarge { background: #D44E28; }
 .stats-items-label { font-size: 13px; font-weight: 500; color: var(--text2); }
 .stats-items-list { display: flex; flex-direction: column; gap: 8px; }
 .stats-item-row {
