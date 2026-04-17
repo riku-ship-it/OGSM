@@ -92,11 +92,15 @@ async function loadStats() {
   try {
     const res = await fetch(GAS_URL + '?api=1&action=get_stats&staff=' + encodeURIComponent(currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
     const data = await res.json();
-    if (data.items) {
+    if (Array.isArray(data.items)) {
       const allData = getStatsData();
-      allData[currentStaff] = data.items.map(function(item) {
+      const localItems = allData[currentStaff] || [];
+      const backendIds = new Set(data.items.map(function(i) { return i.id; }));
+      const pendingItems = localItems.filter(function(i) { return !backendIds.has(i.id); });
+      const backendMapped = data.items.map(function(item) {
         return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
       });
+      allData[currentStaff] = backendMapped.concat(pendingItems);
       saveStatsData(allData);
       renderStats();
     }
