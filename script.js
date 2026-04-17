@@ -331,7 +331,7 @@ function renderObjective() {
     } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = obj.title; }
   };
   nameEl.onkeydown = function(e) {
-    if (e.key==='Enter') { e.preventDefault(); nameEl.blur(); }
+    if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
     if (e.key==='Escape') { nameEl.textContent = obj.title; nameEl.blur(); }
   };
 
@@ -451,7 +451,7 @@ function renderColumns() {
         } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = goal.name; }
       });
       nameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter') { e.preventDefault(); nameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
         if (e.key==='Escape') { nameEl.textContent = goal.name; nameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -583,7 +583,7 @@ function renderColumns() {
         } catch(e) { showToast('❌ 網路錯誤', true); sNameEl.textContent = strat; }
       });
       sNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter') { e.preventDefault(); sNameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); sNameEl.blur(); }
         if (e.key==='Escape') { sNameEl.textContent = strat; sNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -691,7 +691,7 @@ function renderColumns() {
         } catch(e) { showToast('❌ 網路錯誤', true); aNameEl.textContent = a.action_name; }
       });
       aNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter') { e.preventDefault(); aNameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); aNameEl.blur(); }
         if (e.key==='Escape') { aNameEl.textContent = a.action_name; aNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
