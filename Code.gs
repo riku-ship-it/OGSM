@@ -29,6 +29,16 @@
 
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
+var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
+
+// ── 取得或建立統計工作表 ──
+function getOrCreateStatsSheet(ss) {
+  var sheet = ss.getSheetByName('Stats');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('Stats');
+  newSheet.appendRow(STATS_HEADER_ROW);
+  return newSheet;
+}
 
 // ── 取得或建立職員工作表 ──
 function getSheetForStaff(ss, staffName) {
@@ -75,6 +85,32 @@ function doGet(e) {
       var names = ss.getSheets().map(function(s) { return s.getName(); });
       return ContentService
         .createTextOutput(JSON.stringify({ staff: names }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳統計上線項目 ----
+    if (e.parameter.action === 'get_stats') {
+      var statsSheet = getOrCreateStatsSheet(ss);
+      var statsData = statsSheet.getDataRange().getValues();
+      var items = [];
+      var filterStaff = e.parameter.staff || '';
+      for (var i = 1; i < statsData.length; i++) {
+        var row = statsData[i];
+        if (!row[0]) continue;
+        if (filterStaff && String(row[0]) !== filterStaff) continue;
+        items.push({
+          staff:       String(row[0] || ''),
+          id:          String(row[1] || ''),
+          launchDate:  String(row[2] || ''),
+          platform:    String(row[3] || ''),
+          target:      String(row[4] || ''),
+          description: String(row[5] || ''),
+          type:        String(row[6] || ''),
+          score:       Number(row[7]) || 0
+        });
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ items: items }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -177,8 +213,54 @@ function doPost(e) {
     var ss   = SpreadsheetApp.openById(SPREADSHEET_ID);
     var result;
 
+    // ---- add_stats_item：新增統計上線項目 ----
+    if (body.type === 'add_stats_item') {
+      var statsSheet = getOrCreateStatsSheet(ss);
+      statsSheet.appendRow([
+        String(body.staff       || ''),
+        String(body.id          || ''),
+        String(body.launchDate  || ''),
+        String(body.platform    || ''),
+        String(body.target      || ''),
+        String(body.description || ''),
+        String(body.type_name   || ''),
+        Number(body.score)      || 0
+      ]);
+      result = JSON.stringify({ success: true, message: '新增成功' });
+
+    // ---- update_stats_item：更新統計上線項目 ----
+    } else if (body.type === 'update_stats_item') {
+      var statsSheet = getOrCreateStatsSheet(ss);
+      var statsData = statsSheet.getDataRange().getValues();
+      var updated = false;
+      for (var i = 1; i < statsData.length; i++) {
+        if (String(statsData[i][1]) === String(body.id)) {
+          var rowNum = i + 1;
+          statsSheet.getRange(rowNum, 3).setValue(String(body.launchDate  || ''));
+          statsSheet.getRange(rowNum, 4).setValue(String(body.platform    || ''));
+          statsSheet.getRange(rowNum, 5).setValue(String(body.target      || ''));
+          statsSheet.getRange(rowNum, 6).setValue(String(body.description || ''));
+          statsSheet.getRange(rowNum, 7).setValue(String(body.type_name   || ''));
+          statsSheet.getRange(rowNum, 8).setValue(Number(body.score)      || 0);
+          updated = true;
+          break;
+        }
+      }
+      result = JSON.stringify({ success: updated, message: updated ? '更新成功' : '找不到項目：' + body.id });
+
+    // ---- delete_stats_item：刪除統計上線項目 ----
+    } else if (body.type === 'delete_stats_item') {
+      var statsSheet = getOrCreateStatsSheet(ss);
+      var statsData = statsSheet.getDataRange().getValues();
+      var rowsToDelete = [];
+      for (var i = 1; i < statsData.length; i++) {
+        if (String(statsData[i][1]) === String(body.id)) rowsToDelete.push(i + 1);
+      }
+      for (var j = rowsToDelete.length - 1; j >= 0; j--) statsSheet.deleteRow(rowsToDelete[j]);
+      result = JSON.stringify({ success: rowsToDelete.length > 0, message: rowsToDelete.length > 0 ? '刪除成功' : '找不到項目：' + body.id });
+
     // ---- add_staff：新增職員工作表 ----
-    if (body.type === 'add_staff') {
+    } else if (body.type === 'add_staff') {
       var staffName = String(body.staff_name || '').trim();
       if (!staffName) throw new Error('職員名稱不能為空');
       var existing = ss.getSheetByName(staffName);

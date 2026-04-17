@@ -41,6 +41,15 @@ let statsWeekOffset = 0;
 let statsEditingId = null;
 
 const TYPE_SCORES = {
+  '(小型)舊流程/規則優化': 2,
+  '(小型)小功能修改': 3,
+  '(中型)新機制建立': 5,
+  '(中型)系統功能新增': 5,
+  '(中型)系統發布推廣': 5,
+  '(大型)重大系統改版': 10,
+  '(大型)重大功能導入': 10,
+  '(超大型)全新平台導入': 15,
+  // legacy keys for backward compat
   '大型・新機制': 10,
   '中型・新機制': 5,
   '小型・新機制': 3,
@@ -48,6 +57,17 @@ const TYPE_SCORES = {
   '中型・功能修改': 3,
   '小型・功能修改': 1,
 };
+const TYPE_OPTIONS = [
+  '(小型)舊流程/規則優化',
+  '(小型)小功能修改',
+  '(中型)新機制建立',
+  '(中型)系統功能新增',
+  '(中型)系統發布推廣',
+  '(大型)重大系統改版',
+  '(大型)重大功能導入',
+  '(超大型)全新平台導入',
+];
+const TARGET_OPTIONS = ['全公司','特定部門','內部協作','外部企業'];
 
 function switchTab(tab) {
   currentTab = tab;
@@ -55,7 +75,7 @@ function switchTab(tab) {
   document.getElementById('tab-content-stats').style.display = tab === 'stats' ? '' : 'none';
   document.getElementById('tab-btn-ogsm').classList.toggle('active', tab === 'ogsm');
   document.getElementById('tab-btn-stats').classList.toggle('active', tab === 'stats');
-  if (tab === 'stats') renderStats();
+  if (tab === 'stats') loadStats();
   else loadAndRender();
 }
 
@@ -66,6 +86,28 @@ function getStatsData() {
 }
 function saveStatsData(data) { localStorage.setItem('ogsm-stats', JSON.stringify(data)); }
 function getPersonStats(person) { return getStatsData()[person] || []; }
+
+async function loadStats() {
+  renderStats();
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_stats&staff=' + encodeURIComponent(currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+    const data = await res.json();
+    if (data.items) {
+      const allData = getStatsData();
+      allData[currentStaff] = data.items.map(function(item) {
+        return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
+      });
+      saveStatsData(allData);
+      renderStats();
+    }
+  } catch(e) { /* silently use localStorage */ }
+}
+
+async function postStatsToBackend(payload) {
+  try {
+    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ ...payload, staff: currentStaff }) });
+  } catch(e) { /* silently fail */ }
+}
 
 function getWeekStart(offsetWeeks) {
   const d = new Date();
@@ -103,13 +145,12 @@ function renderStats() {
 
   const noteHtml = '<textarea id="stats-note-textarea" class="stats-note-textarea" placeholder="記錄本週成果或發現的問題..."></textarea>';
 
-  const targetOpts = ['全公司','特定部門','內部協作','外部企業'];
   const itemsHtml = personItems.map(function(item) {
     if (statsEditingId === item.id) {
-      const typeOpts = Object.keys(TYPE_SCORES).map(function(t) {
+      const typeOpts = TYPE_OPTIONS.map(function(t) {
         return '<option value="' + escHtml(t) + '"' + (t === item.type ? ' selected' : '') + '>' + escHtml(t) + '</option>';
       }).join('');
-      const tgOpts = targetOpts.map(function(t) {
+      const tgOpts = TARGET_OPTIONS.map(function(t) {
         return '<option value="' + escHtml(t) + '"' + (t === (item.target||'') ? ' selected' : '') + '>' + escHtml(t) + '</option>';
       }).join('');
       return '<div class="stats-item-row stats-item-edit-row">' +
@@ -137,11 +178,11 @@ function renderStats() {
       '</div>';
   }).join('');
 
-  const typeOptions = Object.keys(TYPE_SCORES).map(function(t) {
+  const typeOptions = TYPE_OPTIONS.map(function(t) {
     return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>';
   }).join('');
 
-  const targetOptsHtml = targetOpts.map(function(t) {
+  const targetOptsHtml = TARGET_OPTIONS.map(function(t) {
     return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>';
   }).join('');
   const addFormHtml = showAddForm
@@ -247,6 +288,7 @@ function saveStatsItemEdit(id) {
     items[idx] = Object.assign({}, items[idx], { launchDate: launchDate, platform: platform, target: target, description: desc, type: type, score: score });
     allData[currentStaff] = items;
     saveStatsData(allData);
+    postStatsToBackend({ type: 'update_stats_item', id: id, launchDate: launchDate, platform: platform, target: target, description: desc, type_name: type, score: score });
   }
   statsEditingId = null;
   renderStats();
@@ -259,6 +301,7 @@ function deleteStatsItem(id) {
       allData[currentStaff] = allData[currentStaff].filter(function(i) { return i.id !== id; });
       saveStatsData(allData);
     }
+    postStatsToBackend({ type: 'delete_stats_item', id: id });
     renderStats();
     showToast('✅ 已刪除');
   });
@@ -280,10 +323,14 @@ function confirmAddStatsItem() {
   const today = new Date();
   const clampedDate = today < weekStart ? weekStart : today > weekEnd ? weekEnd : today;
 
+  const newId = Date.now().toString();
+  const newLaunchDate = launchDate || isoDate(clampedDate);
   const allData = getStatsData();
   if (!allData[currentStaff]) allData[currentStaff] = [];
-  allData[currentStaff].push({ id: Date.now().toString(), launchDate: launchDate || isoDate(clampedDate), platform: platform, target: target, description: desc, type: type, score: score, date: isoDate(clampedDate) });
+  allData[currentStaff].push({ id: newId, launchDate: newLaunchDate, platform: platform, target: target, description: desc, type: type, score: score, date: isoDate(clampedDate) });
   saveStatsData(allData);
+
+  postStatsToBackend({ type: 'add_stats_item', id: newId, launchDate: newLaunchDate, platform: platform, target: target, description: desc, type_name: type, score: score });
 
   document.getElementById('tab-content-stats').dataset.showForm = '0';
   renderStats();
