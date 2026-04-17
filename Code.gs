@@ -102,7 +102,7 @@ function doGet(e) {
         items.push({
           staff:       String(row[0] || ''),
           id:          String(row[1] || ''),
-          launchDate:  String(row[2] || ''),
+          launchDate:  formatDate(row[2]),
           platform:    String(row[3] || ''),
           target:      String(row[4] || ''),
           description: String(row[5] || ''),
