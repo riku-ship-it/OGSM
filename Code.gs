@@ -30,6 +30,7 @@
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
+var SYSTEM_SHEETS = ['Stats'];
 
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
@@ -82,7 +83,7 @@ function doGet(e) {
       if (legacy && !ss.getSheetByName('Riku')) {
         legacy.setName('Riku');
       }
-      var names = ss.getSheets().map(function(s) { return s.getName(); });
+      var names = ss.getSheets().map(function(s) { return s.getName(); }).filter(function(n) { return SYSTEM_SHEETS.indexOf(n) === -1; });
       return ContentService
         .createTextOutput(JSON.stringify({ staff: names }))
         .setMimeType(ContentService.MimeType.JSON);
