@@ -1548,14 +1548,15 @@ document.addEventListener('DOMContentLoaded', () => {
       startW = panel.offsetWidth;
       handle.classList.add('dragging');
       panel.style.transition = 'none';
+      document.body.style.userSelect = 'none';
       const onMove = (e) => {
         const w = Math.min(480, Math.max(420, startW - (e.clientX - startX)));
         panel.style.width = w + 'px';
-        panel.querySelector('.chat-panel-inner').style.width = w + 'px';
       };
       const onUp = () => {
         handle.classList.remove('dragging');
         panel.style.transition = '';
+        document.body.style.userSelect = '';
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
       };
