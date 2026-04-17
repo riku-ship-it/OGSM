@@ -1161,10 +1161,10 @@ body {
   padding: 3px 10px;
   flex-shrink: 0;
 }
-.stats-item-type-small  { background: #0D9373; color: #fff; }
-.stats-item-type-medium { background: #2B7FE0; color: #fff; }
-.stats-item-type-large  { background: #C47A15; color: #fff; }
-.stats-item-type-xlarge { background: #D44E28; color: #fff; }
+.stats-item-type.stats-item-type-small  { background: #0D9373; color: #fff; }
+.stats-item-type.stats-item-type-medium { background: #2B7FE0; color: #fff; }
+.stats-item-type.stats-item-type-large  { background: #C47A15; color: #fff; }
+.stats-item-type.stats-item-type-xlarge { background: #D44E28; color: #fff; }
 .stats-item-score {
   font-size: 13px;
   font-weight: 700;
