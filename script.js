@@ -1538,6 +1538,32 @@ function sendChatMessage() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const handle = document.getElementById('chat-resize-handle');
+  const panel = document.getElementById('chat-panel');
+  if (handle && panel) {
+    let startX, startW;
+    handle.addEventListener('mousedown', (e) => {
+      if (!panel.classList.contains('open')) return;
+      startX = e.clientX;
+      startW = panel.offsetWidth;
+      handle.classList.add('dragging');
+      panel.style.transition = 'none';
+      const onMove = (e) => {
+        const w = Math.min(480, Math.max(420, startW - (e.clientX - startX)));
+        panel.style.width = w + 'px';
+        panel.querySelector('.chat-panel-inner').style.width = w + 'px';
+      };
+      const onUp = () => {
+        handle.classList.remove('dragging');
+        panel.style.transition = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
   const chatInput = document.getElementById('chat-input');
   if (!chatInput) return;
   chatInput.addEventListener('keydown', (e) => {
