@@ -238,10 +238,10 @@ function doPost(e) {
               'Content-Type': 'application/json',
               'Authorization': 'Api-Key ' + apiKey
             },
-            payload: JSON.stringify({
-              message: { content: fullMessage },
-              is_streaming: false
-            }),
+            payload: JSON.stringify(Object.assign(
+              { message: { content: fullMessage }, is_streaming: false },
+              body.conversationId ? { conversation: body.conversationId } : {}
+            )),
             muteHttpExceptions: true
           });
           var aiStatus = aiRes.getResponseCode();
@@ -251,7 +251,8 @@ function doPost(e) {
                         (aiData.message && aiData.message.content) ||
                         aiData.answer || aiData.text || aiData.reply ||
                         JSON.stringify(aiData);
-            result = JSON.stringify({ success: true, reply: reply });
+            var convId = aiData.conversationId || aiData.conversation || null;
+            result = JSON.stringify({ success: true, reply: reply, conversationId: convId });
           } else {
             result = JSON.stringify({ success: false, error: 'AI API 回傳錯誤 ' + aiStatus + ': ' + aiRes.getContentText() });
           }

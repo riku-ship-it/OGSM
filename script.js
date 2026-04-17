@@ -1512,6 +1512,8 @@ function renderMarkdown(text) {
 }
 
 // ── Chat Panel ──
+var currentConversationId = null;
+
 function toggleChat() {
   const panel = document.getElementById('chat-panel');
   const btn = document.getElementById('chat-toggle-btn');
@@ -1546,8 +1548,9 @@ function sendChatMessage() {
   messages.appendChild(thinking);
   messages.scrollTop = messages.scrollHeight;
 
-  postData({ type: 'ai_chat', message: msg, staff: currentStaff }).then(res => {
+  postData({ type: 'ai_chat', message: msg, staff: currentStaff, conversationId: currentConversationId }).then(res => {
     thinking.remove();
+    if (res.success && res.conversationId) currentConversationId = res.conversationId;
     const aiBubble = document.createElement('div');
     aiBubble.className = 'chat-bubble ai';
     aiBubble.innerHTML = res.success ? renderMarkdown(res.reply) : ('❌ ' + escHtml(res.error || '發生錯誤'));
