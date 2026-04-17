@@ -330,8 +330,11 @@ function renderObjective() {
       else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = obj.title; }
     } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = obj.title; }
   };
+  let _objComposing = false;
+  nameEl.oncompositionstart = function() { _objComposing = true; };
+  nameEl.oncompositionend   = function() { _objComposing = false; };
   nameEl.onkeydown = function(e) {
-    if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
+    if (e.key==='Enter' && !_objComposing) { e.preventDefault(); nameEl.blur(); }
     if (e.key==='Escape') { nameEl.textContent = obj.title; nameEl.blur(); }
   };
 
@@ -450,8 +453,11 @@ function renderColumns() {
           else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = goal.name; }
         } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = goal.name; }
       });
+      let _goalComposing = false;
+      nameEl.addEventListener('compositionstart', function() { _goalComposing = true; });
+      nameEl.addEventListener('compositionend',   function() { _goalComposing = false; });
       nameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
+        if (e.key==='Enter' && !_goalComposing) { e.preventDefault(); nameEl.blur(); }
         if (e.key==='Escape') { nameEl.textContent = goal.name; nameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -582,8 +588,11 @@ function renderColumns() {
           } else { showToast('❌ '+(res.message||'更新失敗'), true); sNameEl.textContent = strat; }
         } catch(e) { showToast('❌ 網路錯誤', true); sNameEl.textContent = strat; }
       });
+      let _stratComposing = false;
+      sNameEl.addEventListener('compositionstart', function() { _stratComposing = true; });
+      sNameEl.addEventListener('compositionend',   function() { _stratComposing = false; });
       sNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); sNameEl.blur(); }
+        if (e.key==='Enter' && !_stratComposing) { e.preventDefault(); sNameEl.blur(); }
         if (e.key==='Escape') { sNameEl.textContent = strat; sNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -690,8 +699,11 @@ function renderColumns() {
           else { showToast('❌ '+(res.message||'更新失敗'), true); aNameEl.textContent = a.action_name; }
         } catch(e) { showToast('❌ 網路錯誤', true); aNameEl.textContent = a.action_name; }
       });
+      let _actComposing = false;
+      aNameEl.addEventListener('compositionstart', function() { _actComposing = true; });
+      aNameEl.addEventListener('compositionend',   function() { _actComposing = false; });
       aNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); aNameEl.blur(); }
+        if (e.key==='Enter' && !_actComposing) { e.preventDefault(); aNameEl.blur(); }
         if (e.key==='Escape') { aNameEl.textContent = a.action_name; aNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
