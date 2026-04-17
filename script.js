@@ -1447,11 +1447,47 @@ async function init() {
 init();
 
 function renderMarkdown(text) {
-  let s = escHtml(text);
-  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
-  s = s.replace(/\n/g, '<br>');
-  return s;
+  const lines = text.split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // Table: detect header row followed by separator
+    if (i + 1 < lines.length && /^\|.+\|/.test(line) && /^\|[\s\-|:]+\|/.test(lines[i + 1])) {
+      const rows = [];
+      rows.push(line);
+      i += 2; // skip separator
+      while (i < lines.length && /^\|.+\|/.test(lines[i])) { rows.push(lines[i++]); }
+      const parseRow = (r) => r.replace(/^\||\|$/g, '').split('|').map(c => escHtml(c.trim()));
+      const header = parseRow(rows[0]);
+      const body = rows.slice(1).map(parseRow);
+      let tbl = '<table><thead><tr>' + header.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+      body.forEach(row => { tbl += '<tr>' + row.map(c => `<td>${c}</td>`).join('') + '</tr>'; });
+      out.push(tbl + '</tbody></table>');
+      continue;
+    }
+    // Unordered list block
+    if (/^- /.test(line)) {
+      const items = [];
+      while (i < lines.length && /^- /.test(lines[i])) { items.push(escHtml(lines[i].slice(2))); i++; }
+      out.push('<ul>' + items.map(it => `<li>${it}</li>`).join('') + '</ul>');
+      continue;
+    }
+    // Headings
+    const h2 = line.match(/^## (.+)/);
+    if (h2) { out.push(`<h2>${escHtml(h2[1])}</h2>`); i++; continue; }
+    const h3 = line.match(/^### (.+)/);
+    if (h3) { out.push(`<h3>${escHtml(h3[1])}</h3>`); i++; continue; }
+    // HR
+    if (/^---+$/.test(line.trim())) { out.push('<hr>'); i++; continue; }
+    // Blank line
+    if (line.trim() === '') { out.push('<br>'); i++; continue; }
+    // Normal line with inline bold
+    let s = escHtml(line).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out.push(s + '<br>');
+    i++;
+  }
+  return out.join('');
 }
 
 // ── Chat Panel ──
