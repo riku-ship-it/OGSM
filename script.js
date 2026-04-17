@@ -173,7 +173,7 @@ function renderStats() {
       '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
       (item.target ? '<div class="stats-item-target">' + escHtml(item.target) + '</div>' : '<div class="stats-item-target"></div>') +
       '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
-      '<div class="stats-item-type">' + escHtml(item.type || '') + '</div>' +
+      '<div class="stats-item-type' + (item.type && item.type.startsWith('(超大型)') ? ' stats-item-type-xlarge' : item.type && item.type.startsWith('(大型)') ? ' stats-item-type-large' : item.type && item.type.startsWith('(中型)') ? ' stats-item-type-medium' : item.type && item.type.startsWith('(小型)') ? ' stats-item-type-small' : '') + '">' + escHtml(item.type || '') + '</div>' +
       '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
       '<div class="stats-item-actions">' +
         '<button class="stats-item-edit-btn" onclick="startEditStatsItem(\'' + escHtml(item.id) + '\')">編輯</button>' +
