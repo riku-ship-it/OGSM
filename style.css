@@ -771,6 +771,7 @@ body {
 
 /* ── Chat Panel ── */
 .chat-panel {
+  position: relative;
   width: 0;
   overflow: hidden;
   transition: width .3s cubic-bezier(.4,0,.2,1);
@@ -781,6 +782,17 @@ body {
   flex-shrink: 0;
 }
 .chat-panel.open { width: 420px; }
+.chat-resize-handle {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+}
+.chat-resize-handle:hover, .chat-resize-handle.dragging {
+  background: var(--blue);
+  opacity: .35;
+}
 
 .chat-panel-inner {
   width: 420px;
