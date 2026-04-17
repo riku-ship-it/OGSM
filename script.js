@@ -31,6 +31,7 @@ let editingStrategyName   = null;
 let pendingDeleteFn       = null;
 
 // ── Staff State ──
+const staffDataCache = {};
 let currentStaff = localStorage.getItem('ogsm-current-staff') || 'Riku';
 let staffList    = [];
 
@@ -290,8 +291,8 @@ function confirmAddStatsItem() {
 }
 
 // ── Fetch / Post ──
-async function fetchData() {
-  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+async function fetchData(staff) {
+  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(staff || currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
   return await res.json();
 }
 async function fetchStaffList() {
@@ -1250,6 +1251,9 @@ function renderStaffList() {
         switchStaff(name);
       }
     });
+    chip.addEventListener('mouseenter', function() {
+      if (name !== currentStaff && !staffDataCache[name]) fetchData(name).then(data => { staffDataCache[name] = data; }).catch(() => {});
+    });
     container.appendChild(chip);
   });
 }
@@ -1261,8 +1265,12 @@ async function switchStaff(name) {
   selectedGoalId = null;
   selectedStrategy = null;
   renderStaffList();
-  if (currentTab === 'stats') { renderStats(); }
-  else { await loadAndRender(); }
+  if (currentTab === 'stats') { renderStats(); return; }
+  if (staffDataCache[name]) {
+    state = { strategies: [], ...staffDataCache[name] };
+    render();
+    fetchData().then(data => { staffDataCache[name] = data; if (currentStaff === name) { state = { strategies: [], ...data }; render(); } }).catch(() => {});
+  } else { await loadAndRender(); }
 }
 
 async function initStaff() {
@@ -1430,6 +1438,7 @@ function onActionsDrop(newOrder, currentActions) {
 async function loadAndRender() {
   try {
     const data = await fetchData();
+    staffDataCache[currentStaff] = data;
     state = { strategies: [], ...data };
     render();
   } catch(e) {
