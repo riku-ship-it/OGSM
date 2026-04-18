@@ -40,7 +40,7 @@ let currentTab = 'ogsm';
 let statsWeekOffset = 0;
 let statsEditingId = null;
 let weekNoteCache = {};
-let weekNoteSaveTimer = null;
+let weekNoteTimers = {};
 
 const TYPE_SCORES = {
   '(小型)舊流程/規則優化': 1,
@@ -293,6 +293,7 @@ async function initWeekNoteEditor(person, weekStartStr) {
   } catch(e) {
     weekNoteCache[cacheKey] = '';
   }
+  if (currentStaff !== person || isoDate(getWeekStart(statsWeekOffset)) !== weekStartStr) return;
   const editor = document.getElementById('stats-note-editor');
   if (editor) editor.innerHTML = weekNoteCache[cacheKey];
 }
@@ -304,16 +305,17 @@ function scheduleWeekNoteSave() {
   const cacheKey = currentStaff + '-' + weekStartStr;
   weekNoteCache[cacheKey] = editor.innerHTML;
   const person = currentStaff;
-  clearTimeout(weekNoteSaveTimer);
-  weekNoteSaveTimer = setTimeout(async function() {
+  clearTimeout(weekNoteTimers[cacheKey]);
+  weekNoteTimers[cacheKey] = setTimeout(async function() {
     try {
       await fetch(GAS_URL, {
         method: 'POST',
         body: JSON.stringify({ type: 'save_week_note', staff: person, weekStart: weekStartStr, content: weekNoteCache[cacheKey] || '' })
       });
+      delete weekNoteTimers[cacheKey];
       const s = document.getElementById('stats-note-save-status');
       if (s) { s.textContent = '已儲存'; setTimeout(function() { if (s) s.textContent = ''; }, 2000); }
-    } catch(e) { /* silently fail */ }
+    } catch(e) { delete weekNoteTimers[cacheKey]; }
   }, 1500);
 }
 
