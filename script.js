@@ -39,6 +39,8 @@ let staffList    = [];
 let currentTab = 'ogsm';
 let statsWeekOffset = 0;
 let statsEditingId = null;
+let weekNoteCache = {};
+let weekNoteSaveTimer = null;
 
 const TYPE_SCORES = {
   '(小型)舊流程/規則優化': 1,
@@ -147,7 +149,15 @@ function renderStats() {
   const wrap = document.getElementById('tab-content-stats');
   const showAddForm = wrap.dataset.showForm === '1';
 
-  const noteHtml = '<textarea id="stats-note-textarea" class="stats-note-textarea" placeholder="記錄本週成果或發現的問題..."></textarea>';
+  const noteHtml = '<div class="stats-note-editor-wrap">' +
+    '<div class="stats-note-toolbar">' +
+      '<button class="stats-note-toolbar-btn" onmousedown="event.preventDefault();weekNoteCmd(\'bold\')" title="粗體"><b>B</b></button>' +
+      '<button class="stats-note-toolbar-btn" onmousedown="event.preventDefault();weekNoteCmd(\'italic\')" title="斜體"><i>I</i></button>' +
+      '<button class="stats-note-toolbar-btn" onmousedown="event.preventDefault();weekNoteCmd(\'link\')" title="超連結"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
+      '<button class="stats-note-toolbar-btn" onmousedown="event.preventDefault();weekNoteCmd(\'list\')" title="列點"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>' +
+    '</div>' +
+    '<div id="stats-note-editor" class="stats-note-editor" contenteditable="true" data-placeholder="記錄本週成果或發現的問題..."></div>' +
+  '</div>';
 
   const itemsHtml = personItems.map(function(item) {
     if (statsEditingId === item.id) {
@@ -214,7 +224,7 @@ function renderStats() {
         '</div>' +
       '</div>' +
       '<div class="stats-note-area">' +
-        '<div class="stats-ranking-label">本週成果／發現問題</div>' +
+        '<div class="stats-ranking-label">本週成果／發現問題 <span id="stats-note-save-status" class="stats-note-save-status"></span></div>' +
         noteHtml +
       '</div>' +
     '</div>' +
@@ -234,10 +244,13 @@ function renderStats() {
     const dateEl = document.getElementById('sf-date');
     if (dateEl) dateEl.value = isoDate(new Date());
   }
-  const noteEl = document.getElementById('stats-note-textarea');
-  if (noteEl) {
-    noteEl.value = getWeekNote(currentStaff, weekStartStr);
-    noteEl.oninput = function() { saveWeekNote(currentStaff, weekStartStr, noteEl.value); };
+  const editor = document.getElementById('stats-note-editor');
+  if (editor) {
+    editor.oninput = scheduleWeekNoteSave;
+    editor.addEventListener('click', function(e) {
+      if (e.target.tagName === 'A') { e.preventDefault(); window.open(e.target.href, '_blank'); }
+    });
+    initWeekNoteEditor(currentStaff, weekStartStr);
   }
 }
 
@@ -265,11 +278,68 @@ function cancelAddStatsItem() {
   renderStats();
 }
 
-function getWeekNote(person, weekStartStr) {
-  return localStorage.getItem('ogsm-weeknote-' + person + '-' + weekStartStr) || '';
+async function initWeekNoteEditor(person, weekStartStr) {
+  const cacheKey = person + '-' + weekStartStr;
+  const el = document.getElementById('stats-note-editor');
+  if (!el) return;
+  if (weekNoteCache[cacheKey] !== undefined) {
+    el.innerHTML = weekNoteCache[cacheKey];
+    return;
+  }
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(person) + '&weekStart=' + weekStartStr + '&_t=' + Date.now(), { cache: 'no-store' });
+    const data = await res.json();
+    weekNoteCache[cacheKey] = data.content || '';
+  } catch(e) {
+    weekNoteCache[cacheKey] = '';
+  }
+  const editor = document.getElementById('stats-note-editor');
+  if (editor) editor.innerHTML = weekNoteCache[cacheKey];
 }
-function saveWeekNote(person, weekStartStr, text) {
-  localStorage.setItem('ogsm-weeknote-' + person + '-' + weekStartStr, text);
+
+function scheduleWeekNoteSave() {
+  const editor = document.getElementById('stats-note-editor');
+  if (!editor) return;
+  const weekStartStr = isoDate(getWeekStart(statsWeekOffset));
+  const cacheKey = currentStaff + '-' + weekStartStr;
+  weekNoteCache[cacheKey] = editor.innerHTML;
+  const person = currentStaff;
+  clearTimeout(weekNoteSaveTimer);
+  weekNoteSaveTimer = setTimeout(async function() {
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ type: 'save_week_note', staff: person, weekStart: weekStartStr, content: weekNoteCache[cacheKey] || '' })
+      });
+      const s = document.getElementById('stats-note-save-status');
+      if (s) { s.textContent = '已儲存'; setTimeout(function() { if (s) s.textContent = ''; }, 2000); }
+    } catch(e) { /* silently fail */ }
+  }, 1500);
+}
+
+function weekNoteCmd(cmd) {
+  const editor = document.getElementById('stats-note-editor');
+  if (!editor) return;
+  editor.focus();
+  if (cmd === 'bold') {
+    document.execCommand('bold', false, null);
+  } else if (cmd === 'italic') {
+    document.execCommand('italic', false, null);
+  } else if (cmd === 'link') {
+    const url = prompt('請輸入連結網址：');
+    if (url) {
+      const sel = window.getSelection();
+      if (sel && sel.toString()) {
+        document.execCommand('createLink', false, url);
+      } else {
+        const text = prompt('請輸入顯示文字（留空則用網址）：') || url;
+        document.execCommand('insertHTML', false, '<a href="' + url + '">' + text + '</a>');
+      }
+    }
+  } else if (cmd === 'list') {
+    document.execCommand('insertUnorderedList', false, null);
+  }
+  scheduleWeekNoteSave();
 }
 function startEditStatsItem(id) {
   statsEditingId = id;
