@@ -139,6 +139,7 @@ function renderStats() {
   const weekEnd = getWeekEnd(weekStart);
   const weekStartStr = isoDate(weekStart);
   const weekEndStr = isoDate(weekEnd);
+  const weekRangeStr = weekStartStr + '~' + weekEndStr;
 
   const personItems = getPersonStats(currentStaff).filter(function(i) {
     const d = i.launchDate || i.date;
@@ -250,7 +251,7 @@ function renderStats() {
     editor.addEventListener('click', function(e) {
       if (e.target.tagName === 'A') { e.preventDefault(); window.open(e.target.href, '_blank'); }
     });
-    initWeekNoteEditor(currentStaff, weekStartStr);
+    initWeekNoteEditor(currentStaff, weekRangeStr);
   }
 }
 
@@ -301,8 +302,9 @@ async function initWeekNoteEditor(person, weekStartStr) {
 function scheduleWeekNoteSave() {
   const editor = document.getElementById('stats-note-editor');
   if (!editor) return;
-  const weekStartStr = isoDate(getWeekStart(statsWeekOffset));
-  const cacheKey = currentStaff + '-' + weekStartStr;
+  const ws = getWeekStart(statsWeekOffset);
+  const weekRangeStr = isoDate(ws) + '~' + isoDate(getWeekEnd(ws));
+  const cacheKey = currentStaff + '-' + weekRangeStr;
   weekNoteCache[cacheKey] = editor.innerHTML;
   const person = currentStaff;
   clearTimeout(weekNoteTimers[cacheKey]);
@@ -310,7 +312,7 @@ function scheduleWeekNoteSave() {
     try {
       await fetch(GAS_URL, {
         method: 'POST',
-        body: JSON.stringify({ type: 'save_week_note', staff: person, weekStart: weekStartStr, content: weekNoteCache[cacheKey] || '' })
+        body: JSON.stringify({ type: 'save_week_note', staff: person, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' })
       });
       delete weekNoteTimers[cacheKey];
       const s = document.getElementById('stats-note-save-status');
