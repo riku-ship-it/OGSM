@@ -1677,6 +1677,19 @@ function renderMarkdown(text) {
   return out.join('');
 }
 
+// ── Sidebar ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function switchSection(section) {
+  const isPersonal = section === 'personal';
+  document.getElementById('section-personal').style.display = isPersonal ? '' : 'none';
+  document.getElementById('section-department').style.display = isPersonal ? 'none' : 'flex';
+  document.getElementById('nav-personal').classList.toggle('active', isPersonal);
+  document.getElementById('nav-department').classList.toggle('active', !isPersonal);
+}
+
 // ── Chat Panel ──
 var currentConversationId = null;
 
