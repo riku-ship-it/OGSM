@@ -70,6 +70,7 @@ const TYPE_OPTIONS = [
   '(超大型)全新平台導入',
 ];
 const TARGET_OPTIONS = ['全公司','特定部門','內部協作','外部企業'];
+const STAFF_AVATAR_COLORS = ['#185FA5','#0F6E56','#C47A15','#8B3CC4','#D44E28','#2B7FE0'];
 
 function switchTab(tab) {
   currentTab = tab;
@@ -141,11 +142,38 @@ function renderStats() {
   const weekEndStr = isoDate(weekEnd);
   const weekRangeStr = weekStartStr + '~' + weekEndStr;
 
-  const personItems = getPersonStats(currentStaff).filter(function(i) {
+  const allPersonItems = getPersonStats(currentStaff);
+  const personItems = allPersonItems.filter(function(i) {
     const d = i.launchDate || i.date;
     return d >= weekStartStr && d <= weekEndStr;
   });
   const totalScore = personItems.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+
+  const lastWeekStart = getWeekStart(statsWeekOffset - 1);
+  const lastWeekEnd = getWeekEnd(lastWeekStart);
+  const lastWeekStartStr = isoDate(lastWeekStart);
+  const lastWeekEndStr = isoDate(lastWeekEnd);
+  const lastWeekScore = allPersonItems.filter(function(i) {
+    const d = i.launchDate || i.date;
+    return d >= lastWeekStartStr && d <= lastWeekEndStr;
+  }).reduce(function(s, i) { return s + (i.score || 0); }, 0);
+  const scoreDiff = totalScore - lastWeekScore;
+  const trendColor = scoreDiff >= 0 ? '#0F6E56' : '#A32D2D';
+  const trendHtml = '<div class="stats-trend" style="color:' + trendColor + '">' + (scoreDiff >= 0 ? '▲' : '▼') + ' 較上週 ' + (scoreDiff >= 0 ? '+' : '') + scoreDiff + ' 分</div>';
+
+  const now = new Date();
+  const monthStr = isoDate(now).slice(0, 7);
+  const monthScore = allPersonItems.filter(function(i) {
+    return (i.launchDate || i.date || '').slice(0, 7) === monthStr;
+  }).reduce(function(s, i) { return s + (i.score || 0); }, 0);
+  const ringPct = Math.min(100, Math.round((monthScore / 40) * 100));
+  const circ = +(2 * Math.PI * 32).toFixed(2);
+  const dashOff = +((1 - ringPct / 100) * circ).toFixed(2);
+  const ringSvg = '<svg width="80" height="80" viewBox="0 0 80 80" style="display:block;margin:8px auto 0">' +
+    '<circle cx="40" cy="40" r="32" fill="none" stroke="#E6F1FB" stroke-width="8"/>' +
+    '<circle cx="40" cy="40" r="32" fill="none" stroke="#185FA5" stroke-width="8" stroke-dasharray="' + circ + '" stroke-dashoffset="' + dashOff + '" stroke-linecap="round" transform="rotate(-90 40 40)"/>' +
+    '<text x="40" y="45" text-anchor="middle" font-size="13" font-weight="700" fill="#185FA5">' + ringPct + '%</text>' +
+    '</svg>';
 
   const wrap = document.getElementById('tab-content-stats');
   const showAddForm = wrap.dataset.showForm === '1';
@@ -214,31 +242,47 @@ function renderStats() {
     : '<button class="stats-add-btn" onclick="openAddStatsForm()">+ 新增上線項目</button>';
 
   wrap.innerHTML =
-    '<div class="stats-header">' +
-      '<div class="stats-score-card">' +
-        '<div class="stats-score-label">' + escHtml(currentStaff) + ' 本週得分</div>' +
-        '<div class="stats-score-value">' + totalScore + ' <span>分</span></div>' +
-        '<div class="stats-week-range">' +
-          '<button class="stats-week-nav" onclick="statsNavWeek(-1)">‹</button>' +
-          '<span>' + fmtMD(weekStart) + ' – ' + fmtMD(weekEnd) + '</span>' +
-          '<button class="stats-week-nav" onclick="statsNavWeek(1)">›</button>' +
+    '<div class="stats-two-col">' +
+      '<div class="stats-left-col">' +
+        '<div class="stats-score-card">' +
+          '<div class="stats-score-label">' + escHtml(currentStaff) + ' 本週得分</div>' +
+          '<div class="stats-score-value">' + totalScore + ' <span>分</span></div>' +
+          '<div class="stats-week-range">' +
+            '<button class="stats-week-nav" onclick="statsNavWeek(-1)">‹</button>' +
+            '<span>' + fmtMD(weekStart) + ' – ' + fmtMD(weekEnd) + '</span>' +
+            '<button class="stats-week-nav" onclick="statsNavWeek(1)">›</button>' +
+          '</div>' +
+          '<div class="stats-ring-wrap">' + ringSvg + '</div>' +
+          trendHtml +
+        '</div>' +
+        '<div class="stats-legend-card">' +
+          '<div class="stats-legend-title">計分標準</div>' +
+          '<div class="stats-legend-list">' +
+            '<div class="stats-legend-row stats-legend-small"><span class="stats-legend-name">小型</span><span class="stats-legend-pts">1 分</span></div>' +
+            '<div class="stats-legend-row stats-legend-medium"><span class="stats-legend-name">中型</span><span class="stats-legend-pts">5 分</span></div>' +
+            '<div class="stats-legend-row stats-legend-large"><span class="stats-legend-name">大型</span><span class="stats-legend-pts">10 分</span></div>' +
+            '<div class="stats-legend-row stats-legend-xlarge"><span class="stats-legend-name">超大型</span><span class="stats-legend-pts">20 分</span></div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="stats-note-area">' +
-        '<div class="stats-ranking-label">本週成果／發現問題 <span id="stats-note-save-status" class="stats-note-save-status"></span></div>' +
-        noteHtml +
+      '<div class="stats-right-col">' +
+        '<div class="stats-note-area">' +
+          '<div class="stats-note-header">' +
+            '<span class="stats-note-header-title">本週成果 / 發現問題</span>' +
+            '<span id="stats-note-save-status" class="stats-note-save-status"></span>' +
+          '</div>' +
+          noteHtml +
+        '</div>' +
+        '<div class="stats-items-section">' +
+          '<div class="stats-items-header">' +
+            '<span class="stats-items-label">本週上線項目</span>' +
+            '<span class="stats-items-count">共 ' + personItems.length + ' 筆</span>' +
+          '</div>' +
+          '<div class="stats-items-list">' + itemsHtml + '</div>' +
+          addFormHtml +
+        '</div>' +
       '</div>' +
-    '</div>' +
-    '<div class="stats-scoring-legend">' +
-      '<span class="stats-legend-title">計分標準</span>' +
-      '<span class="stats-legend-chip stats-legend-small">小型 · 1分</span>' +
-      '<span class="stats-legend-chip stats-legend-medium">中型 · 5分</span>' +
-      '<span class="stats-legend-chip stats-legend-large">大型 · 10分</span>' +
-      '<span class="stats-legend-chip stats-legend-xlarge">超大型 · 20分</span>' +
-    '</div>' +
-    '<div class="stats-items-label">本週上線項目（' + personItems.length + ' 筆）</div>' +
-    '<div class="stats-items-list">' + itemsHtml + '</div>' +
-    addFormHtml;
+    '</div>';
 
   if (showAddForm) {
     statsTypeChange();
@@ -1383,10 +1427,10 @@ function renderStaffList() {
   const container = document.getElementById('topbar-staff-list');
   if (!container) return;
   container.innerHTML = '';
-  staffList.forEach(name => {
+  staffList.forEach((name, idx) => {
     const chip = document.createElement('button');
     chip.className = 'staff-chip' + (name === currentStaff ? ' active' : '');
-    chip.innerHTML = `<span class="staff-chip-label">${escHtml(name)}</span><span class="staff-chip-del" title="刪除職員">✕</span>`;
+    chip.innerHTML = `<span class="staff-chip-avatar" style="background:${STAFF_AVATAR_COLORS[idx % STAFF_AVATAR_COLORS.length]}">${escHtml(name[0]||'')}</span><span class="staff-chip-label">${escHtml(name)}</span><span class="staff-chip-del" title="刪除職員">✕</span>`;
     chip.addEventListener('click', function(e) {
       if (e.target.classList.contains('staff-chip-del')) {
         e.stopPropagation();
