@@ -43,16 +43,21 @@ body {
   top: 0;
   z-index: 300;
 }
-.topbar-logo {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .5px;
-  color: var(--text);
-  font-family: var(--mono);
-  background: linear-gradient(135deg, var(--blue) 0%, var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
 }
+.sidebar-toggle-btn:hover { background: var(--bg3); color: var(--text); }
 .topbar-sep { width: 1px; height: 18px; background: var(--border2); }
 
 .topbar-staff-list {
@@ -764,6 +769,80 @@ body {
   border-radius: 99px; margin: 2px 4px;
   pointer-events: none; flex-shrink: 0;
 }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 0;
+  overflow: hidden;
+  background: var(--bg2);
+  border-right: 0px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transition: width .25s ease, border-width .25s ease;
+}
+.sidebar.open {
+  width: 200px;
+  border-right-width: 1px;
+}
+.sidebar-nav {
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+}
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+  text-align: left;
+  width: 100%;
+}
+.sidebar-nav-item:hover { background: var(--bg3); color: var(--text); }
+.sidebar-nav-item.active {
+  background: rgba(24, 95, 165, .1);
+  color: #185FA5;
+}
+
+/* ── Section Wrappers ── */
+#section-personal { flex: 1; min-height: 0; }
+#section-department { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+.section-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.section-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--bg3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+}
+.section-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.section-empty-desc { font-size: 13px; color: var(--text3); }
 
 /* ── App Body Layout (for chat panel) ── */
 .app-body {

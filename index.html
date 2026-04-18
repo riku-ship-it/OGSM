@@ -13,7 +13,13 @@
 
 <!-- Top Bar -->
 <div class="topbar">
-  <span class="topbar-logo">OGSM</span>
+  <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="展開/收合選單">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1" y="2.5" width="14" height="2" rx="1"/>
+      <rect x="1" y="7" width="14" height="2" rx="1"/>
+      <rect x="1" y="11.5" width="14" height="2" rx="1"/>
+    </svg>
+  </button>
   <div class="topbar-sep"></div>
   <div class="topbar-staff-list" id="topbar-staff-list"></div>
   <button class="topbar-btn topbar-btn-chat" id="chat-toggle-btn" onclick="toggleChat()">
@@ -27,7 +33,25 @@
 </div>
 
 <div class="app-body">
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <nav class="sidebar-nav">
+    <button class="sidebar-nav-item active" id="nav-personal" onclick="switchSection('personal')">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+      個人紀錄區
+    </button>
+    <button class="sidebar-nav-item" id="nav-department" onclick="switchSection('department')">
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/></svg>
+      部門會議區
+    </button>
+  </nav>
+</div>
+
 <div class="main-content-wrap">
+
+<!-- 個人紀錄區 -->
+<div id="section-personal">
 
 <!-- Tab Bar -->
 <div class="main-tabs">
@@ -56,6 +80,19 @@
 
 <!-- Stats Tab Content -->
 <div id="tab-content-stats" style="display:none"></div>
+
+</div><!-- /section-personal -->
+
+<!-- 部門會議區 -->
+<div id="section-department" style="display:none">
+  <div class="section-empty">
+    <div class="section-empty-icon">
+      <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/></svg>
+    </div>
+    <div class="section-empty-title">部門會議區</div>
+    <div class="section-empty-desc">此功能即將推出</div>
+  </div>
+</div><!-- /section-department -->
 
 </div><!-- /main-content-wrap -->
 
