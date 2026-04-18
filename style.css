@@ -1073,8 +1073,14 @@ body {
   line-height: 1.1;
 }
 .stats-score-value span { font-size: 16px; font-weight: 500; color: var(--text2); }
-.stats-ring-wrap { margin: 4px 0 2px; }
-.stats-trend { font-size: 12px; font-weight: 500; text-align: center; margin-top: 2px; }
+.stats-size-breakdown { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+.stats-size-row { display: flex; gap: 8px; }
+.stats-size-card { flex: 1; border-radius: 8px; padding: 10px 12px; text-align: center; }
+.stats-size-num { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.stats-size-lbl { font-size: 12px; font-weight: 500; margin-top: 2px; }
+.stats-size-small  { background: #EAF3DE; color: #27500A; }
+.stats-size-medium { background: #E6F1FB; color: #0C447C; }
+.stats-size-large  { background: #FCEBEB; color: #791F1F; display: flex; align-items: center; justify-content: center; }
 .stats-week-range {
   display: flex;
   align-items: center;
