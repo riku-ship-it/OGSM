@@ -148,32 +148,9 @@ function renderStats() {
     return d >= weekStartStr && d <= weekEndStr;
   });
   const totalScore = personItems.reduce(function(s, i) { return s + (i.score || 0); }, 0);
-
-  const lastWeekStart = getWeekStart(statsWeekOffset - 1);
-  const lastWeekEnd = getWeekEnd(lastWeekStart);
-  const lastWeekStartStr = isoDate(lastWeekStart);
-  const lastWeekEndStr = isoDate(lastWeekEnd);
-  const lastWeekScore = allPersonItems.filter(function(i) {
-    const d = i.launchDate || i.date;
-    return d >= lastWeekStartStr && d <= lastWeekEndStr;
-  }).reduce(function(s, i) { return s + (i.score || 0); }, 0);
-  const scoreDiff = totalScore - lastWeekScore;
-  const trendColor = scoreDiff >= 0 ? '#0F6E56' : '#A32D2D';
-  const trendHtml = '<div class="stats-trend" style="color:' + trendColor + '">' + (scoreDiff >= 0 ? '▲' : '▼') + ' 較上週 ' + (scoreDiff >= 0 ? '+' : '') + scoreDiff + ' 分</div>';
-
-  const now = new Date();
-  const monthStr = isoDate(now).slice(0, 7);
-  const monthScore = allPersonItems.filter(function(i) {
-    return (i.launchDate || i.date || '').slice(0, 7) === monthStr;
-  }).reduce(function(s, i) { return s + (i.score || 0); }, 0);
-  const ringPct = Math.min(100, Math.round((monthScore / 40) * 100));
-  const circ = +(2 * Math.PI * 32).toFixed(2);
-  const dashOff = +((1 - ringPct / 100) * circ).toFixed(2);
-  const ringSvg = '<svg width="80" height="80" viewBox="0 0 80 80" style="display:block;margin:8px auto 0">' +
-    '<circle cx="40" cy="40" r="32" fill="none" stroke="#E6F1FB" stroke-width="8"/>' +
-    '<circle cx="40" cy="40" r="32" fill="none" stroke="#185FA5" stroke-width="8" stroke-dasharray="' + circ + '" stroke-dashoffset="' + dashOff + '" stroke-linecap="round" transform="rotate(-90 40 40)"/>' +
-    '<text x="40" y="45" text-anchor="middle" font-size="13" font-weight="700" fill="#185FA5">' + ringPct + '%</text>' +
-    '</svg>';
+  const smallCount = personItems.filter(function(i) { return i.type && (i.type.startsWith('(小型)') || i.type.includes('小型・')); }).length;
+  const mediumCount = personItems.filter(function(i) { return i.type && (i.type.startsWith('(中型)') || i.type.includes('中型・')); }).length;
+  const largeCount = personItems.filter(function(i) { return i.type && (i.type.startsWith('(大型)') || i.type.startsWith('(超大型)') || i.type.includes('大型・')); }).length;
 
   const wrap = document.getElementById('tab-content-stats');
   const showAddForm = wrap.dataset.showForm === '1';
@@ -252,8 +229,21 @@ function renderStats() {
             '<span>' + fmtMD(weekStart) + ' – ' + fmtMD(weekEnd) + '</span>' +
             '<button class="stats-week-nav" onclick="statsNavWeek(1)">›</button>' +
           '</div>' +
-          '<div class="stats-ring-wrap">' + ringSvg + '</div>' +
-          trendHtml +
+          '<div class="stats-size-breakdown">' +
+            '<div class="stats-size-row">' +
+              '<div class="stats-size-card stats-size-small">' +
+                '<div class="stats-size-num">' + smallCount + '</div>' +
+                '<div class="stats-size-lbl">小型 ×' + smallCount + '</div>' +
+              '</div>' +
+              '<div class="stats-size-card stats-size-medium">' +
+                '<div class="stats-size-num">' + mediumCount + '</div>' +
+                '<div class="stats-size-lbl">中型 ×' + mediumCount + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="stats-size-card stats-size-large">' +
+              '<div class="stats-size-lbl">大型 / 超大型 ×' + largeCount + '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
         '<div class="stats-legend-card">' +
           '<div class="stats-legend-title">計分標準</div>' +
