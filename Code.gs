@@ -30,7 +30,7 @@
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
-var SYSTEM_SHEETS = ['Stats'];
+var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes'];
 
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
@@ -38,6 +38,15 @@ function getOrCreateStatsSheet(ss) {
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('Stats');
   newSheet.appendRow(STATS_HEADER_ROW);
+  return newSheet;
+}
+
+// ── 取得或建立週記錄工作表 ──
+function getOrCreateWeeklyNotesSheet(ss) {
+  var sheet = ss.getSheetByName('WeeklyNotes');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('WeeklyNotes');
+  newSheet.appendRow(['職員', '週開始日', '內容', '更新時間']);
   return newSheet;
 }
 
@@ -112,6 +121,24 @@ function doGet(e) {
       }
       return ContentService
         .createTextOutput(JSON.stringify({ items: items }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳週記錄 ----
+    if (e.parameter.action === 'get_week_note') {
+      var wnSheet = getOrCreateWeeklyNotesSheet(ss);
+      var wnData = wnSheet.getDataRange().getValues();
+      var wnStaff = e.parameter.staff || '';
+      var wnWeekStart = e.parameter.weekStart || '';
+      var wnContent = '';
+      for (var i = 1; i < wnData.length; i++) {
+        if (String(wnData[i][0]) === wnStaff && String(wnData[i][1]) === wnWeekStart) {
+          wnContent = String(wnData[i][2] || '');
+          break;
+        }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ content: wnContent }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -343,6 +370,28 @@ function doPost(e) {
           result = JSON.stringify({ success: false, error: aiErr.message });
         }
       }
+
+    // ---- save_week_note：儲存或更新週記錄 ----
+    } else if (body.type === 'save_week_note') {
+      var wSheet = getOrCreateWeeklyNotesSheet(ss);
+      var wData = wSheet.getDataRange().getValues();
+      var wStaff = String(body.staff || '');
+      var wWeekStart = String(body.weekStart || '');
+      var wContent = String(body.content || '');
+      var wNow = new Date().toISOString();
+      var wUpdated = false;
+      for (var i = 1; i < wData.length; i++) {
+        if (String(wData[i][0]) === wStaff && String(wData[i][1]) === wWeekStart) {
+          wSheet.getRange(i + 1, 3).setValue(wContent);
+          wSheet.getRange(i + 1, 4).setValue(wNow);
+          wUpdated = true;
+          break;
+        }
+      }
+      if (!wUpdated) {
+        wSheet.appendRow([wStaff, wWeekStart, wContent, wNow]);
+      }
+      result = JSON.stringify({ success: true });
 
     } else {
       // 所有其他操作使用 body.staff 指定的工作表
