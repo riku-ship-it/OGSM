@@ -46,7 +46,7 @@ function getOrCreateWeeklyNotesSheet(ss) {
   var sheet = ss.getSheetByName('WeeklyNotes');
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('WeeklyNotes');
-  newSheet.appendRow(['職員', '週開始日', '內容', '更新時間']);
+  newSheet.appendRow(['職員', '週', '內容']);
   return newSheet;
 }
 
@@ -373,23 +373,28 @@ function doPost(e) {
 
     // ---- save_week_note：儲存或更新週記錄 ----
     } else if (body.type === 'save_week_note') {
-      var wSheet = getOrCreateWeeklyNotesSheet(ss);
-      var wData = wSheet.getDataRange().getValues();
-      var wStaff = String(body.staff || '');
-      var wWeekStart = String(body.weekStart || '');
-      var wContent = String(body.content || '');
-      var wNow = new Date().toISOString();
-      var wUpdated = false;
-      for (var i = 1; i < wData.length; i++) {
-        if (String(wData[i][0]) === wStaff && String(wData[i][1]) === wWeekStart) {
-          wSheet.getRange(i + 1, 3).setValue(wContent);
-          wSheet.getRange(i + 1, 4).setValue(wNow);
-          wUpdated = true;
-          break;
+      var lock = LockService.getScriptLock();
+      lock.waitLock(30000);
+      try {
+        var wSheet = getOrCreateWeeklyNotesSheet(ss);
+        var wData = wSheet.getDataRange().getValues();
+        var wStaff = String(body.staff || '');
+        var wWeekRange = String(body.weekStart || '');
+        var wContent = String(body.content || '');
+        var wUpdated = false;
+        for (var i = 1; i < wData.length; i++) {
+          if (String(wData[i][0]) === wStaff && String(wData[i][1]) === wWeekRange) {
+            wSheet.getRange(i + 1, 3).setValue(wContent);
+            wUpdated = true;
+            break;
+          }
         }
-      }
-      if (!wUpdated) {
-        wSheet.appendRow([wStaff, wWeekStart, wContent, wNow]);
+        if (!wUpdated) {
+          wSheet.appendRow([wStaff, wWeekRange, wContent]);
+        }
+        SpreadsheetApp.flush();
+      } finally {
+        lock.releaseLock();
       }
       result = JSON.stringify({ success: true });
 
