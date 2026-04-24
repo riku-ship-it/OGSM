@@ -1851,21 +1851,47 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Meeting Section ──
 
 const MEETING_DEFAULT_ORDER = ['Luka', 'Riku', 'Cathy', 'Yumin'];
-const MEETING_STATUS_OPTIONS = ['未開始', '待確認解法', '進行中', '已解決（待觀察）', '已解決（完全改善）', '目前無解'];
+const MEETING_STATUS_OPTIONS = ['未開始', '進行中', '待確認解法', '已解決（待觀察）', '已解決（完全改善）', '目前無解'];
 let meetingPickerMember = null;
-let meetingDragSrcIdx = null;
+let meetingAddRowMember = null;
+let meetingTlEditId = null;
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(0));
 }
 
 function getMeetingReportData() {
-  try { return JSON.parse(localStorage.getItem('meeting-report-' + getMeetingWeekKey()) || '{}'); }
+  try { return JSON.parse(localStorage.getItem('meeting-report-v2-' + getMeetingWeekKey()) || '{}'); }
   catch(e) { return {}; }
 }
 
 function saveMeetingReportData(data) {
-  localStorage.setItem('meeting-report-' + getMeetingWeekKey(), JSON.stringify(data));
+  localStorage.setItem('meeting-report-v2-' + getMeetingWeekKey(), JSON.stringify(data));
+}
+
+function getMemberRows(data, memberName) {
+  const d = data[memberName];
+  if (!d) return [];
+  if (d.rows) return d.rows;
+  if (d.ogsmItems && d.ogsmItems.length) {
+    return d.ogsmItems.map(function(item) {
+      const text = item.type === 'M' ? (item.actionName || '') : (item.name || item.text || '');
+      return { project: '', task: text, status: d.status || '未開始', bottleneck: d.bottleneck || '' };
+    });
+  }
+  return [];
+}
+
+function getMeetingStatusClass(status) {
+  const map = {
+    '未開始': 'ms-unstart',
+    '進行中': 'ms-inprogress',
+    '待確認解法': 'ms-pending',
+    '已解決（待觀察）': 'ms-resolved-w',
+    '已解決（完全改善）': 'ms-resolved-f',
+    '目前無解': 'ms-nofix'
+  };
+  return map[status] || 'ms-unstart';
 }
 
 function getMeetingWeekNumber(d) {
@@ -1910,6 +1936,7 @@ function renderMeetingSection() {
 
   renderMeetingScore();
   renderMeetingRows();
+  renderMeetingTimelineBar();
   renderMeetingAnnounce();
 }
 
@@ -1938,106 +1965,153 @@ function renderMeetingRows() {
   if (!container) return;
 
   const members = getMeetingOrderedMembers();
-  const reportData = getMeetingReportData();
+  const data = getMeetingReportData();
 
-  container.innerHTML = members.map(function(name, idx) {
-    const data = reportData[name] || { ogsmItems: [], status: '未開始', bottleneck: '' };
+  let html = '<div class="mtable">' +
+    '<div class="mtable-head">' +
+    '<div class="mth">成員</div>' +
+    '<div class="mth">專案</div>' +
+    '<div class="mth">本週任務</div>' +
+    '<div class="mth">狀態</div>' +
+    '<div class="mth">瓶頸 / 備註</div>' +
+    '<div class="mth"></div>' +
+    '</div>';
+
+  members.forEach(function(name, memberIdx) {
+    const rows = getMemberRows(data, name);
     const color = avatarColor(name);
 
-    const statusOpts = MEETING_STATUS_OPTIONS.map(function(s) {
-      return '<option value="' + escHtml(s) + '"' + (s === (data.status || '未開始') ? ' selected' : '') + '>' + escHtml(s) + '</option>';
-    }).join('');
-
-    const chips = (data.ogsmItems || []).map(function(item, i) {
-      const tc = 'ogsm-chip-' + item.type.toLowerCase();
-      const tl = item.type === 'manual' ? '✎' : item.type;
-      const text = item.type === 'M' ? (item.actionName || '') : (item.name || item.text || '');
-      return '<div class="meeting-ogsm-chip ' + tc + '">' +
-        '<span class="meeting-ogsm-chip-type">' + escHtml(tl) + '</span>' +
-        '<span class="meeting-ogsm-chip-text" title="' + escHtml(text) + '">' + escHtml(text) + '</span>' +
-        '<button class="meeting-ogsm-chip-del" onclick="removeMeetingItem(' + JSON.stringify(name) + ',' + i + ')">✕</button>' +
-        '</div>';
-    }).join('');
-
-    return '<div class="meeting-row" data-idx="' + idx + '" data-member="' + escHtml(name) + '" draggable="true">' +
-      '<div class="meeting-row-handle">' +
-        '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/><circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/><circle cx="5.5" cy="12" r="1.2"/><circle cx="10.5" cy="12" r="1.2"/></svg>' +
-      '</div>' +
-      '<div class="meeting-row-member">' +
-        '<div class="meeting-row-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
-        '<div class="meeting-row-name">' + escHtml(name) + '</div>' +
-      '</div>' +
-      '<div class="meeting-row-content">' +
-        '<div class="meeting-row-ogsm-section">' +
-          '<div class="meeting-row-field-label">產品專案成果＆時程</div>' +
-          '<div class="meeting-ogsm-chips">' +
-            chips +
-            '<button class="meeting-ogsm-add-btn" onclick="openOgsmPicker(' + JSON.stringify(name) + ')">+ 選擇 OGSM</button>' +
-            '<button class="meeting-ogsm-add-btn" onclick="addManualMeetingItem(' + JSON.stringify(name) + ')">+ 手動輸入</button>' +
-          '</div>' +
+    if (!rows.length) {
+      html += '<div class="mtr mtr-first' + (memberIdx === 0 ? ' mtr-first-overall' : '') + '">' +
+        '<div class="mtd mtd-member">' +
+          '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
+          '<div class="mrow-name">' + escHtml(name) + '</div>' +
         '</div>' +
-        '<div class="meeting-row-bottom">' +
-          '<div class="meeting-row-status-wrap">' +
-            '<div class="meeting-row-field-label">狀態</div>' +
-            '<select class="meeting-status-select" onchange="saveMeetingField(' + JSON.stringify(name) + ',\'status\',this.value)">' + statusOpts + '</select>' +
-          '</div>' +
-          '<div class="meeting-row-bottleneck-wrap">' +
-            '<div class="meeting-row-field-label">現況主要瓶頸</div>' +
-            '<textarea class="meeting-bottleneck-input" placeholder="輸入當前遇到的主要瓶頸..." oninput="saveMeetingField(' + JSON.stringify(name) + ',\'bottleneck\',this.value)">' + escHtml(data.bottleneck || '') + '</textarea>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '</div>';
-  }).join('');
+        '<div class="mtd"><span class="mrow-placeholder">尚無任務</span></div>' +
+        '<div class="mtd"></div><div class="mtd"></div><div class="mtd"></div>' +
+        '<div class="mtd mtd-act">' +
+          '<button class="mrow-add-btn" onclick="openMeetingAddRow(' + JSON.stringify(name) + ')" title="新增任務">+</button>' +
+        '</div></div>';
+      return;
+    }
 
-  initMeetingDragDrop();
+    rows.forEach(function(row, rowIdx) {
+      const isFirst = rowIdx === 0;
+      const statusCls = getMeetingStatusClass(row.status || '未開始');
+      html += '<div class="mtr' + (isFirst ? ' mtr-first' + (memberIdx === 0 ? ' mtr-first-overall' : '') : '') + '">';
+      html += '<div class="mtd mtd-member">';
+      if (isFirst) {
+        html += '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
+          '<div class="mrow-name">' + escHtml(name) + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="mtd mtd-project">' +
+        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
+        'data-field="project" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
+        'data-placeholder="專案名稱" onblur="saveMeetingRowField(this)" ' +
+        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}">' +
+        escHtml(row.project || '') + '</span></div>';
+      html += '<div class="mtd mtd-task">' +
+        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
+        'data-field="task" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
+        'data-placeholder="本週任務描述" onblur="saveMeetingRowField(this)">' +
+        escHtml(row.task || '') + '</span></div>';
+      html += '<div class="mtd mtd-status">' +
+        '<span class="mstatus-badge ' + statusCls + '" ' +
+        'data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
+        'onclick="cycleMeetingRowStatus(this)" title="點擊切換狀態">' +
+        escHtml(row.status || '未開始') + '</span></div>';
+      html += '<div class="mtd mtd-note">' +
+        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
+        'data-field="bottleneck" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
+        'data-placeholder="瓶頸 / 備註" onblur="saveMeetingRowField(this)">' +
+        escHtml(row.bottleneck || '') + '</span></div>';
+      html += '<div class="mtd mtd-act">';
+      if (isFirst) {
+        html += '<button class="mrow-add-btn" onclick="openMeetingAddRow(' + JSON.stringify(name) + ')" title="新增任務">+</button>';
+      }
+      html += '<button class="mrow-del-btn" onclick="deleteMeetingRow(' + JSON.stringify(name) + ',' + rowIdx + ')" title="刪除此列">✕</button>';
+      html += '</div></div>';
+    });
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
 }
 
-function saveMeetingField(memberName, field, value) {
+function saveMeetingRowField(el) {
+  const memberName = el.dataset.member;
+  const rowIdx = parseInt(el.dataset.rowidx);
+  const field = el.dataset.field;
+  const value = el.textContent.trim();
   const data = getMeetingReportData();
-  if (!data[memberName]) data[memberName] = { ogsmItems: [], status: '未開始', bottleneck: '' };
-  data[memberName][field] = value;
-  saveMeetingReportData(data);
+  if (!data[memberName]) data[memberName] = { rows: [] };
+  if (!data[memberName].rows) data[memberName].rows = getMemberRows(data, memberName);
+  if (rowIdx >= 0 && rowIdx < data[memberName].rows.length) {
+    data[memberName].rows[rowIdx][field] = value;
+    saveMeetingReportData(data);
+  }
 }
 
-function removeMeetingItem(memberName, idx) {
+function cycleMeetingRowStatus(el) {
+  const memberName = el.dataset.member;
+  const rowIdx = parseInt(el.dataset.rowidx);
   const data = getMeetingReportData();
   if (!data[memberName]) return;
-  data[memberName].ogsmItems = data[memberName].ogsmItems || [];
-  data[memberName].ogsmItems.splice(idx, 1);
+  const rows = getMemberRows(data, memberName);
+  if (rowIdx < 0 || rowIdx >= rows.length) return;
+  const idx = MEETING_STATUS_OPTIONS.indexOf(rows[rowIdx].status || '未開始');
+  const next = MEETING_STATUS_OPTIONS[(idx + 1) % MEETING_STATUS_OPTIONS.length];
+  rows[rowIdx].status = next;
+  data[memberName].rows = rows;
+  saveMeetingReportData(data);
+  el.textContent = next;
+  el.className = 'mstatus-badge ' + getMeetingStatusClass(next);
+}
+
+function deleteMeetingRow(memberName, rowIdx) {
+  const data = getMeetingReportData();
+  if (!data[memberName]) return;
+  const rows = getMemberRows(data, memberName);
+  rows.splice(rowIdx, 1);
+  data[memberName].rows = rows;
   saveMeetingReportData(data);
   renderMeetingRows();
 }
 
-function initMeetingDragDrop() {
-  const rows = document.querySelectorAll('#meeting-rows .meeting-row');
-  rows.forEach(function(row) {
-    row.addEventListener('dragstart', function(e) {
-      meetingDragSrcIdx = parseInt(row.dataset.idx);
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragend', function() {
-      row.classList.remove('dragging');
-      document.querySelectorAll('#meeting-rows .meeting-row').forEach(function(r) { r.classList.remove('drag-over'); });
-    });
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      document.querySelectorAll('#meeting-rows .meeting-row').forEach(function(r) { r.classList.remove('drag-over'); });
-      row.classList.add('drag-over');
-    });
-    row.addEventListener('drop', function(e) {
-      e.preventDefault();
-      const targetIdx = parseInt(row.dataset.idx);
-      if (meetingDragSrcIdx === null || meetingDragSrcIdx === targetIdx) return;
-      const members = getMeetingOrderedMembers();
-      const moved = members.splice(meetingDragSrcIdx, 1)[0];
-      members.splice(targetIdx, 0, moved);
-      saveMeetingRowsOrder(members);
-      renderMeetingRows();
-    });
-  });
+function openMeetingAddRow(memberName) {
+  meetingAddRowMember = memberName;
+  const modal = document.getElementById('meeting-addrow-modal');
+  if (!modal) return;
+  document.getElementById('meeting-addrow-title').textContent = memberName + ' — 新增任務';
+  document.getElementById('addrow-project').value = '';
+  document.getElementById('addrow-task').value = '';
+  document.getElementById('addrow-status').value = '未開始';
+  document.getElementById('addrow-note').value = '';
+  modal.style.display = 'flex';
+  setTimeout(function() { document.getElementById('addrow-project').focus(); }, 50);
+}
+
+function closeMeetingAddRow() {
+  const modal = document.getElementById('meeting-addrow-modal');
+  if (modal) modal.style.display = 'none';
+  meetingAddRowMember = null;
+}
+
+function submitMeetingAddRow() {
+  if (!meetingAddRowMember) return;
+  const project = document.getElementById('addrow-project').value.trim();
+  const task = document.getElementById('addrow-task').value.trim();
+  const status = document.getElementById('addrow-status').value;
+  const bottleneck = document.getElementById('addrow-note').value.trim();
+  const data = getMeetingReportData();
+  if (!data[meetingAddRowMember]) data[meetingAddRowMember] = { rows: [] };
+  if (!data[meetingAddRowMember].rows) data[meetingAddRowMember].rows = getMemberRows(data, meetingAddRowMember);
+  data[meetingAddRowMember].rows.push({ project, task, status, bottleneck });
+  saveMeetingReportData(data);
+  closeMeetingAddRow();
+  renderMeetingRows();
+  showToast('✅ 任務已新增');
 }
 
 function openOgsmPicker(memberName) {
@@ -2046,56 +2120,33 @@ function openOgsmPicker(memberName) {
   const titleEl = document.getElementById('meeting-picker-title');
   const bodyEl = document.getElementById('meeting-picker-body');
   if (!modal) return;
-
   titleEl.textContent = memberName + ' — 選擇 OGSM 項目';
-
   const goals = state.goals || [];
   const strategies = state.strategies || [];
   const actions = (state.actions || []).filter(function(a) {
     return !a.assignee || a.assignee === memberName || (a.assignee && a.assignee.includes(memberName));
   });
-
   let html = '';
-
   if (goals.length) {
-    html += '<div class="picker-section">' +
-      '<div class="picker-section-label"><span class="picker-type-badge badge-g">G</span> 支線目標</div>' +
+    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-g">G</span> 支線目標</div>' +
       goals.map(function(g) {
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'G', id: g.id, name: g.name, color: g.color || 'blue' }) + ')">' +
-          '<span class="picker-item-text">' + escHtml(g.name || '') + '</span>' +
-          '</div>';
-      }).join('') +
-      '</div>';
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'G', id: g.id, name: g.name }) + ')"><span class="picker-item-text">' + escHtml(g.name || '') + '</span></div>';
+      }).join('') + '</div>';
   }
-
   if (strategies.length) {
-    html += '<div class="picker-section">' +
-      '<div class="picker-section-label"><span class="picker-type-badge badge-s">S</span> 策略</div>' +
+    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-s">S</span> 策略</div>' +
       strategies.map(function(s) {
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'S', goalId: s.goal_id, name: s.name }) + ')">' +
-          '<span class="picker-item-text">' + escHtml(s.name || '') + '</span>' +
-          '</div>';
-      }).join('') +
-      '</div>';
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'S', goalId: s.goal_id, name: s.name }) + ')"><span class="picker-item-text">' + escHtml(s.name || '') + '</span></div>';
+      }).join('') + '</div>';
   }
-
   if (actions.length) {
-    html += '<div class="picker-section">' +
-      '<div class="picker-section-label"><span class="picker-type-badge badge-m">M</span> 行動項目</div>' +
+    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-m">M</span> 行動項目</div>' +
       actions.map(function(a) {
         const aName = a.action_name || a.actionName || '';
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'M', id: a.id, actionName: aName, assignee: a.assignee || '' }) + ')">' +
-          '<span class="picker-item-text">' + escHtml(aName) + '</span>' +
-          (a.assignee ? '<span class="picker-item-assignee">' + escHtml(a.assignee) + '</span>' : '') +
-          '</div>';
-      }).join('') +
-      '</div>';
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'M', id: a.id, actionName: aName }) + ')"><span class="picker-item-text">' + escHtml(aName) + '</span></div>';
+      }).join('') + '</div>';
   }
-
-  if (!html) {
-    html = '<div class="picker-empty">尚無 OGSM 資料<br>請先在 OGSM 頁面新增目標、策略或行動項目</div>';
-  }
-
+  if (!html) html = '<div class="picker-empty">尚無 OGSM 資料</div>';
   bodyEl.innerHTML = html;
   modal.style.display = 'flex';
 }
@@ -2108,44 +2159,145 @@ function closeOgsmPicker() {
 
 function addOgsmItemToMember(item) {
   if (!meetingPickerMember) return;
-  const data = getMeetingReportData();
-  if (!data[meetingPickerMember]) data[meetingPickerMember] = { ogsmItems: [], status: '未開始', bottleneck: '' };
-  data[meetingPickerMember].ogsmItems = data[meetingPickerMember].ogsmItems || [];
-  data[meetingPickerMember].ogsmItems.push(item);
-  saveMeetingReportData(data);
+  openMeetingAddRow(meetingPickerMember);
   closeOgsmPicker();
-  renderMeetingRows();
-}
-
-function addManualMeetingItem(memberName) {
-  const text = prompt('請輸入手動項目內容：');
-  if (!text || !text.trim()) return;
-  const data = getMeetingReportData();
-  if (!data[memberName]) data[memberName] = { ogsmItems: [], status: '未開始', bottleneck: '' };
-  data[memberName].ogsmItems = data[memberName].ogsmItems || [];
-  data[memberName].ogsmItems.push({ type: 'manual', text: text.trim() });
-  saveMeetingReportData(data);
-  renderMeetingRows();
+  setTimeout(function() {
+    const projectInput = document.getElementById('addrow-project');
+    if (projectInput) projectInput.value = item.name || item.actionName || '';
+  }, 60);
 }
 
 function switchMeetingTab(tab) {
-  const reportPanel = document.getElementById('meeting-tab-report');
-  const announcePanel = document.getElementById('meeting-tab-announce');
-  const reportBtn = document.getElementById('mtab-report');
-  const announceBtn = document.getElementById('mtab-announce');
-  if (!reportPanel || !announcePanel) return;
+  ['report', 'announce', 'timeline'].forEach(function(t) {
+    const panel = document.getElementById('meeting-tab-' + t);
+    const btn = document.getElementById('mtab-' + t);
+    if (panel) panel.style.display = (t === tab) ? '' : 'none';
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'timeline') renderTimelineTab();
+}
 
-  if (tab === 'report') {
-    reportPanel.style.display = '';
-    announcePanel.style.display = 'none';
-    reportBtn.classList.add('active');
-    announceBtn.classList.remove('active');
-  } else {
-    reportPanel.style.display = 'none';
-    announcePanel.style.display = '';
-    reportBtn.classList.remove('active');
-    announceBtn.classList.add('active');
+// ── Timeline Functions ──
+
+function getTimelineEntries() {
+  try { return JSON.parse(localStorage.getItem('meeting-timeline-entries') || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveTimelineEntries(entries) {
+  localStorage.setItem('meeting-timeline-entries', JSON.stringify(entries));
+}
+
+function renderTimelineTab() {
+  const listEl = document.getElementById('meeting-tl-list');
+  if (!listEl) return;
+  const entries = getTimelineEntries();
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="meeting-tl-empty">尚無時程項目<br>點擊「+ 新增時程」建立第一個時程</div>';
+    return;
   }
+  listEl.innerHTML = entries.map(function(entry) {
+    const preview = (entry.content || '').replace(/\n/g, ' ').slice(0, 60) + ((entry.content || '').length > 60 ? '…' : '');
+    return '<div class="meeting-tl-entry">' +
+      '<div class="meeting-tl-entry-name">' + escHtml(entry.name || '（未命名）') + '</div>' +
+      '<div class="meeting-tl-entry-preview">' + escHtml(preview) + '</div>' +
+      '<div class="meeting-tl-entry-actions">' +
+        '<button class="meeting-tl-entry-btn" onclick="openTimelineModal(' + JSON.stringify(entry.id) + ')">編輯</button>' +
+        '<button class="meeting-tl-entry-btn danger" onclick="deleteTimelineEntry(' + JSON.stringify(entry.id) + ')">刪除</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function renderMeetingTimelineBar() {
+  const select = document.getElementById('mtlbar-select');
+  if (!select) return;
+  const entries = getTimelineEntries();
+  const selectedId = localStorage.getItem('meeting-selected-timeline-' + getMeetingWeekKey()) || '';
+  select.innerHTML = '<option value="">— 選擇時程 —</option>' +
+    entries.map(function(e) {
+      return '<option value="' + escHtml(e.id) + '"' + (e.id === selectedId ? ' selected' : '') + '>' + escHtml(e.name || '（未命名）') + '</option>';
+    }).join('');
+  if (selectedId) {
+    const entry = entries.find(function(e) { return e.id === selectedId; });
+    if (entry) showTimelinePreview(entry.content);
+  }
+}
+
+function onTimelineSelectChange(id) {
+  if (id) {
+    localStorage.setItem('meeting-selected-timeline-' + getMeetingWeekKey(), id);
+    const entry = getTimelineEntries().find(function(e) { return e.id === id; });
+    if (entry) showTimelinePreview(entry.content);
+  } else {
+    clearTimelineBar();
+  }
+}
+
+function showTimelinePreview(content) {
+  const preview = document.getElementById('mtlbar-preview');
+  const previewContent = document.getElementById('mtlbar-preview-content');
+  if (!preview || !previewContent) return;
+  previewContent.textContent = content || '';
+  preview.style.display = content ? '' : 'none';
+}
+
+function clearTimelineBar() {
+  localStorage.removeItem('meeting-selected-timeline-' + getMeetingWeekKey());
+  const select = document.getElementById('mtlbar-select');
+  if (select) select.value = '';
+  const preview = document.getElementById('mtlbar-preview');
+  if (preview) preview.style.display = 'none';
+}
+
+function openTimelineModal(entryId) {
+  meetingTlEditId = entryId;
+  const modal = document.getElementById('meeting-tl-modal');
+  const titleEl = document.getElementById('meeting-tl-modal-title');
+  if (!modal) return;
+  if (entryId) {
+    const entry = getTimelineEntries().find(function(e) { return e.id === entryId; });
+    titleEl.textContent = '編輯時程';
+    document.getElementById('tl-entry-name').value = entry ? (entry.name || '') : '';
+    document.getElementById('tl-entry-content').value = entry ? (entry.content || '') : '';
+  } else {
+    titleEl.textContent = '新增時程';
+    document.getElementById('tl-entry-name').value = '';
+    document.getElementById('tl-entry-content').value = '';
+  }
+  modal.style.display = 'flex';
+  setTimeout(function() { document.getElementById('tl-entry-name').focus(); }, 50);
+}
+
+function closeMeetingTimelineModal() {
+  const modal = document.getElementById('meeting-tl-modal');
+  if (modal) modal.style.display = 'none';
+  meetingTlEditId = null;
+}
+
+function submitTimelineEntry() {
+  const name = document.getElementById('tl-entry-name').value.trim();
+  const content = document.getElementById('tl-entry-content').value.trim();
+  if (!name) { showToast('❗ 請輸入時程名稱', true); return; }
+  const entries = getTimelineEntries();
+  if (meetingTlEditId) {
+    const idx = entries.findIndex(function(e) { return e.id === meetingTlEditId; });
+    if (idx >= 0) { entries[idx].name = name; entries[idx].content = content; }
+  } else {
+    entries.push({ id: Date.now().toString(), name: name, content: content });
+  }
+  saveTimelineEntries(entries);
+  closeMeetingTimelineModal();
+  renderTimelineTab();
+  renderMeetingTimelineBar();
+  showToast('✅ 時程已儲存');
+}
+
+function deleteTimelineEntry(id) {
+  if (!confirm('確定要刪除此時程嗎？')) return;
+  saveTimelineEntries(getTimelineEntries().filter(function(e) { return e.id !== id; }));
+  renderTimelineTab();
+  renderMeetingTimelineBar();
+  showToast('已刪除時程');
 }
 
 function renderMeetingAnnounce() {
