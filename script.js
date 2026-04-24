@@ -909,6 +909,10 @@ function renderColumns() {
 }
 
 const COLUMN_TOOLTIPS = {
+  O: `<div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">目的</span>
+        <p class="ogsm-tooltip-desc">成功時，你預期會長什麼樣子？</p>
+      </div>`,
   G: `<div class="ogsm-tooltip-section">
         <span class="ogsm-tooltip-label">目標名稱</span>
         <p class="ogsm-tooltip-desc">達成目的的量化里程碑，需含數字與日期。</p>
@@ -931,15 +935,38 @@ const COLUMN_TOOLTIPS = {
       </div>`,
 };
 
+function initOgsmTooltips() {
+  const tip = document.createElement('div');
+  tip.id = 'ogsm-global-tip';
+  tip.className = 'ogsm-tooltip';
+  document.body.appendChild(tip);
+
+  document.addEventListener('mouseover', e => {
+    const wrap = e.target.closest('.ogsm-tooltip-wrap');
+    if (!wrap) return;
+    const key = wrap.dataset.tooltipKey;
+    if (!key || !COLUMN_TOOLTIPS[key]) return;
+    tip.innerHTML = COLUMN_TOOLTIPS[key];
+    const rect = wrap.getBoundingClientRect();
+    tip.style.top = (rect.bottom + 10) + 'px';
+    tip.style.left = rect.left + 'px';
+    tip.classList.add('ogsm-tooltip-visible');
+  });
+
+  document.addEventListener('mouseout', e => {
+    const wrap = e.target.closest('.ogsm-tooltip-wrap');
+    if (!wrap) return;
+    tip.classList.remove('ogsm-tooltip-visible');
+  });
+}
+
 function makeColumn(tag, title, tagClass, count) {
   const col = document.createElement('div');
   col.className = 'col-panel';
-  const tooltipContent = COLUMN_TOOLTIPS[tag] || '';
   col.innerHTML = `
     <div class="col-header">
-      <div class="ogsm-tooltip-wrap">
+      <div class="ogsm-tooltip-wrap" data-tooltip-key="${tag}">
         <span class="col-tag ${tagClass}">${tag}</span>
-        <div class="ogsm-tooltip">${tooltipContent}</div>
       </div>
       <span class="col-title">${title}</span>
       <span class="col-count">${count !== '' ? count + ' 項' : ''}</span>
@@ -1662,6 +1689,7 @@ async function init() {
   await initStaff();
   renderStaffList();
   await loadAndRender();
+  initOgsmTooltips();
 }
 
 init();
