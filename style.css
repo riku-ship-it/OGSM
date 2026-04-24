@@ -161,6 +161,7 @@ body {
   padding: 18px 22px;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .obj-section::before {
   content: '';
@@ -817,7 +818,7 @@ body {
 }
 
 /* ── Section Wrappers ── */
-#section-personal { flex: 1; min-height: 0; }
+#section-personal { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #section-department { flex: 1; display: flex; align-items: center; justify-content: center; }
 
 .section-empty {
@@ -853,11 +854,10 @@ body {
 }
 .main-content-wrap {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: 24px;
 }
 
 /* ── Chat Panel ── */
