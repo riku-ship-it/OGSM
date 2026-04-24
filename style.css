@@ -1558,6 +1558,7 @@ body {
 }
 .meeting-header-left { display: flex; flex-direction: column; gap: 4px; }
 .meeting-title { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+.meeting-week-nav-row { display: flex; align-items: center; gap: 4px; }
 .meeting-subtitle { font-size: 13px; color: var(--text3); }
 
 .meeting-score-card {

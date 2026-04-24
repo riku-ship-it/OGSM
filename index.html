@@ -91,7 +91,11 @@
     <div class="meeting-header">
       <div class="meeting-header-left">
         <div class="meeting-title">每週部門會議</div>
-        <div class="meeting-subtitle" id="meeting-week-label"></div>
+        <div class="meeting-week-nav-row">
+          <button class="stats-week-nav" onclick="meetingNavWeek(-1)">‹</button>
+          <div class="meeting-subtitle" id="meeting-week-label"></div>
+          <button class="stats-week-nav" onclick="meetingNavWeek(1)">›</button>
+        </div>
       </div>
       <div class="meeting-score-card">
         <div class="meeting-score-label">本週部門分數</div>

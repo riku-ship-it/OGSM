@@ -38,6 +38,7 @@ let staffList    = [];
 // ── Tab State ──
 let currentTab = 'ogsm';
 let statsWeekOffset = 0;
+let meetingWeekOffset = 0;
 let statsEditingId = null;
 let weekNoteCache = {};
 let weekNoteTimers = {};
@@ -1857,7 +1858,12 @@ let meetingAddRowMember = null;
 let meetingTlEditId = null;
 
 function getMeetingWeekKey() {
-  return isoDate(getWeekStart(0));
+  return isoDate(getWeekStart(meetingWeekOffset));
+}
+
+function meetingNavWeek(dir) {
+  meetingWeekOffset += dir;
+  renderMeetingSection();
 }
 
 function getMeetingReportData() {
@@ -1920,7 +1926,7 @@ function saveMeetingRowsOrder(order) {
 }
 
 function renderMeetingSection() {
-  const weekStart = getWeekStart(0);
+  const weekStart = getWeekStart(meetingWeekOffset);
   const weekEnd = getWeekEnd(weekStart);
   const weekNum = getMeetingWeekNumber(weekStart);
   const yr = weekStart.getFullYear();
@@ -1941,7 +1947,7 @@ function renderMeetingSection() {
 }
 
 function renderMeetingScore() {
-  const weekStart = getWeekStart(0);
+  const weekStart = getWeekStart(meetingWeekOffset);
   const weekEnd = getWeekEnd(weekStart);
   const startStr = isoDate(weekStart);
   const endStr = isoDate(weekEnd);
