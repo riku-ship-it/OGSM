@@ -237,15 +237,12 @@ body {
 
 /* ── OGSM Tooltips ── */
 .ogsm-tooltip-wrap {
-  position: relative;
   display: inline-flex;
   align-items: center;
   cursor: default;
 }
 .ogsm-tooltip {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
+  position: fixed;
   background: #1a1a2e;
   color: #e2e8f0;
   border-radius: 10px;
@@ -272,7 +269,7 @@ body {
   border-right: 6px solid transparent;
   border-bottom: 6px solid #1a1a2e;
 }
-.ogsm-tooltip-wrap:hover .ogsm-tooltip {
+.ogsm-tooltip.ogsm-tooltip-visible {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
