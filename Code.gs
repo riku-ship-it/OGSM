@@ -637,8 +637,9 @@ function doPost(e) {
         });
         var numCols = HEADER_ROW.length;
         var numRows = sheet.getLastRow() - 1;
-        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
-        if (reordered.length > 0) sheet.getRange(2, 1, reordered.length, numCols).setValues(reordered);
+        var safeReordered = reordered.map(function(r) { var row = r.slice(0, numCols); while (row.length < numCols) row.push(''); return row; });
+        if (safeReordered.length > 0) sheet.getRange(2, 1, safeReordered.length, numCols).setValues(safeReordered);
+        if (numRows > safeReordered.length) sheet.getRange(safeReordered.length + 2, 1, numRows - safeReordered.length, numCols).clearContent();
         result = JSON.stringify({ success: true });
 
       // ---- reorder_strategies ----
@@ -672,8 +673,9 @@ function doPost(e) {
         });
         var numCols = HEADER_ROW.length;
         var numRows = sheet.getLastRow() - 1;
-        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
-        if (newRows.length > 0) sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+        var safeNewRows = newRows.map(function(r) { var row = r.slice(0, numCols); while (row.length < numCols) row.push(''); return row; });
+        if (safeNewRows.length > 0) sheet.getRange(2, 1, safeNewRows.length, numCols).setValues(safeNewRows);
+        if (numRows > safeNewRows.length) sheet.getRange(safeNewRows.length + 2, 1, numRows - safeNewRows.length, numCols).clearContent();
         result = JSON.stringify({ success: true });
 
       // ---- reorder_actions ----
@@ -696,8 +698,9 @@ function doPost(e) {
         });
         var numCols = HEADER_ROW.length;
         var numRows = sheet.getLastRow() - 1;
-        if (numRows > 0) sheet.getRange(2, 1, numRows, numCols).clearContent();
-        if (newRows.length > 0) sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+        var safeNewRows = newRows.map(function(r) { var row = r.slice(0, numCols); while (row.length < numCols) row.push(''); return row; });
+        if (safeNewRows.length > 0) sheet.getRange(2, 1, safeNewRows.length, numCols).setValues(safeNewRows);
+        if (numRows > safeNewRows.length) sheet.getRange(safeNewRows.length + 2, 1, numRows - safeNewRows.length, numCols).clearContent();
         result = JSON.stringify({ success: true });
 
       // ---- 預設：依行動編號更新欄位 ----
