@@ -87,14 +87,67 @@
 
 <!-- 部門會議區 -->
 <div id="section-department" style="display:none">
-  <div class="section-empty">
-    <div class="section-empty-icon">
-      <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/></svg>
+  <div class="meeting-layout">
+    <div class="meeting-header">
+      <div class="meeting-header-left">
+        <div class="meeting-title">每週部門會議</div>
+        <div class="meeting-subtitle" id="meeting-week-label"></div>
+      </div>
+      <div class="meeting-score-card">
+        <div class="meeting-score-label">本週部門分數</div>
+        <div class="meeting-score-value"><span id="meeting-total-score">—</span></div>
+      </div>
     </div>
-    <div class="section-empty-title">部門會議區</div>
-    <div class="section-empty-desc">此功能即將推出</div>
+    <div class="meeting-tabs">
+      <button class="meeting-tab-btn active" onclick="switchMeetingTab('report')" id="mtab-report">會議報告</button>
+      <button class="meeting-tab-btn" onclick="switchMeetingTab('announce')" id="mtab-announce">佈達事項</button>
+    </div>
+    <div class="meeting-body">
+      <div id="meeting-tab-report" class="meeting-tab-panel">
+        <div class="meeting-report-frame">
+          <div class="meeting-rows" id="meeting-rows"></div>
+        </div>
+      </div>
+      <div id="meeting-tab-announce" class="meeting-tab-panel" style="display:none">
+        <div class="meeting-announce-wrap">
+          <div class="meeting-announce-current">
+            <div class="meeting-announce-top">
+              <span class="meeting-announce-week-title" id="meeting-announce-week-title"></span>
+              <div class="meeting-announce-toolbar">
+                <button class="announce-tool-btn" onmousedown="event.preventDefault();meetingAnnounceCmd('bold')" title="粗體"><b>B</b></button>
+                <button class="announce-tool-btn" onmousedown="event.preventDefault();meetingAnnounceCmd('insertUnorderedList')" title="列點">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+                </button>
+                <button class="announce-tool-btn" onmousedown="event.preventDefault();meetingAnnounceCmd('link')" title="超連結">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="meeting-announce-editor" id="meeting-announce-editor" contenteditable="true" data-placeholder="輸入本週佈達事項..."></div>
+            <div class="meeting-announce-footer">
+              <button class="meeting-announce-save-btn" onclick="meetingAnnounceSave()">儲存本週佈達</button>
+            </div>
+          </div>
+          <div class="meeting-announce-history">
+            <div class="meeting-announce-history-title">歷史紀錄</div>
+            <div id="meeting-announce-history-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div><!-- /section-department -->
+
+<!-- Meeting OGSM Picker Modal -->
+<div id="meeting-ogsm-picker" class="meeting-modal-overlay" style="display:none" onclick="if(event.target===this)closeOgsmPicker()">
+  <div class="meeting-modal">
+    <div class="meeting-modal-header">
+      <span id="meeting-picker-title">選擇 OGSM 項目</span>
+      <button class="meeting-modal-close" onclick="closeOgsmPicker()">✕</button>
+    </div>
+    <div class="meeting-modal-body" id="meeting-picker-body"></div>
+  </div>
+</div>
 
 </div><!-- /main-content-wrap -->
 

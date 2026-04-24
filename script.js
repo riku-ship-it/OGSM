@@ -1749,6 +1749,7 @@ function switchSection(section) {
   document.getElementById('section-department').style.display = isPersonal ? 'none' : 'flex';
   document.getElementById('nav-personal').classList.toggle('active', isPersonal);
   document.getElementById('nav-department').classList.toggle('active', !isPersonal);
+  if (!isPersonal) renderMeetingSection();
 }
 
 // ── Chat Panel ──
@@ -1846,3 +1847,363 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.style.height = Math.min(chatInput.scrollHeight, 110) + 'px';
   });
 });
+
+// ── Meeting Section ──
+
+const MEETING_DEFAULT_ORDER = ['Luka', 'Riku', 'Cathy', 'Yumin'];
+const MEETING_STATUS_OPTIONS = ['未開始', '待確認解法', '進行中', '已解決（待觀察）', '已解決（完全改善）', '目前無解'];
+let meetingPickerMember = null;
+let meetingDragSrcIdx = null;
+
+function getMeetingWeekKey() {
+  return isoDate(getWeekStart(0));
+}
+
+function getMeetingReportData() {
+  try { return JSON.parse(localStorage.getItem('meeting-report-' + getMeetingWeekKey()) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveMeetingReportData(data) {
+  localStorage.setItem('meeting-report-' + getMeetingWeekKey(), JSON.stringify(data));
+}
+
+function getMeetingWeekNumber(d) {
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+}
+
+function getMeetingOrderedMembers() {
+  const all = staffList.length ? [...staffList] : [...MEETING_DEFAULT_ORDER];
+  const saved = JSON.parse(localStorage.getItem('meeting-rows-order') || 'null');
+  if (!saved) return reorderMeetingByDefault(all);
+  const result = saved.filter(function(n) { return all.includes(n); });
+  all.forEach(function(n) { if (!result.includes(n)) result.push(n); });
+  return result;
+}
+
+function reorderMeetingByDefault(members) {
+  const result = [];
+  MEETING_DEFAULT_ORDER.forEach(function(n) { if (members.includes(n)) result.push(n); });
+  members.forEach(function(n) { if (!result.includes(n)) result.push(n); });
+  return result;
+}
+
+function saveMeetingRowsOrder(order) {
+  localStorage.setItem('meeting-rows-order', JSON.stringify(order));
+}
+
+function renderMeetingSection() {
+  const weekStart = getWeekStart(0);
+  const weekEnd = getWeekEnd(weekStart);
+  const weekNum = getMeetingWeekNumber(weekStart);
+  const yr = weekStart.getFullYear();
+
+  const labelEl = document.getElementById('meeting-week-label');
+  if (labelEl) {
+    labelEl.textContent = yr + '年第' + weekNum + '週・' + fmtMD(weekStart) + '（四）～' + fmtMD(weekEnd) + '（三）';
+  }
+  const awtEl = document.getElementById('meeting-announce-week-title');
+  if (awtEl) {
+    awtEl.textContent = yr + '年第' + weekNum + '週 佈達事項';
+  }
+
+  renderMeetingScore();
+  renderMeetingRows();
+  renderMeetingAnnounce();
+}
+
+function renderMeetingScore() {
+  const weekStart = getWeekStart(0);
+  const weekEnd = getWeekEnd(weekStart);
+  const startStr = isoDate(weekStart);
+  const endStr = isoDate(weekEnd);
+
+  const members = staffList.length ? staffList : MEETING_DEFAULT_ORDER;
+  let total = 0;
+  members.forEach(function(name) {
+    const items = getPersonStats(name).filter(function(i) {
+      const d = i.launchDate || i.date;
+      return d >= startStr && d <= endStr;
+    });
+    total += items.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+  });
+
+  const el = document.getElementById('meeting-total-score');
+  if (el) el.textContent = total;
+}
+
+function renderMeetingRows() {
+  const container = document.getElementById('meeting-rows');
+  if (!container) return;
+
+  const members = getMeetingOrderedMembers();
+  const reportData = getMeetingReportData();
+
+  container.innerHTML = members.map(function(name, idx) {
+    const data = reportData[name] || { ogsmItems: [], status: '未開始', bottleneck: '' };
+    const color = avatarColor(name);
+
+    const statusOpts = MEETING_STATUS_OPTIONS.map(function(s) {
+      return '<option value="' + escHtml(s) + '"' + (s === (data.status || '未開始') ? ' selected' : '') + '>' + escHtml(s) + '</option>';
+    }).join('');
+
+    const chips = (data.ogsmItems || []).map(function(item, i) {
+      const tc = 'ogsm-chip-' + item.type.toLowerCase();
+      const tl = item.type === 'manual' ? '✎' : item.type;
+      const text = item.type === 'M' ? (item.actionName || '') : (item.name || item.text || '');
+      return '<div class="meeting-ogsm-chip ' + tc + '">' +
+        '<span class="meeting-ogsm-chip-type">' + escHtml(tl) + '</span>' +
+        '<span class="meeting-ogsm-chip-text" title="' + escHtml(text) + '">' + escHtml(text) + '</span>' +
+        '<button class="meeting-ogsm-chip-del" onclick="removeMeetingItem(' + JSON.stringify(name) + ',' + i + ')">✕</button>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="meeting-row" data-idx="' + idx + '" data-member="' + escHtml(name) + '" draggable="true">' +
+      '<div class="meeting-row-handle">' +
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="4" r="1.2"/><circle cx="10.5" cy="4" r="1.2"/><circle cx="5.5" cy="8" r="1.2"/><circle cx="10.5" cy="8" r="1.2"/><circle cx="5.5" cy="12" r="1.2"/><circle cx="10.5" cy="12" r="1.2"/></svg>' +
+      '</div>' +
+      '<div class="meeting-row-member">' +
+        '<div class="meeting-row-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
+        '<div class="meeting-row-name">' + escHtml(name) + '</div>' +
+      '</div>' +
+      '<div class="meeting-row-content">' +
+        '<div class="meeting-row-ogsm-section">' +
+          '<div class="meeting-row-field-label">產品專案成果＆時程</div>' +
+          '<div class="meeting-ogsm-chips">' +
+            chips +
+            '<button class="meeting-ogsm-add-btn" onclick="openOgsmPicker(' + JSON.stringify(name) + ')">+ 選擇 OGSM</button>' +
+            '<button class="meeting-ogsm-add-btn" onclick="addManualMeetingItem(' + JSON.stringify(name) + ')">+ 手動輸入</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="meeting-row-bottom">' +
+          '<div class="meeting-row-status-wrap">' +
+            '<div class="meeting-row-field-label">狀態</div>' +
+            '<select class="meeting-status-select" onchange="saveMeetingField(' + JSON.stringify(name) + ',\'status\',this.value)">' + statusOpts + '</select>' +
+          '</div>' +
+          '<div class="meeting-row-bottleneck-wrap">' +
+            '<div class="meeting-row-field-label">現況主要瓶頸</div>' +
+            '<textarea class="meeting-bottleneck-input" placeholder="輸入當前遇到的主要瓶頸..." oninput="saveMeetingField(' + JSON.stringify(name) + ',\'bottleneck\',this.value)">' + escHtml(data.bottleneck || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  initMeetingDragDrop();
+}
+
+function saveMeetingField(memberName, field, value) {
+  const data = getMeetingReportData();
+  if (!data[memberName]) data[memberName] = { ogsmItems: [], status: '未開始', bottleneck: '' };
+  data[memberName][field] = value;
+  saveMeetingReportData(data);
+}
+
+function removeMeetingItem(memberName, idx) {
+  const data = getMeetingReportData();
+  if (!data[memberName]) return;
+  data[memberName].ogsmItems = data[memberName].ogsmItems || [];
+  data[memberName].ogsmItems.splice(idx, 1);
+  saveMeetingReportData(data);
+  renderMeetingRows();
+}
+
+function initMeetingDragDrop() {
+  const rows = document.querySelectorAll('#meeting-rows .meeting-row');
+  rows.forEach(function(row) {
+    row.addEventListener('dragstart', function(e) {
+      meetingDragSrcIdx = parseInt(row.dataset.idx);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+      row.classList.remove('dragging');
+      document.querySelectorAll('#meeting-rows .meeting-row').forEach(function(r) { r.classList.remove('drag-over'); });
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('#meeting-rows .meeting-row').forEach(function(r) { r.classList.remove('drag-over'); });
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      const targetIdx = parseInt(row.dataset.idx);
+      if (meetingDragSrcIdx === null || meetingDragSrcIdx === targetIdx) return;
+      const members = getMeetingOrderedMembers();
+      const moved = members.splice(meetingDragSrcIdx, 1)[0];
+      members.splice(targetIdx, 0, moved);
+      saveMeetingRowsOrder(members);
+      renderMeetingRows();
+    });
+  });
+}
+
+function openOgsmPicker(memberName) {
+  meetingPickerMember = memberName;
+  const modal = document.getElementById('meeting-ogsm-picker');
+  const titleEl = document.getElementById('meeting-picker-title');
+  const bodyEl = document.getElementById('meeting-picker-body');
+  if (!modal) return;
+
+  titleEl.textContent = memberName + ' — 選擇 OGSM 項目';
+
+  const goals = state.goals || [];
+  const strategies = state.strategies || [];
+  const actions = (state.actions || []).filter(function(a) {
+    return !a.assignee || a.assignee === memberName || (a.assignee && a.assignee.includes(memberName));
+  });
+
+  let html = '';
+
+  if (goals.length) {
+    html += '<div class="picker-section">' +
+      '<div class="picker-section-label"><span class="picker-type-badge badge-g">G</span> 支線目標</div>' +
+      goals.map(function(g) {
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'G', id: g.id, name: g.name, color: g.color || 'blue' }) + ')">' +
+          '<span class="picker-item-text">' + escHtml(g.name || '') + '</span>' +
+          '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  if (strategies.length) {
+    html += '<div class="picker-section">' +
+      '<div class="picker-section-label"><span class="picker-type-badge badge-s">S</span> 策略</div>' +
+      strategies.map(function(s) {
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'S', goalId: s.goal_id, name: s.name }) + ')">' +
+          '<span class="picker-item-text">' + escHtml(s.name || '') + '</span>' +
+          '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  if (actions.length) {
+    html += '<div class="picker-section">' +
+      '<div class="picker-section-label"><span class="picker-type-badge badge-m">M</span> 行動項目</div>' +
+      actions.map(function(a) {
+        const aName = a.action_name || a.actionName || '';
+        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'M', id: a.id, actionName: aName, assignee: a.assignee || '' }) + ')">' +
+          '<span class="picker-item-text">' + escHtml(aName) + '</span>' +
+          (a.assignee ? '<span class="picker-item-assignee">' + escHtml(a.assignee) + '</span>' : '') +
+          '</div>';
+      }).join('') +
+      '</div>';
+  }
+
+  if (!html) {
+    html = '<div class="picker-empty">尚無 OGSM 資料<br>請先在 OGSM 頁面新增目標、策略或行動項目</div>';
+  }
+
+  bodyEl.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function closeOgsmPicker() {
+  const modal = document.getElementById('meeting-ogsm-picker');
+  if (modal) modal.style.display = 'none';
+  meetingPickerMember = null;
+}
+
+function addOgsmItemToMember(item) {
+  if (!meetingPickerMember) return;
+  const data = getMeetingReportData();
+  if (!data[meetingPickerMember]) data[meetingPickerMember] = { ogsmItems: [], status: '未開始', bottleneck: '' };
+  data[meetingPickerMember].ogsmItems = data[meetingPickerMember].ogsmItems || [];
+  data[meetingPickerMember].ogsmItems.push(item);
+  saveMeetingReportData(data);
+  closeOgsmPicker();
+  renderMeetingRows();
+}
+
+function addManualMeetingItem(memberName) {
+  const text = prompt('請輸入手動項目內容：');
+  if (!text || !text.trim()) return;
+  const data = getMeetingReportData();
+  if (!data[memberName]) data[memberName] = { ogsmItems: [], status: '未開始', bottleneck: '' };
+  data[memberName].ogsmItems = data[memberName].ogsmItems || [];
+  data[memberName].ogsmItems.push({ type: 'manual', text: text.trim() });
+  saveMeetingReportData(data);
+  renderMeetingRows();
+}
+
+function switchMeetingTab(tab) {
+  const reportPanel = document.getElementById('meeting-tab-report');
+  const announcePanel = document.getElementById('meeting-tab-announce');
+  const reportBtn = document.getElementById('mtab-report');
+  const announceBtn = document.getElementById('mtab-announce');
+  if (!reportPanel || !announcePanel) return;
+
+  if (tab === 'report') {
+    reportPanel.style.display = '';
+    announcePanel.style.display = 'none';
+    reportBtn.classList.add('active');
+    announceBtn.classList.remove('active');
+  } else {
+    reportPanel.style.display = 'none';
+    announcePanel.style.display = '';
+    reportBtn.classList.remove('active');
+    announceBtn.classList.add('active');
+  }
+}
+
+function renderMeetingAnnounce() {
+  const weekKey = getMeetingWeekKey();
+  const editor = document.getElementById('meeting-announce-editor');
+  if (editor) {
+    const saved = localStorage.getItem('meeting-announce-' + weekKey) || '';
+    editor.innerHTML = saved;
+  }
+  renderMeetingAnnounceHistory();
+}
+
+function meetingAnnounceCmd(cmd) {
+  const editor = document.getElementById('meeting-announce-editor');
+  if (!editor) return;
+  editor.focus();
+  if (cmd === 'link') {
+    const url = prompt('請輸入連結網址（含 https://）：');
+    if (url) document.execCommand('createLink', false, url);
+  } else {
+    document.execCommand(cmd, false, null);
+  }
+}
+
+function meetingAnnounceSave() {
+  const editor = document.getElementById('meeting-announce-editor');
+  if (!editor) return;
+  const weekKey = getMeetingWeekKey();
+  localStorage.setItem('meeting-announce-' + weekKey, editor.innerHTML);
+  showToast('✅ 佈達事項已儲存');
+  renderMeetingAnnounceHistory();
+}
+
+function renderMeetingAnnounceHistory() {
+  const listEl = document.getElementById('meeting-announce-history-list');
+  if (!listEl) return;
+
+  const currentKey = 'meeting-announce-' + getMeetingWeekKey();
+  const historyKeys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('meeting-announce-') && k !== currentKey) {
+      historyKeys.push(k);
+    }
+  }
+  historyKeys.sort().reverse();
+
+  if (!historyKeys.length) {
+    listEl.innerHTML = '<div class="announce-history-empty">尚無歷史紀錄</div>';
+    return;
+  }
+
+  listEl.innerHTML = historyKeys.map(function(k) {
+    const dateStr = k.replace('meeting-announce-', '');
+    const content = localStorage.getItem(k) || '';
+    return '<details class="announce-history-item">' +
+      '<summary class="announce-history-summary">' + escHtml(dateStr) + ' 週</summary>' +
+      '<div class="announce-history-content">' + content + '</div>' +
+      '</details>';
+  }).join('');
+}
