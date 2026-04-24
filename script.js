@@ -908,12 +908,39 @@ function renderColumns() {
   wrap.appendChild(mCol);
 }
 
+const COLUMN_TOOLTIPS = {
+  G: `<div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">目標名稱</span>
+        <p class="ogsm-tooltip-desc">達成目的的量化里程碑，需含數字與日期。</p>
+      </div>
+      <div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">燈號定義</span>
+        <p class="ogsm-tooltip-desc">紅／黃／綠各代表這個目標的什麼狀態（自定義）</p>
+      </div>`,
+  S: `<div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">策略名稱</span>
+        <p class="ogsm-tooltip-desc">選擇用什麼方法達成目標？</p>
+      </div>
+      <div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">成功定義</span>
+        <p class="ogsm-tooltip-desc">自定義執行到什麼狀態，這個策略才算完成？</p>
+      </div>`,
+  M: `<div class="ogsm-tooltip-section">
+        <span class="ogsm-tooltip-label">行動項目</span>
+        <p class="ogsm-tooltip-desc">推進策略的具體行動，指定負責人與截止日。</p>
+      </div>`,
+};
+
 function makeColumn(tag, title, tagClass, count) {
   const col = document.createElement('div');
   col.className = 'col-panel';
+  const tooltipContent = COLUMN_TOOLTIPS[tag] || '';
   col.innerHTML = `
     <div class="col-header">
-      <span class="col-tag ${tagClass}">${tag}</span>
+      <div class="ogsm-tooltip-wrap">
+        <span class="col-tag ${tagClass}">${tag}</span>
+        <div class="ogsm-tooltip">${tooltipContent}</div>
+      </div>
       <span class="col-title">${title}</span>
       <span class="col-count">${count !== '' ? count + ' 項' : ''}</span>
     </div>
