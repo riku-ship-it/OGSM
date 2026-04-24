@@ -415,6 +415,10 @@ function doPost(e) {
             count++;
           }
         }
+        if (count === 0 && objId) {
+          sheet.appendRow([objId, newTitle, '', '', 0, 'blue', '', '', '', '', '', '', 0, '', '', '', '', '']);
+          count = 1;
+        }
         result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + objId });
 
       // ---- rename_goal ----

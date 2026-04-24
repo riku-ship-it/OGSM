@@ -492,6 +492,7 @@ function renderObjective() {
     const newTitle = nameEl.textContent.trim();
     if (!newTitle || newTitle === obj.title) { nameEl.textContent = obj.title; return; }
     try {
+      if (!obj.id) obj.id = 'obj-' + Date.now();
       const res = await postData({ type:'rename_objective', obj_id:obj.id, new_title:newTitle });
       if (res.success) { obj.title = newTitle; state.objectives[0] = obj; showToast('✅ 目的已更新'); }
       else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = obj.title; }
