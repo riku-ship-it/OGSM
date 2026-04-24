@@ -492,9 +492,15 @@ function renderObjective() {
     const newTitle = nameEl.textContent.trim();
     if (!newTitle || newTitle === obj.title) { nameEl.textContent = obj.title; return; }
     try {
-      const res = await postData({ type:'rename_objective', obj_id:obj.id, new_title:newTitle });
-      if (res.success) { obj.title = newTitle; state.objectives[0] = obj; showToast('✅ 目的已更新'); }
-      else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = obj.title; }
+      if (!obj.id) {
+        const res = await postData({ type:'create_objective', new_title:newTitle });
+        if (res.success) { obj.id = res.obj_id; obj.title = newTitle; state.objectives[0] = obj; showToast('✅ 目的已建立'); }
+        else { showToast('❌ '+(res.message||'建立失敗'), true); nameEl.textContent = obj.title; }
+      } else {
+        const res = await postData({ type:'rename_objective', obj_id:obj.id, new_title:newTitle });
+        if (res.success) { obj.title = newTitle; state.objectives[0] = obj; showToast('✅ 目的已更新'); }
+        else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = obj.title; }
+      }
     } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = obj.title; }
   };
   let _objComposing = false;

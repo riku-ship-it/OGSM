@@ -417,6 +417,13 @@ function doPost(e) {
         }
         result = JSON.stringify({ success: count > 0, message: count > 0 ? '更新成功' : '找不到目標：' + objId });
 
+      // ---- create_objective ----
+      } else if (body.type === 'create_objective') {
+        var newObjId    = String(Date.now());
+        var newObjTitle = String(body.new_title || '').trim();
+        sheet.appendRow([newObjId, newObjTitle, '', '', 0, '', '', '', '', '', '', '', 0, '', '', '', '', '']);
+        result = JSON.stringify({ success: true, obj_id: newObjId });
+
       // ---- rename_goal ----
       } else if (body.type === 'rename_goal') {
         var goalId  = String(body.goal_id);
