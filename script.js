@@ -956,6 +956,7 @@ function renderColumns() {
         <div class="action-item-top">
           <span class="drag-handle" title="拖移排序" style="margin-right:4px">⠿</span>
           <span class="action-item-name" contenteditable="true" spellcheck="false">${escHtml(a.action_name)}</span>
+          ${a.notes ? `<span class="action-item-notes">${escHtml(a.notes)}</span>` : '<span class="action-item-notes action-item-notes-empty"></span>'}
           <span class="action-badge badge-${a.status}">${escHtml(a.status)}</span>
         </div>
         <div class="action-item-meta">
@@ -1119,8 +1120,7 @@ function openEditModal(actionId) {
   editingActionId = actionId;
   document.getElementById('edit-modal-title').textContent = a.action_name;
   document.getElementById('edit-modal-sub').textContent   = a.strategy_name;
-  document.getElementById('edit-progress').value = a.progress;
-  document.getElementById('edit-progress-display').textContent = a.progress + '%';
+  document.getElementById('edit-notes').value = a.notes || '';
   document.getElementById('edit-status').value    = a.status;
   document.getElementById('edit-assignee').value  = a.assignee || '';
   document.getElementById('edit-due-date').value  = a.due_date || '';
@@ -1137,8 +1137,8 @@ async function saveEditModal() {
   btn.disabled = true; btn.textContent = '儲存中';
   const payload = {
     type: 'update_action', id: editingActionId,
-    progress: Number(document.getElementById('edit-progress').value),
-    status:   document.getElementById('edit-status').value,
+    notes:  document.getElementById('edit-notes').value.trim(),
+    status: document.getElementById('edit-status').value,
     assignee: document.getElementById('edit-assignee').value.trim(),
     due_date: document.getElementById('edit-due-date').value,
     action_name: document.getElementById('edit-action-name').value.trim(),
@@ -1151,7 +1151,7 @@ async function saveEditModal() {
       if (a) {
         a.strategy_name = payload.strategy_name;
         a.action_name   = payload.action_name;
-        a.progress      = payload.progress;
+        a.notes         = payload.notes;
         a.status        = payload.status;
         a.assignee      = payload.assignee;
         a.due_date      = payload.due_date;
@@ -1206,8 +1206,7 @@ function openAddActionModal(goalId, goalName, strategyName='') {
   document.getElementById('new-action-name').value = '';
   document.getElementById('new-action-assignee').value = '';
   document.getElementById('new-action-due').value = '';
-  document.getElementById('new-action-progress').value = 0;
-  document.getElementById('new-action-progress-display').textContent = '0%';
+  document.getElementById('new-action-notes').value = '';
   document.getElementById('new-action-status').value = '未開始';
   openOverlay('modal-add-action');
 }
@@ -1226,7 +1225,7 @@ async function saveNewAction() {
     action_id:'A'+Date.now(), strategy_name:strategy, action_name:name,
     assignee:document.getElementById('new-action-assignee').value.trim(),
     due_date:document.getElementById('new-action-due').value,
-    progress:Number(document.getElementById('new-action-progress').value),
+    notes:document.getElementById('new-action-notes').value.trim(),
     status:document.getElementById('new-action-status').value,
   };
   try {
