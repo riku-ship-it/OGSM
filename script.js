@@ -2023,6 +2023,67 @@ function closeDeptScoreModal() {
   if (modal) modal.style.display = 'none';
 }
 
+async function openDeptNotesModal() {
+  const weekStart = getWeekStart(meetingWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const startStr = isoDate(weekStart);
+  const endStr = isoDate(weekEnd);
+  const weekRangeStr = startStr + '~' + endStr;
+
+  const titleEl = document.getElementById('dept-notes-modal-title');
+  if (titleEl) titleEl.textContent = '本週部門成果/發現問題（' + startStr + ' ~ ' + endStr + '）';
+
+  const modal = document.getElementById('dept-notes-modal');
+  if (modal) modal.style.display = 'flex';
+
+  const bodyEl = document.getElementById('dept-notes-modal-body');
+  if (bodyEl) bodyEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3)">載入中…</div>';
+
+  const members = staffList.length ? staffList : MEETING_DEFAULT_ORDER;
+
+  await Promise.all(members.map(async function(name) {
+    const cacheKey = name + '-' + weekRangeStr;
+    if (weekNoteCache[cacheKey] === undefined) {
+      try {
+        const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        weekNoteCache[cacheKey] = data.content || '';
+      } catch(e) {
+        weekNoteCache[cacheKey] = '';
+      }
+    }
+  }));
+
+  let filledCount = 0;
+  let bodyHtml = '';
+  members.forEach(function(name) {
+    const cacheKey = name + '-' + weekRangeStr;
+    const content = (weekNoteCache[cacheKey] || '').replace(/<a\s/gi, '<a target="_blank" rel="noopener" ');
+    if (weekNoteCache[cacheKey]) filledCount++;
+    const color = avatarColor(name);
+    bodyHtml +=
+      '<div class="dept-score-member-section">' +
+        '<div class="dept-score-member-header">' +
+          '<div class="dept-score-member-avatar" style="background:' + color + '">' + escHtml(initials(name)) + '</div>' +
+          '<div class="dept-score-member-name">' + escHtml(name) + '</div>' +
+        '</div>' +
+        (content
+          ? '<div class="dept-notes-content">' + content + '</div>'
+          : '<div class="dept-score-empty">本週尚未填寫</div>') +
+      '</div>';
+  });
+
+  if (bodyEl) bodyEl.innerHTML = bodyHtml;
+
+  const countEl = document.getElementById('meeting-notes-count');
+  if (countEl) countEl.textContent = filledCount + '/' + members.length;
+}
+
+function closeDeptNotesModal() {
+  const modal = document.getElementById('dept-notes-modal');
+  if (modal) modal.style.display = 'none';
+}
+
 function renderMeetingRows() {
   const container = document.getElementById('meeting-rows');
   if (!container) return;
