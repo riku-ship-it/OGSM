@@ -178,7 +178,12 @@ function renderStats() {
         '<input type="date" class="stats-form-input stats-form-date" id="ei-date" value="' + escHtml(item.launchDate || item.date || '') + '" />' +
         '<input type="text" class="stats-form-input" id="ei-platform" value="' + escHtml(item.platform || '') + '" placeholder="系統平台" />' +
         '<select class="stats-form-select" id="ei-target">' + tgOpts + '</select>' +
-        '<input type="text" class="stats-form-input" id="ei-desc" value="' + escHtml(item.description || '') + '" placeholder="項目說明" style="flex:2" />' +
+        '<div class="stats-desc-wrap" style="flex:2">' +
+          '<div class="stats-desc-toolbar">' +
+            '<button class="stats-desc-toolbar-btn" onmousedown="event.preventDefault();descLinkCmd(\'ei-desc\')" title="插入連結"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
+          '</div>' +
+          '<div id="ei-desc" class="stats-desc-editor" contenteditable="true" data-placeholder="項目說明"></div>' +
+        '</div>' +
         '<select class="stats-form-select" id="ei-type" onchange="statsEditTypeChange()">' + typeOpts + '</select>' +
         '<input type="number" class="stats-form-input stats-form-score" id="ei-score" value="' + escHtml(String(item.score || '')) + '" />' +
         '<button class="stats-form-confirm" onclick="saveStatsItemEdit(\'' + escHtml(item.id) + '\')">儲存</button>' +
@@ -189,7 +194,7 @@ function renderStats() {
       '<div class="stats-item-date">' + escHtml(item.launchDate ? fmtDate(item.launchDate) : (item.date ? fmtDate(item.date) : '')) + '</div>' +
       '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
       (item.target ? '<div class="stats-item-target">' + escHtml(item.target) + '</div>' : '<div class="stats-item-target"></div>') +
-      '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
+      '<div class="stats-item-desc">' + renderDescHtml(item.description || '') + '</div>' +
       '<div class="stats-item-type' + (item.type && item.type.startsWith('(超大型)') ? ' stats-item-type-xlarge' : item.type && item.type.startsWith('(大型)') ? ' stats-item-type-large' : item.type && item.type.startsWith('(中型)') ? ' stats-item-type-medium' : item.type && item.type.startsWith('(小型)') ? ' stats-item-type-small' : '') + '">' + escHtml(item.type || '') + '</div>' +
       '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
       '<div class="stats-item-actions">' +
@@ -211,7 +216,12 @@ function renderStats() {
         '<input type="date" class="stats-form-input stats-form-date" id="sf-date" />' +
         '<input type="text" class="stats-form-input" id="sf-platform" placeholder="系統平台（如 BBP）" />' +
         '<select class="stats-form-select" id="sf-target">' + targetOptsHtml + '</select>' +
-        '<input type="text" class="stats-form-input" id="sf-desc" placeholder="項目說明" style="flex:2" />' +
+        '<div class="stats-desc-wrap" style="flex:2">' +
+          '<div class="stats-desc-toolbar">' +
+            '<button class="stats-desc-toolbar-btn" onmousedown="event.preventDefault();descLinkCmd(\'sf-desc\')" title="插入連結"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
+          '</div>' +
+          '<div id="sf-desc" class="stats-desc-editor" contenteditable="true" data-placeholder="項目說明"></div>' +
+        '</div>' +
         '<select class="stats-form-select" id="sf-type" onchange="statsTypeChange()">' + typeOptions + '</select>' +
         '<input type="number" class="stats-form-input stats-form-score" id="sf-score" placeholder="分數" />' +
         '<button class="stats-form-confirm" onclick="confirmAddStatsItem()">確認</button>' +
@@ -279,6 +289,11 @@ function renderStats() {
     statsTypeChange();
     const dateEl = document.getElementById('sf-date');
     if (dateEl) dateEl.value = isoDate(new Date());
+  }
+  if (statsEditingId) {
+    const editingItem = (getStatsData()[currentStaff] || []).find(function(i) { return i.id === statsEditingId; });
+    const eiDesc = document.getElementById('ei-desc');
+    if (eiDesc && editingItem) eiDesc.innerHTML = editingItem.description || '';
   }
   const editor = document.getElementById('stats-note-editor');
   if (editor) {
@@ -380,6 +395,42 @@ function weekNoteCmd(cmd) {
   }
   scheduleWeekNoteSave();
 }
+function descLinkCmd(editorId) {
+  const editor = document.getElementById(editorId);
+  if (!editor) return;
+  editor.focus();
+  const url = prompt('請輸入連結網址：');
+  if (!url) return;
+  const sel = window.getSelection();
+  if (sel && sel.toString()) {
+    document.execCommand('createLink', false, url);
+    editor.querySelectorAll('a[href="' + url + '"]').forEach(function(a) {
+      a.target = '_blank'; a.rel = 'noopener';
+    });
+  } else {
+    const text = prompt('請輸入顯示文字（留空則用網址）：') || url;
+    document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>');
+  }
+}
+function renderDescHtml(html) {
+  if (!html) return '';
+  if (!/<[a-z]/i.test(html)) return escHtml(html);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  tmp.querySelectorAll('a').forEach(function(a) {
+    const href = a.getAttribute('href') || '';
+    if (/^https?:\/\//i.test(href)) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    } else {
+      a.replaceWith(document.createTextNode(a.textContent));
+    }
+  });
+  tmp.querySelectorAll('*:not(a)').forEach(function(el) {
+    el.replaceWith(document.createTextNode(el.textContent));
+  });
+  return tmp.innerHTML;
+}
 function startEditStatsItem(id) {
   statsEditingId = id;
   renderStats();
@@ -397,10 +448,12 @@ function saveStatsItemEdit(id) {
   const launchDate = (document.getElementById('ei-date').value || '').trim();
   const platform = (document.getElementById('ei-platform').value || '').trim();
   const target = document.getElementById('ei-target').value;
-  const desc = (document.getElementById('ei-desc').value || '').trim();
+  const eiDescEl = document.getElementById('ei-desc');
+  const desc = eiDescEl ? eiDescEl.innerHTML.trim() : '';
+  const descText = eiDescEl ? (eiDescEl.innerText || eiDescEl.textContent || '').trim() : '';
   const type = document.getElementById('ei-type').value;
   const score = parseInt(document.getElementById('ei-score').value) || TYPE_SCORES[type] || 0;
-  if (!platform || !desc) { showToast('❌ 請填寫平台與項目說明', true); return; }
+  if (!platform || !descText) { showToast('❌ 請填寫平台與項目說明', true); return; }
   const allData = getStatsData();
   const items = allData[currentStaff] || [];
   const idx = items.findIndex(function(i) { return i.id === id; });
@@ -431,12 +484,14 @@ function confirmAddStatsItem() {
   const launchDate = (document.getElementById('sf-date').value || '').trim();
   const platform = (document.getElementById('sf-platform').value || '').trim();
   const target = document.getElementById('sf-target').value;
-  const desc = (document.getElementById('sf-desc').value || '').trim();
+  const sfDescEl = document.getElementById('sf-desc');
+  const desc = sfDescEl ? sfDescEl.innerHTML.trim() : '';
+  const descText = sfDescEl ? (sfDescEl.innerText || sfDescEl.textContent || '').trim() : '';
   const type = document.getElementById('sf-type').value;
   const scoreRaw = document.getElementById('sf-score').value;
   const score = parseInt(scoreRaw) || TYPE_SCORES[type] || 0;
 
-  if (!platform || !desc) { showToast('❌ 請填寫平台與項目說明', true); return; }
+  if (!platform || !descText) { showToast('❌ 請填寫平台與項目說明', true); return; }
 
   const weekStart = getWeekStart(statsWeekOffset);
   const weekEnd = getWeekEnd(weekStart);
@@ -1994,7 +2049,7 @@ function openDeptScoreModal() {
             '<div class="stats-item-date">' + escHtml(item.launchDate ? fmtDate(item.launchDate) : (item.date ? fmtDate(item.date) : '')) + '</div>' +
             '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
             (item.target ? '<div class="stats-item-target">' + escHtml(item.target) + '</div>' : '<div class="stats-item-target"></div>') +
-            '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
+            '<div class="stats-item-desc">' + renderDescHtml(item.description || '') + '</div>' +
             '<div class="stats-item-type' + typeClass + '">' + escHtml(item.type || '') + '</div>' +
             '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
             '</div>';
