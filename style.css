@@ -785,16 +785,16 @@ body {
   transition: filter .15s; white-space: nowrap;
 }
 .strategy-status-badge:hover { filter: brightness(.92); }
-.strategy-status-badge-進行中  { background: rgba(43,127,224,.1);  color: #1a6fd4; border-color: rgba(43,127,224,.35); }
-.strategy-status-badge-需要協助 { background: rgba(245,158,11,.1); color: #b45309; border-color: rgba(245,158,11,.35); }
-.strategy-status-badge-受阻    { background: rgba(239,68,68,.1);   color: #dc2626; border-color: rgba(239,68,68,.35); }
-.strategy-status-badge-成功    { background: rgba(16,185,129,.1);  color: #059669; border-color: rgba(16,185,129,.35); }
+.strategy-status-badge-未開始  { background: rgba(0,0,0,.07);       color: var(--text3); border-color: rgba(0,0,0,.15); }
+.strategy-status-badge-進行中  { background: rgba(43,127,224,.1);   color: #1a6fd4;      border-color: rgba(43,127,224,.35); }
+.strategy-status-badge-完成    { background: rgba(13,147,115,.12);  color: #0a7a60;      border-color: rgba(13,147,115,.35); }
+.strategy-status-badge-卡關    { background: rgba(212,78,40,.12);   color: #b83d1e;      border-color: rgba(212,78,40,.35); }
 
 .strategy-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.strategy-status-dot-未開始  { background: var(--text3); }
 .strategy-status-dot-進行中  { background: #2B7FE0; }
-.strategy-status-dot-需要協助 { background: #f59e0b; }
-.strategy-status-dot-受阻    { background: #ef4444; }
-.strategy-status-dot-成功    { background: #10b981; }
+.strategy-status-dot-完成    { background: #0a7a60; }
+.strategy-status-dot-卡關    { background: #b83d1e; }
 
 /* ── Strategy Status Popup ── */
 .strategy-status-popup-fl {
@@ -809,10 +809,10 @@ body {
   font-size: 11px; font-weight: 600; transition: background .1s;
 }
 .strategy-status-opt:hover { background: rgba(0,0,0,.06); }
+.strategy-status-opt[data-status="未開始"]  { color: var(--text3); }
 .strategy-status-opt[data-status="進行中"]  { color: #1a6fd4; }
-.strategy-status-opt[data-status="需要協助"] { color: #b45309; }
-.strategy-status-opt[data-status="受阻"]    { color: #dc2626; }
-.strategy-status-opt[data-status="成功"]    { color: #059669; }
+.strategy-status-opt[data-status="完成"]    { color: #0a7a60; }
+.strategy-status-opt[data-status="卡關"]    { color: #b83d1e; }
 
 /* ── Drag-and-Drop ── */
 .drag-handle {

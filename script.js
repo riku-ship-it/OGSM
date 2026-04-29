@@ -724,7 +724,7 @@ function renderColumns() {
         const popup = document.createElement('div');
         popup.id = 'strategy-status-popup-fl';
         popup.className = 'strategy-status-popup-fl';
-        const statuses = ['進行中','需要協助','受阻','成功'];
+        const statuses = ['未開始','進行中','完成','卡關'];
         popup.innerHTML = statuses.map(s => `
           <div class="strategy-status-opt${stratStatus === s ? ' current' : ''}" data-status="${escHtml(s)}">${escHtml(s)}</div>
         `).join('');
@@ -1114,7 +1114,7 @@ function getStrategySuccessDef(goalId, strategyName) {
   catch(e) { return ''; }
 }
 function getStrategyStatus(goalId, stratName) {
-  return getStrategyData(goalId, stratName).status || '進行中';
+  return getStrategyData(goalId, stratName).status || '未開始';
 }
 function saveStrategySuccessDef(goalId, strategyName, def) {
   // update in-memory state
