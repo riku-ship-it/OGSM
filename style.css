@@ -1311,7 +1311,7 @@ body {
 .stats-items-header { display: flex; align-items: center; justify-content: space-between; }
 .stats-items-label { font-size: 13px; font-weight: 500; color: var(--text2); }
 .stats-items-count { font-size: 12px; color: var(--text3); }
-.stats-items-list { display: flex; flex-direction: column; gap: 8px; }
+.stats-items-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
 .stats-item-row {
   background: #fff;
   border: 0.5px solid #e5e5e5;
