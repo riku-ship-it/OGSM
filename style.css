@@ -1176,13 +1176,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── Stats Page ── */
 .stats-two-col {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 .stats-left-col {
   width: 220px;
@@ -1190,10 +1195,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-self: flex-start;
 }
 .stats-right-col {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1307,11 +1314,11 @@ body {
 .stats-legend-medium { background: #E6F1FB; color: #0C447C; }
 .stats-legend-large  { background: #FAEEDA; color: #633806; }
 .stats-legend-xlarge { background: #FCEBEB; color: #791F1F; }
-.stats-items-section { display: flex; flex-direction: column; gap: 8px; }
+.stats-items-section { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
 .stats-items-header { display: flex; align-items: center; justify-content: space-between; }
 .stats-items-label { font-size: 13px; font-weight: 500; color: var(--text2); }
 .stats-items-count { font-size: 12px; color: var(--text3); }
-.stats-items-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+.stats-items-list { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow-y: auto; }
 .stats-item-row {
   background: #fff;
   border: 0.5px solid #e5e5e5;
@@ -1515,6 +1522,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 .stats-note-header {
   display: flex;
