@@ -1966,6 +1966,63 @@ function renderMeetingScore() {
   if (el) el.textContent = total;
 }
 
+function openDeptScoreModal() {
+  const weekStart = getWeekStart(meetingWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const startStr = isoDate(weekStart);
+  const endStr = isoDate(weekEnd);
+
+  const titleEl = document.getElementById('dept-score-modal-title');
+  if (titleEl) titleEl.textContent = '本週部門上線項目（' + startStr + ' ~ ' + endStr + '）';
+
+  const members = staffList.length ? staffList : MEETING_DEFAULT_ORDER;
+  let bodyHtml = '';
+  members.forEach(function(name) {
+    const items = getPersonStats(name).filter(function(i) {
+      const d = i.launchDate || i.date;
+      return d >= startStr && d <= endStr;
+    });
+    const memberTotal = items.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+    const color = avatarColor(name);
+    const itemsHtml = items.length
+      ? items.map(function(item) {
+          const typeClass = item.type && item.type.startsWith('(超大型)') ? ' stats-item-type-xlarge'
+            : item.type && item.type.startsWith('(大型)') ? ' stats-item-type-large'
+            : item.type && item.type.startsWith('(中型)') ? ' stats-item-type-medium'
+            : item.type && item.type.startsWith('(小型)') ? ' stats-item-type-small' : '';
+          return '<div class="stats-item-row">' +
+            '<div class="stats-item-date">' + escHtml(item.launchDate ? fmtDate(item.launchDate) : (item.date ? fmtDate(item.date) : '')) + '</div>' +
+            '<div class="stats-platform-badge">' + escHtml(item.platform || '') + '</div>' +
+            (item.target ? '<div class="stats-item-target">' + escHtml(item.target) + '</div>' : '<div class="stats-item-target"></div>') +
+            '<div class="stats-item-desc">' + escHtml(item.description || '') + '</div>' +
+            '<div class="stats-item-type' + typeClass + '">' + escHtml(item.type || '') + '</div>' +
+            '<div class="stats-item-score">+' + (item.score || 0) + '分</div>' +
+            '</div>';
+        }).join('')
+      : '<div class="dept-score-empty">本週無上線項目</div>';
+    bodyHtml +=
+      '<div class="dept-score-member-section">' +
+        '<div class="dept-score-member-header">' +
+          '<div class="dept-score-member-avatar" style="background:' + color + '">' + escHtml(initials(name)) + '</div>' +
+          '<div class="dept-score-member-name">' + escHtml(name) + '</div>' +
+          '<div class="dept-score-member-total">' + memberTotal + ' 分</div>' +
+        '</div>' +
+        itemsHtml +
+      '</div>';
+  });
+
+  const bodyEl = document.getElementById('dept-score-modal-body');
+  if (bodyEl) bodyEl.innerHTML = bodyHtml;
+
+  const modal = document.getElementById('dept-score-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeDeptScoreModal() {
+  const modal = document.getElementById('dept-score-modal');
+  if (modal) modal.style.display = 'none';
+}
+
 function renderMeetingRows() {
   const container = document.getElementById('meeting-rows');
   if (!container) return;
