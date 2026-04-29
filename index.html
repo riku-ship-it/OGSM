@@ -97,6 +97,10 @@
           <button class="stats-week-nav" onclick="meetingNavWeek(1)">›</button>
         </div>
       </div>
+      <div class="meeting-score-card" onclick="openDeptNotesModal()">
+        <div class="meeting-score-label">本週部門成果/問題</div>
+        <div class="meeting-score-value"><span id="meeting-notes-count">—</span></div>
+      </div>
       <div class="meeting-score-card" onclick="openDeptScoreModal()">
         <div class="meeting-score-label">本週部門分數</div>
         <div class="meeting-score-value"><span id="meeting-total-score">—</span></div>
@@ -559,6 +563,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Dept Notes Modal -->
+<div id="dept-notes-modal" class="dept-score-modal-overlay" style="display:none" onclick="if(event.target===this)closeDeptNotesModal()">
+  <div class="dept-score-modal">
+    <div class="dept-score-modal-header">
+      <span id="dept-notes-modal-title">本週部門成果/發現問題</span>
+      <button class="meeting-modal-close" onclick="closeDeptNotesModal()">✕</button>
+    </div>
+    <div class="dept-score-modal-body" id="dept-notes-modal-body"></div>
+  </div>
+</div>
 
 <!-- Dept Score Modal -->
 <div id="dept-score-modal" class="dept-score-modal-overlay" style="display:none" onclick="if(event.target===this)closeDeptScoreModal()">

@@ -2275,3 +2275,14 @@ details[open] .announce-history-summary::before { transform: rotate(90deg); }
   font-size: 13px; font-weight: 700; color: var(--blue);
 }
 .dept-score-empty { font-size: 12px; color: var(--text3); padding: 6px 0; }
+.dept-notes-content {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  padding: 8px 4px 4px;
+}
+.dept-notes-content ul, .dept-notes-content ol { padding-left: 20px; margin: 4px 0; }
+.dept-notes-content li { margin-bottom: 2px; }
+.dept-notes-content a { color: var(--blue); text-decoration: underline; }
+.dept-notes-content b, .dept-notes-content strong { font-weight: 700; }
+.dept-notes-content i, .dept-notes-content em { font-style: italic; }
