@@ -179,10 +179,8 @@ function renderStats() {
         '<input type="date" class="stats-form-input stats-form-date" id="ei-date" value="' + escHtml(item.launchDate || item.date || '') + '" />' +
         '<input type="text" class="stats-form-input" id="ei-platform" value="' + escHtml(item.platform || '') + '" placeholder="系統平台" />' +
         '<select class="stats-form-select" id="ei-target">' + tgOpts + '</select>' +
+        '<button class="stats-desc-link-btn" onmousedown="event.preventDefault();descLinkCmd(\'ei-desc\')" title="插入連結"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
         '<div class="stats-desc-wrap" style="flex:2">' +
-          '<div class="stats-desc-toolbar">' +
-            '<button class="stats-desc-toolbar-btn" onmousedown="event.preventDefault();descLinkCmd(\'ei-desc\')" title="插入連結"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
-          '</div>' +
           '<div id="ei-desc" class="stats-desc-editor" contenteditable="true" data-placeholder="項目說明"></div>' +
         '</div>' +
         '<select class="stats-form-select" id="ei-type" onchange="statsEditTypeChange()">' + typeOpts + '</select>' +
@@ -217,10 +215,8 @@ function renderStats() {
         '<input type="date" class="stats-form-input stats-form-date" id="sf-date" />' +
         '<input type="text" class="stats-form-input" id="sf-platform" placeholder="系統平台（如 BBP）" />' +
         '<select class="stats-form-select" id="sf-target">' + targetOptsHtml + '</select>' +
+        '<button class="stats-desc-link-btn" onmousedown="event.preventDefault();descLinkCmd(\'sf-desc\')" title="插入連結"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
         '<div class="stats-desc-wrap" style="flex:2">' +
-          '<div class="stats-desc-toolbar">' +
-            '<button class="stats-desc-toolbar-btn" onmousedown="event.preventDefault();descLinkCmd(\'sf-desc\')" title="插入連結"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
-          '</div>' +
           '<div id="sf-desc" class="stats-desc-editor" contenteditable="true" data-placeholder="項目說明"></div>' +
         '</div>' +
         '<select class="stats-form-select" id="sf-type" onchange="statsTypeChange()">' + typeOptions + '</select>' +
