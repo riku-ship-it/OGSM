@@ -16,7 +16,7 @@
 //    J(9)  負責人     → Action assignee
 //    K(10) 開始日期   → Action start_date
 //    L(11) 截止日期   → Action due_date
-//    M(12) 行動進度   → Action progress
+//    M(12) 備註       → Action notes
 //    N(13) 狀態       → Action status
 //    O(14) 交通燈     → Goal traffic_light
 //    P(15) 截止日     → Goal deadline
@@ -28,7 +28,7 @@
 // ====================================================
 
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
+var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','備註','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
 var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes'];
 
@@ -196,7 +196,7 @@ function doGet(e) {
           assignee:      String(row[9]  || ''),
           start_date:    formatDate(row[10]),
           due_date:      formatDate(row[11]),
-          progress:      Number(row[12]) || 0,
+          notes:         String(row[12] || ''),
           status:        String(row[13] || '未開始')
         });
       }
@@ -553,7 +553,7 @@ function doPost(e) {
           String(body.assignee      || ''),
           '',
           String(body.due_date      || ''),
-          Number(body.progress)     || 0,
+          String(body.notes         || ''),
           String(body.status        || '未開始'),
           '', '',
           '', ''
@@ -572,7 +572,7 @@ function doPost(e) {
             if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
             if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
             if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
-            if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.notes       !== undefined) sheet.getRange(rowNum, 13).setValue(String(body.notes));
             if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
             if (body.success_def !== undefined) sheet.getRange(rowNum, 18).setValue(body.success_def);
             updated = true;
@@ -719,7 +719,7 @@ function doPost(e) {
             var rowNum = i + 1;
             if (body.assignee !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
             if (body.due_date !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
-            if (body.progress !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.notes    !== undefined) sheet.getRange(rowNum, 13).setValue(String(body.notes));
             if (body.status   !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
             updated = true;
             break;
