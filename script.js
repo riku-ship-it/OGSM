@@ -101,7 +101,8 @@ async function loadStats() {
       const allData = getStatsData();
       const localItems = allData[staff] || [];
       const backendIds = new Set(data.items.map(function(i) { return i.id; }));
-      const pendingItems = localItems.filter(function(i) { return !backendIds.has(i.id); });
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      const pendingItems = localItems.filter(function(i) { return !backendIds.has(i.id) && Number(i.id) >= fiveMinAgo; });
       const backendMapped = data.items.map(function(item) {
         return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
       });
