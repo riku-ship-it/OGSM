@@ -371,6 +371,89 @@ function scheduleWeekNoteSave() {
   }, 1500);
 }
 
+function _linkPopoverOutsideHandler(e) {
+  const pop = document.getElementById('link-popover');
+  if (pop && !pop.contains(e.target)) _closeLinkPopover();
+}
+function _closeLinkPopover() {
+  const pop = document.getElementById('link-popover');
+  if (pop) pop.remove();
+  document.removeEventListener('mousedown', _linkPopoverOutsideHandler);
+}
+function showLinkPopover(editorEl, onApply) {
+  const sel = window.getSelection();
+  const hasSelection = !!(sel && sel.toString().trim());
+  let savedRange = null;
+  let rect = null;
+  if (sel && sel.rangeCount > 0) {
+    savedRange = sel.getRangeAt(0).cloneRange();
+    rect = savedRange.getBoundingClientRect();
+  }
+
+  _closeLinkPopover();
+
+  const pop = document.createElement('div');
+  pop.id = 'link-popover';
+  pop.className = 'link-popover';
+
+  let html = '';
+  if (!hasSelection) {
+    html += '<div class="link-popover-row"><label>顯示文字</label><input id="lp-text" type="text" placeholder="顯示文字" autocomplete="off"></div>';
+  }
+  html += '<div class="link-popover-row"><label>連結網址</label><input id="lp-url" type="text" placeholder="https://" autocomplete="off"></div>';
+  html += '<div class="link-popover-actions"><button class="link-popover-cancel" id="lp-cancel">取消</button><button class="link-popover-confirm" id="lp-confirm">套用</button></div>';
+  pop.innerHTML = html;
+  document.body.appendChild(pop);
+
+  if (rect && rect.width > 0) {
+    let left = rect.left;
+    let top = rect.bottom + 6;
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+    requestAnimationFrame(function() {
+      const pw = pop.offsetWidth;
+      if (left + pw > window.innerWidth - 10) {
+        pop.style.left = Math.max(10, window.innerWidth - pw - 10) + 'px';
+      }
+      if (top + pop.offsetHeight > window.innerHeight - 10) {
+        pop.style.top = Math.max(10, (rect.top - pop.offsetHeight - 6)) + 'px';
+      }
+    });
+  } else if (editorEl) {
+    const er = editorEl.getBoundingClientRect();
+    pop.style.left = er.left + 'px';
+    pop.style.top = (er.top + 40) + 'px';
+  }
+
+  const urlInput = document.getElementById('lp-url');
+  const textInput = document.getElementById('lp-text');
+  (textInput || urlInput).focus();
+
+  function apply() {
+    const url = urlInput.value.trim();
+    if (!url) { _closeLinkPopover(); return; }
+    const displayText = textInput ? textInput.value.trim() : null;
+    _closeLinkPopover();
+    if (savedRange) {
+      const s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(savedRange);
+    }
+    editorEl.focus();
+    onApply(url, displayText, hasSelection);
+  }
+
+  document.getElementById('lp-confirm').addEventListener('click', apply);
+  document.getElementById('lp-cancel').addEventListener('click', _closeLinkPopover);
+  pop.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); apply(); }
+    if (e.key === 'Escape') { _closeLinkPopover(); }
+  });
+  setTimeout(function() {
+    document.addEventListener('mousedown', _linkPopoverOutsideHandler);
+  }, 0);
+}
+
 function weekNoteCmd(cmd) {
   const editor = document.getElementById('stats-note-editor');
   if (!editor) return;
@@ -380,16 +463,16 @@ function weekNoteCmd(cmd) {
   } else if (cmd === 'italic') {
     document.execCommand('italic', false, null);
   } else if (cmd === 'link') {
-    const url = prompt('請輸入連結網址：');
-    if (url) {
-      const sel = window.getSelection();
-      if (sel && sel.toString()) {
+    showLinkPopover(editor, function(url, displayText, hasSelection) {
+      if (hasSelection) {
         document.execCommand('createLink', false, url);
       } else {
-        const text = prompt('請輸入顯示文字（留空則用網址）：') || url;
+        const text = displayText || url;
         document.execCommand('insertHTML', false, '<a href="' + url + '">' + text + '</a>');
       }
-    }
+      scheduleWeekNoteSave();
+    });
+    return;
   } else if (cmd === 'list') {
     document.execCommand('insertUnorderedList', false, null);
   }
@@ -399,18 +482,17 @@ function descLinkCmd(editorId) {
   const editor = document.getElementById(editorId);
   if (!editor) return;
   editor.focus();
-  const url = prompt('請輸入連結網址：');
-  if (!url) return;
-  const sel = window.getSelection();
-  if (sel && sel.toString()) {
-    document.execCommand('createLink', false, url);
-    editor.querySelectorAll('a[href="' + url + '"]').forEach(function(a) {
-      a.target = '_blank'; a.rel = 'noopener';
-    });
-  } else {
-    const text = prompt('請輸入顯示文字（留空則用網址）：') || url;
-    document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>');
-  }
+  showLinkPopover(editor, function(url, displayText, hasSelection) {
+    if (hasSelection) {
+      document.execCommand('createLink', false, url);
+      editor.querySelectorAll('a[href="' + url + '"]').forEach(function(a) {
+        a.target = '_blank'; a.rel = 'noopener';
+      });
+    } else {
+      const text = displayText || url;
+      document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>');
+    }
+  });
 }
 function renderDescHtml(html) {
   if (!html) return '';
@@ -2494,8 +2576,14 @@ function meetingAnnounceCmd(cmd) {
   if (!editor) return;
   editor.focus();
   if (cmd === 'link') {
-    const url = prompt('請輸入連結網址（含 https://）：');
-    if (url) document.execCommand('createLink', false, url);
+    showLinkPopover(editor, function(url, displayText, hasSelection) {
+      if (hasSelection) {
+        document.execCommand('createLink', false, url);
+      } else {
+        const text = displayText || url;
+        document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>');
+      }
+    });
   } else {
     document.execCommand(cmd, false, null);
   }

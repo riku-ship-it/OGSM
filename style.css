@@ -2338,3 +2338,72 @@ details[open] .announce-history-summary::before { transform: rotate(90deg); }
 .dept-notes-content a { color: var(--blue); text-decoration: underline; }
 .dept-notes-content b, .dept-notes-content strong { font-weight: 700; }
 .dept-notes-content i, .dept-notes-content em { font-style: italic; }
+
+/* ── Link popover ── */
+.link-popover {
+  position: fixed;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 260px;
+}
+.link-popover-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.link-popover-row label {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.link-popover-row input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 5px 8px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.link-popover-row input:focus {
+  border-color: var(--blue);
+}
+.link-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+}
+.link-popover-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text2);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.link-popover-cancel:hover { background: var(--bg3, rgba(255,255,255,0.06)); }
+.link-popover-confirm {
+  background: var(--blue);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.link-popover-confirm:hover { opacity: 0.85; }
