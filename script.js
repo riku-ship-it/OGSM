@@ -2011,7 +2011,7 @@ function saveMeetingReportData(data) {
 function _pushMemberSelectionsToServer(memberName) {
   const weekKey = getMeetingWeekKey();
   const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: getSelectedActionIds(memberName), selectedStrategyKeys: getSelectedStrategyKeys(memberName) };
-  fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).catch(function() {});
+  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r) { return r.json(); });
 }
 
 async function _syncMeetingSelectionsFromServer() {
@@ -2107,9 +2107,8 @@ function renderMeetingSection() {
 
   renderMeetingScore();
   renderMeetingStatusFilters();
-  renderMeetingRows();
   renderMeetingAnnounce();
-  _syncMeetingSelectionsFromServer();
+  _syncMeetingSelectionsFromServer().then(function() { renderMeetingRows(); });
 }
 
 function renderMeetingScore() {
@@ -2591,13 +2590,17 @@ function closeOgsmPicker() {
   meetingPickerMember = null;
 }
 
-function confirmOgsmPicker() {
+async function confirmOgsmPicker() {
   if (!meetingPickerMember) return;
   saveSelectedActionIds(meetingPickerMember, pickerTempSelected.actionIds);
   saveSelectedStrategyKeys(meetingPickerMember, pickerTempSelected.strategyKeys);
-  _pushMemberSelectionsToServer(meetingPickerMember);
   closeOgsmPicker();
   renderMeetingRows();
+  try {
+    await _pushMemberSelectionsToServer(meetingPickerMember);
+  } catch(e) {
+    showToast('❌ 選取項目同步失敗，請重試', true);
+  }
 }
 
 function switchMeetingTab(tab) {
