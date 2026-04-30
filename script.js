@@ -1866,13 +1866,19 @@ function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
+var _meetingSyncTimer = null;
 function switchSection(section) {
   const isPersonal = section === 'personal';
   document.getElementById('section-personal').style.display = isPersonal ? '' : 'none';
   document.getElementById('section-department').style.display = isPersonal ? 'none' : 'flex';
   document.getElementById('nav-personal').classList.toggle('active', isPersonal);
   document.getElementById('nav-department').classList.toggle('active', !isPersonal);
-  if (!isPersonal) renderMeetingSection();
+  if (!isPersonal) {
+    renderMeetingSection();
+    if (!_meetingSyncTimer) _meetingSyncTimer = setInterval(_syncMeetingSelectionsFromServer, 30000);
+  } else {
+    clearInterval(_meetingSyncTimer); _meetingSyncTimer = null;
+  }
 }
 
 // ── Chat Panel ──
