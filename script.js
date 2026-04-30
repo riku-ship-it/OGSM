@@ -2592,12 +2592,13 @@ function closeOgsmPicker() {
 
 async function confirmOgsmPicker() {
   if (!meetingPickerMember) return;
-  saveSelectedActionIds(meetingPickerMember, pickerTempSelected.actionIds);
-  saveSelectedStrategyKeys(meetingPickerMember, pickerTempSelected.strategyKeys);
+  const memberToSync = meetingPickerMember;
+  saveSelectedActionIds(memberToSync, pickerTempSelected.actionIds);
+  saveSelectedStrategyKeys(memberToSync, pickerTempSelected.strategyKeys);
   closeOgsmPicker();
   renderMeetingRows();
   try {
-    await _pushMemberSelectionsToServer(meetingPickerMember);
+    await _pushMemberSelectionsToServer(memberToSync);
   } catch(e) {
     showToast('❌ 選取項目同步失敗，請重試', true);
   }
