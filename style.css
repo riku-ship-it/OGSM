@@ -1714,12 +1714,9 @@ body {
   padding: 6px 14px;
   border-radius: 8px;
   border: 1.5px solid transparent;
-  cursor: pointer;
   min-width: 60px;
-  transition: box-shadow .15s, border-color .15s, background .15s;
   user-select: none;
 }
-.meeting-status-card:hover { box-shadow: 0 1px 6px rgba(0,0,0,.08); }
 .meeting-status-card-label { font-size: 10px; font-weight: 600; margin-bottom: 2px; letter-spacing: .2px; }
 .meeting-status-card-count { font-size: 20px; font-weight: 700; line-height: 1; }
 .meeting-status-card-未開始 { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: var(--text3); }
@@ -1738,6 +1735,153 @@ body {
   font-size: 13px;
   color: var(--text3);
 }
+
+/* ── Meeting Pick Button ── */
+.meeting-pick-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a6fd4;
+  background: rgba(43,127,224,.08);
+  border: 1px solid rgba(43,127,224,.2);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  white-space: nowrap;
+}
+.meeting-pick-btn:hover { background: rgba(43,127,224,.15); border-color: rgba(43,127,224,.4); }
+.meeting-empty-pick-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a6fd4;
+  background: rgba(43,127,224,.08);
+  border: 1px solid rgba(43,127,224,.2);
+  border-radius: 6px;
+  padding: 2px 10px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: background .12s;
+}
+.meeting-empty-pick-btn:hover { background: rgba(43,127,224,.15); }
+
+/* ── Meeting OGSM Selected Cards ── */
+.meeting-ogsm-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.meeting-ogsm-card {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 32px 10px 14px;
+  min-width: 160px;
+  max-width: 260px;
+  flex: 1 1 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.meeting-ogsm-card-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+}
+.meeting-ogsm-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.meeting-ogsm-card-assignee {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg3);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+.meeting-ogsm-card-delete {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+  padding: 0;
+}
+.meeting-ogsm-card-delete:hover { background: rgba(212,78,40,.1); color: #b83d1e; }
+
+/* ── Picker Modal Overrides ── */
+.meeting-picker-modal { display: flex; flex-direction: column; max-height: 80vh; }
+.picker-modal-body { overflow-y: auto; flex: 1; }
+.picker-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.picker-goal-group { margin-bottom: 4px; }
+.picker-goal-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.picker-strat-group { margin-left: 8px; margin-bottom: 2px; }
+.picker-strat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.picker-checkbox-item {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 20px;
+}
+.picker-checkbox-item:hover { background: var(--bg3); }
+.picker-checkbox {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #1a6fd4;
+}
+.picker-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.picker-item-badge { pointer-events: none; font-size: 11px; padding: 1px 7px; flex-shrink: 0; }
 
 /* ── Meeting Member Accordion ── */
 .meeting-members-list { display: flex; flex-direction: column; gap: 8px; }

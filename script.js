@@ -2208,6 +2208,24 @@ function closeDeptNotesModal() {
   if (modal) modal.style.display = 'none';
 }
 
+function getSelectedActionIds(memberName) {
+  const data = getMeetingReportData();
+  return (data[memberName] && data[memberName].selectedActionIds) || [];
+}
+
+function saveSelectedActionIds(memberName, ids) {
+  const data = getMeetingReportData();
+  if (!data[memberName]) data[memberName] = {};
+  data[memberName].selectedActionIds = ids;
+  saveMeetingReportData(data);
+}
+
+function removeMeetingOgsmItem(memberName, actionId) {
+  const ids = getSelectedActionIds(memberName).filter(function(id) { return id !== actionId; });
+  saveSelectedActionIds(memberName, ids);
+  renderMeetingRows();
+}
+
 function renderMeetingStatusFilters() {
   const el = document.getElementById('meeting-status-filters');
   if (!el) return;
@@ -2221,19 +2239,14 @@ function renderMeetingStatusFilters() {
     });
   });
   el.innerHTML = statuses.map(function(s) {
-    const isActive = meetingStatusFilter === s;
-    return '<div class="meeting-status-card meeting-status-card-' + s + (isActive ? ' active' : '') + '" onclick="selectMeetingStatusFilter(\'' + s + '\')">' +
+    return '<div class="meeting-status-card meeting-status-card-' + s + '">' +
       '<div class="meeting-status-card-label">' + s + '</div>' +
       '<div class="meeting-status-card-count">' + counts[s] + '</div>' +
     '</div>';
   }).join('');
 }
 
-function selectMeetingStatusFilter(status) {
-  meetingStatusFilter = meetingStatusFilter === status ? null : status;
-  renderMeetingStatusFilters();
-  renderMeetingRows();
-}
+function selectMeetingStatusFilter(status) {}
 
 function toggleMeetingMember(name) {
   meetingCollapsedMembers[name] = !meetingCollapsedMembers[name];
@@ -2248,9 +2261,11 @@ function renderMeetingRows() {
   members.forEach(function(name) {
     const data = name === currentStaff ? state : (staffDataCache[name] || {});
     const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
-    const filtered = meetingStatusFilter
-      ? allActions.filter(function(a) { return a.status === meetingStatusFilter; })
-      : allActions;
+    const selectedIds = getSelectedActionIds(name);
+    const selectedActions = selectedIds.map(function(id) {
+      return allActions.find(function(a) { return a.id === id; });
+    }).filter(Boolean);
+
     const color = avatarColor(name);
     const isCollapsed = !!meetingCollapsedMembers[name];
 
@@ -2263,30 +2278,41 @@ function renderMeetingRows() {
     if (sc['完成'])   parts.push('<span class="mmember-stat mmember-stat-完成">' + sc['完成'] + ' 完成</span>');
     const statsHtml = parts.join('<span class="mmember-stat-sep"> · </span>');
 
-    let actionsHtml;
-    if (filtered.length === 0) {
-      actionsHtml = '<div class="meeting-member-empty">' +
-        (meetingStatusFilter ? '無「' + escHtml(meetingStatusFilter) + '」項目' : '目前無行動項目') + '</div>';
-    } else {
-      actionsHtml = filtered.map(function(a) {
-        const st = a.status || '未開始';
-        return '<div class="meeting-member-action-row">' +
-          '<div class="meeting-member-action-name">' + escHtml(a.action_name) + '</div>' +
-          '<span class="mstatus-badge badge-' + escHtml(st) + '">' + escHtml(st) + '</span>' +
+    const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const pickLabel = selectedIds.length ? '編輯選取' : '＋ 選取項目';
+
+    let bodyHtml;
+    if (selectedActions.length === 0) {
+      bodyHtml = '<div class="meeting-member-empty">尚未選取本週項目 ' +
+        '<button class="meeting-empty-pick-btn" onclick="event.stopPropagation();openOgsmPicker(\'' + safeName + '\')">＋ 選取</button>' +
         '</div>';
-      }).join('');
+    } else {
+      bodyHtml = '<div class="meeting-ogsm-cards">' +
+        selectedActions.map(function(a) {
+          const st = a.status || '未開始';
+          const safeId = (a.id + '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          return '<div class="meeting-ogsm-card">' +
+            '<button class="meeting-ogsm-card-delete" onclick="removeMeetingOgsmItem(\'' + safeName + '\',\'' + safeId + '\')" title="移除">✕</button>' +
+            '<div class="meeting-ogsm-card-name">' + escHtml(a.action_name) + '</div>' +
+            '<div class="meeting-ogsm-card-footer">' +
+              '<span class="mstatus-badge badge-' + escHtml(st) + '">' + escHtml(st) + '</span>' +
+              (a.assignee ? '<span class="meeting-ogsm-card-assignee">' + escHtml(a.assignee) + '</span>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+        '</div>';
     }
 
-    const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     html += '<div class="meeting-member-section' + (isCollapsed ? ' collapsed' : '') + '">' +
       '<div class="meeting-member-header" onclick="toggleMeetingMember(\'' + safeName + '\')">' +
         '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
         '<div class="meeting-member-name">' + escHtml(name) + '</div>' +
         '<div class="meeting-member-stats">' + statsHtml + '</div>' +
-        '<div class="meeting-member-total">' + allActions.length + ' 項</div>' +
+        '<button class="meeting-pick-btn" onclick="event.stopPropagation();openOgsmPicker(\'' + safeName + '\')">' + pickLabel + '</button>' +
+        '<div class="meeting-member-total">' + selectedIds.length + ' 項</div>' +
         '<svg class="meeting-member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
-      '<div class="meeting-member-body">' + actionsHtml + '</div>' +
+      '<div class="meeting-member-body">' + bodyHtml + '</div>' +
     '</div>';
   });
   container.innerHTML = html || '<div class="meeting-ogsm-hint">無成員資料</div>';
@@ -2373,33 +2399,64 @@ function openOgsmPicker(memberName) {
   const titleEl = document.getElementById('meeting-picker-title');
   const bodyEl = document.getElementById('meeting-picker-body');
   if (!modal) return;
-  titleEl.textContent = memberName + ' — 選擇 OGSM 項目';
-  const goals = state.goals || [];
-  const strategies = state.strategies || [];
-  const actions = (state.actions || []).filter(function(a) {
-    return !a.assignee || a.assignee === memberName || (a.assignee && a.assignee.includes(memberName));
-  });
+  titleEl.textContent = memberName + ' — 選取本週項目';
+
+  const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
+  const goals = data.goals || [];
+  const actions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+  const selectedIds = getSelectedActionIds(memberName);
+
   let html = '';
-  if (goals.length) {
-    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-g">G</span> 支線目標</div>' +
-      goals.map(function(g) {
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'G', id: g.id, name: g.name }) + ')"><span class="picker-item-text">' + escHtml(g.name || '') + '</span></div>';
-      }).join('') + '</div>';
+  goals.forEach(function(g) {
+    const goalActions = actions.filter(function(a) { return a.goal_id === g.id; });
+    if (!goalActions.length) return;
+    const stratMap = {};
+    goalActions.forEach(function(a) {
+      const sName = a.strategy_name || '（未分類）';
+      if (!stratMap[sName]) stratMap[sName] = [];
+      stratMap[sName].push(a);
+    });
+    html += '<div class="picker-goal-group">';
+    html += '<div class="picker-goal-label"><span class="picker-type-badge badge-g">G</span>' + escHtml(g.name || '') + '</div>';
+    Object.keys(stratMap).forEach(function(sName) {
+      html += '<div class="picker-strat-group">';
+      html += '<div class="picker-strat-label"><span class="picker-type-badge badge-s">S</span>' + escHtml(sName) + '</div>';
+      stratMap[sName].forEach(function(a) {
+        const isChecked = selectedIds.includes(a.id);
+        const st = a.status || '未開始';
+        html += '<label class="picker-item picker-checkbox-item">' +
+          '<input type="checkbox" class="picker-checkbox" value="' + escHtml(a.id) + '"' + (isChecked ? ' checked' : '') + '>' +
+          '<div class="picker-item-content">' +
+            '<span class="picker-item-text">' + escHtml(a.action_name) + '</span>' +
+            '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
+          '</div>' +
+        '</label>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  const goalIds = goals.map(function(g) { return g.id; });
+  const ungrouped = actions.filter(function(a) { return !goalIds.includes(a.goal_id); });
+  if (ungrouped.length) {
+    html += '<div class="picker-goal-group">';
+    html += '<div class="picker-goal-label">其他行動項目</div>';
+    ungrouped.forEach(function(a) {
+      const isChecked = selectedIds.includes(a.id);
+      const st = a.status || '未開始';
+      html += '<label class="picker-item picker-checkbox-item">' +
+        '<input type="checkbox" class="picker-checkbox" value="' + escHtml(a.id) + '"' + (isChecked ? ' checked' : '') + '>' +
+        '<div class="picker-item-content">' +
+          '<span class="picker-item-text">' + escHtml(a.action_name) + '</span>' +
+          '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
+        '</div>' +
+      '</label>';
+    });
+    html += '</div>';
   }
-  if (strategies.length) {
-    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-s">S</span> 策略</div>' +
-      strategies.map(function(s) {
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'S', goalId: s.goal_id, name: s.name }) + ')"><span class="picker-item-text">' + escHtml(s.name || '') + '</span></div>';
-      }).join('') + '</div>';
-  }
-  if (actions.length) {
-    html += '<div class="picker-section"><div class="picker-section-label"><span class="picker-type-badge badge-m">M</span> 行動項目</div>' +
-      actions.map(function(a) {
-        const aName = a.action_name || a.actionName || '';
-        return '<div class="picker-item" onclick="addOgsmItemToMember(' + JSON.stringify({ type: 'M', id: a.id, actionName: aName }) + ')"><span class="picker-item-text">' + escHtml(aName) + '</span></div>';
-      }).join('') + '</div>';
-  }
-  if (!html) html = '<div class="picker-empty">尚無 OGSM 資料</div>';
+
+  if (!html) html = '<div class="picker-empty">尚無行動項目</div>';
   bodyEl.innerHTML = html;
   modal.style.display = 'flex';
 }
@@ -2410,14 +2467,14 @@ function closeOgsmPicker() {
   meetingPickerMember = null;
 }
 
-function addOgsmItemToMember(item) {
+function confirmOgsmPicker() {
   if (!meetingPickerMember) return;
-  openMeetingAddRow(meetingPickerMember);
+  const modal = document.getElementById('meeting-ogsm-picker');
+  const checkboxes = modal.querySelectorAll('.picker-checkbox:checked');
+  const ids = Array.from(checkboxes).map(function(cb) { return cb.value; });
+  saveSelectedActionIds(meetingPickerMember, ids);
   closeOgsmPicker();
-  setTimeout(function() {
-    const projectInput = document.getElementById('addrow-project');
-    if (projectInput) projectInput.value = item.name || item.actionName || '';
-  }, 60);
+  renderMeetingRows();
 }
 
 function switchMeetingTab(tab) {

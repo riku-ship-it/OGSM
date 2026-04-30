@@ -151,14 +151,18 @@
   </div>
 </div><!-- /section-department -->
 
-<!-- Meeting OGSM Picker Modal (kept for compatibility) -->
+<!-- Meeting OGSM Picker Modal -->
 <div id="meeting-ogsm-picker" class="meeting-modal-overlay" style="display:none" onclick="if(event.target===this)closeOgsmPicker()">
-  <div class="meeting-modal">
+  <div class="meeting-modal meeting-picker-modal">
     <div class="meeting-modal-header">
-      <span id="meeting-picker-title">選擇 OGSM 項目</span>
+      <span id="meeting-picker-title">選取本週項目</span>
       <button class="meeting-modal-close" onclick="closeOgsmPicker()">✕</button>
     </div>
-    <div class="meeting-modal-body" id="meeting-picker-body"></div>
+    <div class="meeting-modal-body picker-modal-body" id="meeting-picker-body"></div>
+    <div class="mform-footer picker-modal-footer">
+      <button class="mform-cancel-btn" onclick="closeOgsmPicker()">取消</button>
+      <button class="mform-submit-btn" onclick="confirmOgsmPicker()">確認</button>
+    </div>
   </div>
 </div>
 
