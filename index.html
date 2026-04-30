@@ -98,13 +98,16 @@
         </div>
       </div>
       <div class="meeting-header-right">
-        <div class="meeting-score-card" onclick="openDeptNotesModal()">
-          <div class="meeting-score-label">本週部門成果/問題</div>
-          <div class="meeting-score-value"><span id="meeting-notes-count">—</span></div>
-        </div>
-        <div class="meeting-score-card" onclick="openDeptScoreModal()">
-          <div class="meeting-score-label">本週部門分數</div>
-          <div class="meeting-score-value"><span id="meeting-total-score">—</span></div>
+        <div id="meeting-status-filters" class="meeting-status-filters"></div>
+        <div class="meeting-header-score-group">
+          <div class="meeting-score-card" onclick="openDeptNotesModal()">
+            <div class="meeting-score-label">本週部門成果/問題</div>
+            <div class="meeting-score-value"><span id="meeting-notes-count">—</span></div>
+          </div>
+          <div class="meeting-score-card" onclick="openDeptScoreModal()">
+            <div class="meeting-score-label">本週部門分數</div>
+            <div class="meeting-score-value"><span id="meeting-total-score">—</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -114,10 +117,7 @@
     </div>
     <div class="meeting-body">
       <div id="meeting-tab-report" class="meeting-tab-panel">
-        <div id="meeting-status-filters" class="meeting-status-filters"></div>
-        <div class="meeting-report-frame">
-          <div id="meeting-rows"></div>
-        </div>
+        <div id="meeting-rows"></div>
       </div>
       <div id="meeting-tab-announce" class="meeting-tab-panel" style="display:none">
         <div class="meeting-announce-wrap">
