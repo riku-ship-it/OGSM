@@ -2090,7 +2090,7 @@ function saveMeetingRowsOrder(order) {
   localStorage.setItem('meeting-rows-order', JSON.stringify(order));
 }
 
-function renderMeetingSection() {
+async function renderMeetingSection() {
   const weekStart = getWeekStart(meetingWeekOffset);
   const weekEnd = getWeekEnd(weekStart);
   const weekNum = getMeetingWeekNumber(weekStart);
@@ -2108,7 +2108,15 @@ function renderMeetingSection() {
   renderMeetingScore();
   renderMeetingStatusFilters();
   renderMeetingAnnounce();
-  _syncMeetingSelectionsFromServer().then(function() { renderMeetingRows(); });
+
+  const members = getMeetingOrderedMembers();
+  const cachePromises = members
+    .filter(function(name) { return name !== currentStaff && !staffDataCache[name]; })
+    .map(function(name) {
+      return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
+    });
+  await Promise.all([_syncMeetingSelectionsFromServer(), ...cachePromises]);
+  renderMeetingRows();
 }
 
 function renderMeetingScore() {
