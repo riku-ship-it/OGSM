@@ -2002,6 +2002,38 @@ function saveMeetingReportData(data) {
   localStorage.setItem('meeting-report-v2-' + getMeetingWeekKey(), JSON.stringify(data));
 }
 
+function _pushMemberSelectionsToServer(memberName) {
+  const weekKey = getMeetingWeekKey();
+  const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: getSelectedActionIds(memberName), selectedStrategyKeys: getSelectedStrategyKeys(memberName) };
+  fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).catch(function() {});
+}
+
+async function _syncMeetingSelectionsFromServer() {
+  const weekKey = getMeetingWeekKey();
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const json = await res.json();
+    if (!json.selections) return;
+    const localData = getMeetingReportData();
+    let changed = false;
+    Object.keys(json.selections).forEach(function(member) {
+      const remote = json.selections[member];
+      if (!localData[member]) localData[member] = {};
+      const localIds = JSON.stringify(localData[member].selectedActionIds || []);
+      const localKeys = JSON.stringify(localData[member].selectedStrategyKeys || []);
+      if (localIds !== JSON.stringify(remote.selectedActionIds || []) || localKeys !== JSON.stringify(remote.selectedStrategyKeys || [])) {
+        localData[member].selectedActionIds = remote.selectedActionIds || [];
+        localData[member].selectedStrategyKeys = remote.selectedStrategyKeys || [];
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem('meeting-report-v2-' + weekKey, JSON.stringify(localData));
+      renderMeetingRows();
+    }
+  } catch(e) {}
+}
+
 function getMemberRows(data, memberName) {
   const d = data[memberName];
   if (!d) return [];
@@ -2071,6 +2103,7 @@ function renderMeetingSection() {
   renderMeetingStatusFilters();
   renderMeetingRows();
   renderMeetingAnnounce();
+  _syncMeetingSelectionsFromServer();
 }
 
 function renderMeetingScore() {
@@ -2238,12 +2271,14 @@ function saveSelectedStrategyKeys(memberName, keys) {
 function removeMeetingOgsmItem(memberName, actionId) {
   const ids = getSelectedActionIds(memberName).filter(function(id) { return id !== actionId; });
   saveSelectedActionIds(memberName, ids);
+  _pushMemberSelectionsToServer(memberName);
   renderMeetingRows();
 }
 
 function removeMeetingStrategyItem(memberName, stratKey) {
   const keys = getSelectedStrategyKeys(memberName).filter(function(k) { return k !== stratKey; });
   saveSelectedStrategyKeys(memberName, keys);
+  _pushMemberSelectionsToServer(memberName);
   renderMeetingRows();
 }
 
@@ -2554,6 +2589,7 @@ function confirmOgsmPicker() {
   if (!meetingPickerMember) return;
   saveSelectedActionIds(meetingPickerMember, pickerTempSelected.actionIds);
   saveSelectedStrategyKeys(meetingPickerMember, pickerTempSelected.strategyKeys);
+  _pushMemberSelectionsToServer(meetingPickerMember);
   closeOgsmPicker();
   renderMeetingRows();
 }
