@@ -641,14 +641,8 @@ function renderObjective() {
   };
   let _objComposing = false, _objPreText = '';
   nameEl.oncompositionstart = function() { _objComposing = true; _objPreText = nameEl.textContent; };
-  nameEl.oncompositionend   = function(e) {
+  nameEl.oncompositionend   = function() {
     _objComposing = false;
-    const d = e.data || '';
-    if (d) {
-      nameEl.textContent = _objPreText + d;
-      const r = document.createRange(), s = window.getSelection();
-      r.selectNodeContents(nameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
-    }
   };
   nameEl.onkeydown = function(e) {
     if (e.key==='Enter' && !_objComposing) { e.preventDefault(); nameEl.blur(); }
