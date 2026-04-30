@@ -98,7 +98,6 @@
         </div>
       </div>
       <div class="meeting-header-right">
-        <div id="meeting-status-filters" class="meeting-status-filters"></div>
         <div class="meeting-header-score-group">
           <div class="meeting-score-card" onclick="openDeptNotesModal()">
             <div class="meeting-score-label">本週部門成果/問題</div>
@@ -112,8 +111,11 @@
       </div>
     </div>
     <div class="meeting-tabs">
-      <button class="meeting-tab-btn active" onclick="switchMeetingTab('report')" id="mtab-report">會議報告</button>
-      <button class="meeting-tab-btn" onclick="switchMeetingTab('announce')" id="mtab-announce">佈達事項</button>
+      <div class="meeting-tabs-left">
+        <button class="meeting-tab-btn active" onclick="switchMeetingTab('report')" id="mtab-report">會議報告</button>
+        <button class="meeting-tab-btn" onclick="switchMeetingTab('announce')" id="mtab-announce">佈達事項</button>
+      </div>
+      <div id="meeting-status-filters" class="meeting-status-filters"></div>
     </div>
     <div class="meeting-body">
       <div id="meeting-tab-report" class="meeting-tab-panel">
