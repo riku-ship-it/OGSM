@@ -41,6 +41,15 @@ function getOrCreateStatsSheet(ss) {
   return newSheet;
 }
 
+// ── 取得或建立會議選取工作表 ──
+function getOrCreateMeetingSelectionsSheet(ss) {
+  var sheet = ss.getSheetByName('MeetingSelections');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('MeetingSelections');
+  newSheet.appendRow(['weekKey', 'member', 'selectedActionIds', 'selectedStrategyKeys']);
+  return newSheet;
+}
+
 // ── 取得或建立週記錄工作表 ──
 function getOrCreateWeeklyNotesSheet(ss) {
   var sheet = ss.getSheetByName('WeeklyNotes');
@@ -139,6 +148,23 @@ function doGet(e) {
       }
       return ContentService
         .createTextOutput(JSON.stringify({ content: wnContent }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳會議選取項目 ----
+    if (e.parameter.action === 'get_meeting_selections') {
+      var msSheet = getOrCreateMeetingSelectionsSheet(ss);
+      var msData = msSheet.getDataRange().getValues();
+      var msWeekKey = e.parameter.weekKey || '';
+      var selections = {};
+      for (var i = 1; i < msData.length; i++) {
+        if (String(msData[i][0]) !== msWeekKey) continue;
+        var msMember = String(msData[i][1] || '');
+        try { selections[msMember] = { selectedActionIds: JSON.parse(msData[i][2] || '[]'), selectedStrategyKeys: JSON.parse(msData[i][3] || '[]') }; }
+        catch(e2) { selections[msMember] = { selectedActionIds: [], selectedStrategyKeys: [] }; }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ selections: selections }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -395,6 +421,35 @@ function doPost(e) {
         SpreadsheetApp.flush();
       } finally {
         lock.releaseLock();
+      }
+      result = JSON.stringify({ success: true });
+
+    // ---- save_meeting_selections：儲存會議選取項目 ----
+    } else if (body.type === 'save_meeting_selections') {
+      var lock2 = LockService.getScriptLock();
+      lock2.waitLock(30000);
+      try {
+        var msSheet2 = getOrCreateMeetingSelectionsSheet(ss);
+        var msData2 = msSheet2.getDataRange().getValues();
+        var msWeekKey2 = String(body.weekKey || '');
+        var msMember2 = String(body.member || '');
+        var msActionIds = JSON.stringify(body.selectedActionIds || []);
+        var msStratKeys = JSON.stringify(body.selectedStrategyKeys || []);
+        var msUpdated = false;
+        for (var i = 1; i < msData2.length; i++) {
+          if (String(msData2[i][0]) === msWeekKey2 && String(msData2[i][1]) === msMember2) {
+            msSheet2.getRange(i + 1, 3).setValue(msActionIds);
+            msSheet2.getRange(i + 1, 4).setValue(msStratKeys);
+            msUpdated = true;
+            break;
+          }
+        }
+        if (!msUpdated) {
+          msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys]);
+        }
+        SpreadsheetApp.flush();
+      } finally {
+        lock2.releaseLock();
       }
       result = JSON.stringify({ success: true });
 

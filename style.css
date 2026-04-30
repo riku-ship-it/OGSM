@@ -1826,7 +1826,7 @@ body {
 .meeting-ogsm-card-delete:hover { background: rgba(212,78,40,.1); color: #b83d1e; }
 
 /* ── Picker Modal Overrides ── */
-.meeting-picker-modal { display: flex; flex-direction: column; width: 90vw; max-width: 1100px; max-height: 85vh; }
+.meeting-modal.meeting-picker-modal { display: flex; flex-direction: column; width: 90vw; max-width: 1100px; max-height: 85vh; }
 .picker-modal-body { overflow: hidden; flex: 1; display: flex; flex-direction: column; padding: 0; }
 
 /* Picker 3-column board */
