@@ -1813,6 +1813,9 @@ async function init() {
   renderStaffList();
   await loadAndRender();
   initOgsmTooltips();
+  staffList
+    .filter(function(name) { return name !== currentStaff && !staffDataCache[name]; })
+    .forEach(function(name) { fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {}); });
 }
 
 init();
