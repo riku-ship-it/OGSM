@@ -111,20 +111,10 @@
     <div class="meeting-tabs">
       <button class="meeting-tab-btn active" onclick="switchMeetingTab('report')" id="mtab-report">會議報告</button>
       <button class="meeting-tab-btn" onclick="switchMeetingTab('announce')" id="mtab-announce">佈達事項</button>
-      <button class="meeting-tab-btn" onclick="switchMeetingTab('timeline')" id="mtab-timeline">專案時程</button>
     </div>
     <div class="meeting-body">
       <div id="meeting-tab-report" class="meeting-tab-panel">
-        <div class="meeting-tl-bar" id="meeting-tl-bar">
-          <span class="mtlbar-label">本週專案時程：</span>
-          <select class="mtlbar-select" id="mtlbar-select" onchange="onTimelineSelectChange(this.value)">
-            <option value="">— 選擇時程 —</option>
-          </select>
-          <div id="mtlbar-preview" class="mtlbar-preview" style="display:none">
-            <div id="mtlbar-preview-content" class="mtlbar-preview-content"></div>
-            <button class="mtlbar-close" onclick="clearTimelineBar()">✕</button>
-          </div>
-        </div>
+        <div id="meeting-status-filters" class="meeting-status-filters"></div>
         <div class="meeting-report-frame">
           <div id="meeting-rows"></div>
         </div>
@@ -153,15 +143,6 @@
             <div class="meeting-announce-history-title">歷史紀錄</div>
             <div id="meeting-announce-history-list"></div>
           </div>
-        </div>
-      </div>
-      <div id="meeting-tab-timeline" class="meeting-tab-panel" style="display:none">
-        <div class="meeting-tl-wrap">
-          <div class="meeting-tl-header">
-            <div class="meeting-tl-hdr-title">專案時程列表</div>
-            <button class="meeting-tl-add-btn" onclick="openTimelineModal(null)">+ 新增時程</button>
-          </div>
-          <div id="meeting-tl-list"></div>
         </div>
       </div>
     </div>
