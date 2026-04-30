@@ -1643,7 +1643,7 @@ body {
 }
 .meeting-header-left { display: flex; flex-direction: column; gap: 4px; }
 .meeting-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.meeting-header-score-group { display: flex; gap: 12px; }
+.meeting-header-score-group { display: flex; gap: 12px; margin-bottom: 8px; }
 .meeting-title { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
 .meeting-week-nav-row { display: flex; align-items: center; gap: 4px; }
 .meeting-subtitle { font-size: 13px; color: var(--text3); }
@@ -1665,8 +1665,14 @@ body {
 /* ── Meeting Tabs ── */
 .meeting-tabs {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 20px;
+}
+.meeting-tabs-left {
+  display: flex;
+  gap: 6px;
 }
 .meeting-tab-btn {
   padding: 7px 18px;
