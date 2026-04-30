@@ -639,13 +639,8 @@ function renderObjective() {
       }
     } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = obj.title; }
   };
-  let _objComposing = false, _objPreText = '';
-  nameEl.oncompositionstart = function() { _objComposing = true; _objPreText = nameEl.textContent; };
-  nameEl.oncompositionend   = function() {
-    _objComposing = false;
-  };
   nameEl.onkeydown = function(e) {
-    if (e.key==='Enter' && !_objComposing) { e.preventDefault(); nameEl.blur(); }
+    if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
     if (e.key==='Escape') { nameEl.textContent = obj.title; nameEl.blur(); }
   };
 
@@ -764,19 +759,8 @@ function renderColumns() {
           else { showToast('❌ '+(res.message||'更新失敗'), true); nameEl.textContent = goal.name; }
         } catch(e) { showToast('❌ 網路錯誤', true); nameEl.textContent = goal.name; }
       });
-      let _goalComposing = false, _goalPreText = '';
-      nameEl.addEventListener('compositionstart', function() { _goalComposing = true; _goalPreText = nameEl.textContent; });
-      nameEl.addEventListener('compositionend', function(e) {
-        _goalComposing = false;
-        const d = e.data || '';
-        if (d) {
-          nameEl.textContent = _goalPreText + d;
-          const r = document.createRange(), s = window.getSelection();
-          r.selectNodeContents(nameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
-        }
-      });
       nameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !_goalComposing) { e.preventDefault(); nameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); nameEl.blur(); }
         if (e.key==='Escape') { nameEl.textContent = goal.name; nameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -907,19 +891,8 @@ function renderColumns() {
           } else { showToast('❌ '+(res.message||'更新失敗'), true); sNameEl.textContent = strat; }
         } catch(e) { showToast('❌ 網路錯誤', true); sNameEl.textContent = strat; }
       });
-      let _stratComposing = false, _stratPreText = '';
-      sNameEl.addEventListener('compositionstart', function() { _stratComposing = true; _stratPreText = sNameEl.textContent; });
-      sNameEl.addEventListener('compositionend', function(e) {
-        _stratComposing = false;
-        const d = e.data || '';
-        if (d) {
-          sNameEl.textContent = _stratPreText + d;
-          const r = document.createRange(), s = window.getSelection();
-          r.selectNodeContents(sNameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
-        }
-      });
       sNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !_stratComposing) { e.preventDefault(); sNameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); sNameEl.blur(); }
         if (e.key==='Escape') { sNameEl.textContent = strat; sNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -1027,19 +1000,8 @@ function renderColumns() {
           else { showToast('❌ '+(res.message||'更新失敗'), true); aNameEl.textContent = a.action_name; }
         } catch(e) { showToast('❌ 網路錯誤', true); aNameEl.textContent = a.action_name; }
       });
-      let _actComposing = false, _actPreText = '';
-      aNameEl.addEventListener('compositionstart', function() { _actComposing = true; _actPreText = aNameEl.textContent; });
-      aNameEl.addEventListener('compositionend', function(e) {
-        _actComposing = false;
-        const d = e.data || '';
-        if (d) {
-          aNameEl.textContent = _actPreText + d;
-          const r = document.createRange(), s = window.getSelection();
-          r.selectNodeContents(aNameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
-        }
-      });
       aNameEl.addEventListener('keydown', function(e) {
-        if (e.key==='Enter' && !_actComposing) { e.preventDefault(); aNameEl.blur(); }
+        if (e.key==='Enter' && !e.isComposing) { e.preventDefault(); aNameEl.blur(); }
         if (e.key==='Escape') { aNameEl.textContent = a.action_name; aNameEl.blur(); }
       });
       item.addEventListener('contextmenu', function(e) {
@@ -2293,7 +2255,7 @@ function renderMeetingRows() {
         '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
         'data-field="project" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
         'data-placeholder="專案名稱" onblur="saveMeetingRowField(this)" ' +
-        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}">' +
+        'onkeydown="if(event.key===\'Enter\'&&!event.isComposing){event.preventDefault();this.blur()}">' +
         escHtml(row.project || '') + '</span></div>';
       html += '<div class="mtd mtd-task">' +
         '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
