@@ -30,7 +30,7 @@
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','備註','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
-var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes'];
+var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingSelections'];
 
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
@@ -430,23 +430,20 @@ function doPost(e) {
       lock2.waitLock(30000);
       try {
         var msSheet2 = getOrCreateMeetingSelectionsSheet(ss);
-        var msData2 = msSheet2.getDataRange().getValues();
         var msWeekKey2 = String(body.weekKey || '');
         var msMember2 = String(body.member || '');
         var msActionIds = JSON.stringify(body.selectedActionIds || []);
         var msStratKeys = JSON.stringify(body.selectedStrategyKeys || []);
-        var msUpdated = false;
-        for (var i = 1; i < msData2.length; i++) {
+        SpreadsheetApp.flush();
+        var msData2 = msSheet2.getDataRange().getValues();
+        var msRowsToDelete = [];
+        for (var i = msData2.length - 1; i >= 1; i--) {
           if (String(msData2[i][0]) === msWeekKey2 && String(msData2[i][1]) === msMember2) {
-            msSheet2.getRange(i + 1, 3).setValue(msActionIds);
-            msSheet2.getRange(i + 1, 4).setValue(msStratKeys);
-            msUpdated = true;
-            break;
+            msRowsToDelete.push(i + 1);
           }
         }
-        if (!msUpdated) {
-          msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys]);
-        }
+        msRowsToDelete.forEach(function(r) { msSheet2.deleteRow(r); });
+        msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys]);
         SpreadsheetApp.flush();
       } finally {
         lock2.releaseLock();
