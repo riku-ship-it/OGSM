@@ -1979,6 +1979,7 @@ let meetingPickerMember = null;
 let meetingAddRowMember = null;
 let meetingTlEditId = null;
 let meetingStatusFilter = null;
+let meetingCollapsedMembers = {};
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2234,47 +2235,61 @@ function selectMeetingStatusFilter(status) {
   renderMeetingRows();
 }
 
+function toggleMeetingMember(name) {
+  meetingCollapsedMembers[name] = !meetingCollapsedMembers[name];
+  renderMeetingRows();
+}
+
 function renderMeetingRows() {
   const container = document.getElementById('meeting-rows');
   if (!container) return;
-  if (!meetingStatusFilter) {
-    container.innerHTML = '<div class="meeting-ogsm-hint">請點選上方狀態查看對應行動項目</div>';
-    return;
-  }
   const members = getMeetingOrderedMembers();
   let html = '';
   members.forEach(function(name) {
     const data = name === currentStaff ? state : (staffDataCache[name] || {});
-    const actions = (data.actions || []).filter(function(a) { return a.action_name && a.status === meetingStatusFilter; });
-    if (!actions.length) return;
+    const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+    const filtered = meetingStatusFilter
+      ? allActions.filter(function(a) { return a.status === meetingStatusFilter; })
+      : allActions;
     const color = avatarColor(name);
-    html += '<div class="meeting-ogsm-group">' +
-      '<div class="meeting-ogsm-group-header">' +
-        '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
-        '<div class="meeting-ogsm-group-name">' + escHtml(name) + '</div>' +
-        '<div class="meeting-ogsm-group-count">' + actions.length + ' 項</div>' +
-      '</div>' +
-      '<div class="meeting-ogsm-cards">' +
-      actions.map(function(a) {
-        const objTitle = (data.objectives && data.objectives[0]) ? data.objectives[0].title : '';
-        const goalName = a.goal_name || '';
-        const stratName = a.strategy_name || '';
-        let bc = '';
-        if (objTitle) bc += '<span class="mogsm-bc-item">O ' + escHtml(objTitle) + '</span><span class="mogsm-bc-sep">›</span>';
-        if (goalName) bc += '<span class="mogsm-bc-item">G ' + escHtml(goalName) + '</span><span class="mogsm-bc-sep">›</span>';
-        if (stratName) bc += '<span class="mogsm-bc-item">S ' + escHtml(stratName) + '</span><span class="mogsm-bc-sep">›</span>';
-        bc += '<span class="mogsm-bc-item mogsm-bc-m">M ' + escHtml(a.action_name) + '</span>';
-        return '<div class="meeting-ogsm-card">' +
-          '<div class="meeting-ogsm-card-name">' + escHtml(a.action_name) + '</div>' +
-          '<div class="meeting-ogsm-breadcrumb">' + bc + '</div>' +
+    const isCollapsed = !!meetingCollapsedMembers[name];
+
+    const sc = { '未開始': 0, '進行中': 0, '卡關': 0, '完成': 0 };
+    allActions.forEach(function(a) { if (sc[a.status] !== undefined) sc[a.status]++; });
+    const parts = [];
+    if (sc['進行中']) parts.push('<span class="mmember-stat mmember-stat-進行中">' + sc['進行中'] + ' 進行中</span>');
+    if (sc['卡關'])   parts.push('<span class="mmember-stat mmember-stat-卡關">' + sc['卡關'] + ' 卡關</span>');
+    if (sc['未開始']) parts.push('<span class="mmember-stat mmember-stat-未開始">' + sc['未開始'] + ' 未開始</span>');
+    if (sc['完成'])   parts.push('<span class="mmember-stat mmember-stat-完成">' + sc['完成'] + ' 完成</span>');
+    const statsHtml = parts.join('<span class="mmember-stat-sep"> · </span>');
+
+    let actionsHtml;
+    if (filtered.length === 0) {
+      actionsHtml = '<div class="meeting-member-empty">' +
+        (meetingStatusFilter ? '無「' + escHtml(meetingStatusFilter) + '」項目' : '目前無行動項目') + '</div>';
+    } else {
+      actionsHtml = filtered.map(function(a) {
+        const st = a.status || '未開始';
+        return '<div class="meeting-member-action-row">' +
+          '<div class="meeting-member-action-name">' + escHtml(a.action_name) + '</div>' +
+          '<span class="mstatus-badge badge-' + escHtml(st) + '">' + escHtml(st) + '</span>' +
         '</div>';
-      }).join('') +
-      '</div></div>';
+      }).join('');
+    }
+
+    const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    html += '<div class="meeting-member-section' + (isCollapsed ? ' collapsed' : '') + '">' +
+      '<div class="meeting-member-header" onclick="toggleMeetingMember(\'' + safeName + '\')">' +
+        '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
+        '<div class="meeting-member-name">' + escHtml(name) + '</div>' +
+        '<div class="meeting-member-stats">' + statsHtml + '</div>' +
+        '<div class="meeting-member-total">' + allActions.length + ' 項</div>' +
+        '<svg class="meeting-member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
+      '</div>' +
+      '<div class="meeting-member-body">' + actionsHtml + '</div>' +
+    '</div>';
   });
-  if (!html) {
-    html = '<div class="meeting-ogsm-hint">目前沒有「' + escHtml(meetingStatusFilter) + '」的行動項目</div>';
-  }
-  container.innerHTML = html;
+  container.innerHTML = html || '<div class="meeting-ogsm-hint">無成員資料</div>';
 }
 
 function saveMeetingRowField(el) {
