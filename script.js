@@ -1978,6 +1978,7 @@ const MEETING_STATUS_OPTIONS = ['未開始', '進行中', '待確認解法', '�
 let meetingPickerMember = null;
 let meetingAddRowMember = null;
 let meetingTlEditId = null;
+let meetingStatusFilter = null;
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2063,8 +2064,8 @@ function renderMeetingSection() {
   }
 
   renderMeetingScore();
+  renderMeetingStatusFilters();
   renderMeetingRows();
-  renderMeetingTimelineBar();
   renderMeetingAnnounce();
 }
 
@@ -2206,82 +2207,73 @@ function closeDeptNotesModal() {
   if (modal) modal.style.display = 'none';
 }
 
+function renderMeetingStatusFilters() {
+  const el = document.getElementById('meeting-status-filters');
+  if (!el) return;
+  const statuses = ['未開始', '進行中', '卡關', '完成'];
+  const members = getMeetingOrderedMembers();
+  const counts = { '未開始': 0, '進行中': 0, '卡關': 0, '完成': 0 };
+  members.forEach(function(name) {
+    const data = name === currentStaff ? state : (staffDataCache[name] || {});
+    (data.actions || []).forEach(function(a) {
+      if (a.action_name && counts[a.status] !== undefined) counts[a.status]++;
+    });
+  });
+  el.innerHTML = statuses.map(function(s) {
+    const isActive = meetingStatusFilter === s;
+    return '<div class="meeting-status-card meeting-status-card-' + s + (isActive ? ' active' : '') + '" onclick="selectMeetingStatusFilter(\'' + s + '\')">' +
+      '<div class="meeting-status-card-label">' + s + '</div>' +
+      '<div class="meeting-status-card-count">' + counts[s] + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function selectMeetingStatusFilter(status) {
+  meetingStatusFilter = meetingStatusFilter === status ? null : status;
+  renderMeetingStatusFilters();
+  renderMeetingRows();
+}
+
 function renderMeetingRows() {
   const container = document.getElementById('meeting-rows');
   if (!container) return;
-
+  if (!meetingStatusFilter) {
+    container.innerHTML = '<div class="meeting-ogsm-hint">請點選上方狀態查看對應行動項目</div>';
+    return;
+  }
   const members = getMeetingOrderedMembers();
-  const data = getMeetingReportData();
-
-  let html = '<div class="mtable">' +
-    '<div class="mtable-head">' +
-    '<div class="mth">成員</div>' +
-    '<div class="mth">專案</div>' +
-    '<div class="mth">本週任務</div>' +
-    '<div class="mth">狀態</div>' +
-    '<div class="mth">瓶頸 / 備註</div>' +
-    '<div class="mth"></div>' +
-    '</div>';
-
-  members.forEach(function(name, memberIdx) {
-    const rows = getMemberRows(data, name);
+  let html = '';
+  members.forEach(function(name) {
+    const data = name === currentStaff ? state : (staffDataCache[name] || {});
+    const actions = (data.actions || []).filter(function(a) { return a.action_name && a.status === meetingStatusFilter; });
+    if (!actions.length) return;
     const color = avatarColor(name);
-
-    if (!rows.length) {
-      html += '<div class="mtr mtr-first' + (memberIdx === 0 ? ' mtr-first-overall' : '') + '">' +
-        '<div class="mtd mtd-member">' +
-          '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
-          '<div class="mrow-name">' + escHtml(name) + '</div>' +
-        '</div>' +
-        '<div class="mtd"><span class="mrow-placeholder">尚無任務</span></div>' +
-        '<div class="mtd"></div><div class="mtd"></div><div class="mtd"></div>' +
-        '<div class="mtd mtd-act">' +
-          '<button class="mrow-add-btn" onclick="openMeetingAddRow(' + JSON.stringify(name) + ')" title="新增任務">+</button>' +
-        '</div></div>';
-      return;
-    }
-
-    rows.forEach(function(row, rowIdx) {
-      const isFirst = rowIdx === 0;
-      const statusCls = getMeetingStatusClass(row.status || '未開始');
-      html += '<div class="mtr' + (isFirst ? ' mtr-first' + (memberIdx === 0 ? ' mtr-first-overall' : '') : '') + '">';
-      html += '<div class="mtd mtd-member">';
-      if (isFirst) {
-        html += '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
-          '<div class="mrow-name">' + escHtml(name) + '</div>';
-      }
-      html += '</div>';
-      html += '<div class="mtd mtd-project">' +
-        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
-        'data-field="project" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
-        'data-placeholder="專案名稱" onblur="saveMeetingRowField(this)" ' +
-        'onkeydown="if(event.key===\'Enter\'&&!event.isComposing){event.preventDefault();this.blur()}">' +
-        escHtml(row.project || '') + '</span></div>';
-      html += '<div class="mtd mtd-task">' +
-        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
-        'data-field="task" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
-        'data-placeholder="本週任務描述" onblur="saveMeetingRowField(this)">' +
-        escHtml(row.task || '') + '</span></div>';
-      html += '<div class="mtd mtd-status">' +
-        '<span class="mstatus-badge ' + statusCls + '" ' +
-        'data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
-        'onclick="cycleMeetingRowStatus(this)" title="點擊切換狀態">' +
-        escHtml(row.status || '未開始') + '</span></div>';
-      html += '<div class="mtd mtd-note">' +
-        '<span class="mrow-editable" contenteditable="true" spellcheck="false" ' +
-        'data-field="bottleneck" data-member="' + escHtml(name) + '" data-rowidx="' + rowIdx + '" ' +
-        'data-placeholder="瓶頸 / 備註" onblur="saveMeetingRowField(this)">' +
-        escHtml(row.bottleneck || '') + '</span></div>';
-      html += '<div class="mtd mtd-act">';
-      if (isFirst) {
-        html += '<button class="mrow-add-btn" onclick="openMeetingAddRow(' + JSON.stringify(name) + ')" title="新增任務">+</button>';
-      }
-      html += '<button class="mrow-del-btn" onclick="deleteMeetingRow(' + JSON.stringify(name) + ',' + rowIdx + ')" title="刪除此列">✕</button>';
-      html += '</div></div>';
-    });
+    html += '<div class="meeting-ogsm-group">' +
+      '<div class="meeting-ogsm-group-header">' +
+        '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
+        '<div class="meeting-ogsm-group-name">' + escHtml(name) + '</div>' +
+        '<div class="meeting-ogsm-group-count">' + actions.length + ' 項</div>' +
+      '</div>' +
+      '<div class="meeting-ogsm-cards">' +
+      actions.map(function(a) {
+        const objTitle = (data.objectives && data.objectives[0]) ? data.objectives[0].title : '';
+        const goalName = a.goal_name || '';
+        const stratName = a.strategy_name || '';
+        let bc = '';
+        if (objTitle) bc += '<span class="mogsm-bc-item">O ' + escHtml(objTitle) + '</span><span class="mogsm-bc-sep">›</span>';
+        if (goalName) bc += '<span class="mogsm-bc-item">G ' + escHtml(goalName) + '</span><span class="mogsm-bc-sep">›</span>';
+        if (stratName) bc += '<span class="mogsm-bc-item">S ' + escHtml(stratName) + '</span><span class="mogsm-bc-sep">›</span>';
+        bc += '<span class="mogsm-bc-item mogsm-bc-m">M ' + escHtml(a.action_name) + '</span>';
+        return '<div class="meeting-ogsm-card">' +
+          '<div class="meeting-ogsm-card-name">' + escHtml(a.action_name) + '</div>' +
+          '<div class="meeting-ogsm-breadcrumb">' + bc + '</div>' +
+        '</div>';
+      }).join('') +
+      '</div></div>';
   });
-
-  html += '</div>';
+  if (!html) {
+    html = '<div class="meeting-ogsm-hint">目前沒有「' + escHtml(meetingStatusFilter) + '」的行動項目</div>';
+  }
   container.innerHTML = html;
 }
 
@@ -2414,13 +2406,12 @@ function addOgsmItemToMember(item) {
 }
 
 function switchMeetingTab(tab) {
-  ['report', 'announce', 'timeline'].forEach(function(t) {
+  ['report', 'announce'].forEach(function(t) {
     const panel = document.getElementById('meeting-tab-' + t);
     const btn = document.getElementById('mtab-' + t);
     if (panel) panel.style.display = (t === tab) ? '' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
-  if (tab === 'timeline') renderTimelineTab();
 }
 
 // ── Timeline Functions ──

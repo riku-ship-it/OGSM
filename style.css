@@ -1695,6 +1695,67 @@ body {
 }
 .meeting-tab-panel { }
 
+/* ── Meeting Status Filters ── */
+.meeting-status-filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.meeting-status-card {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: box-shadow .15s, border-color .15s, background .15s;
+  user-select: none;
+}
+.meeting-status-card:hover { box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.meeting-status-card-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.meeting-status-card-count { font-size: 26px; font-weight: 700; line-height: 1; }
+.meeting-status-card-未開始 { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: var(--text3); }
+.meeting-status-card-未開始.active { background: rgba(0,0,0,.09); border-color: rgba(0,0,0,.25); color: var(--text); }
+.meeting-status-card-進行中 { background: rgba(43,127,224,.07); border-color: rgba(43,127,224,.2); color: #1a6fd4; }
+.meeting-status-card-進行中.active { background: rgba(43,127,224,.15); border-color: rgba(43,127,224,.5); }
+.meeting-status-card-卡關 { background: rgba(212,78,40,.07); border-color: rgba(212,78,40,.2); color: #b83d1e; }
+.meeting-status-card-卡關.active { background: rgba(212,78,40,.15); border-color: rgba(212,78,40,.5); }
+.meeting-status-card-完成 { background: rgba(13,147,115,.07); border-color: rgba(13,147,115,.2); color: #0a7a60; }
+.meeting-status-card-完成.active { background: rgba(13,147,115,.15); border-color: rgba(13,147,115,.45); }
+
+/* ── Meeting OGSM Action List ── */
+.meeting-ogsm-hint {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text3);
+}
+.meeting-ogsm-group { padding: 16px 16px 4px; border-bottom: 1px solid var(--border); }
+.meeting-ogsm-group:last-child { border-bottom: none; }
+.meeting-ogsm-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.meeting-ogsm-group-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.meeting-ogsm-group-count { font-size: 12px; color: var(--text3); background: var(--bg3); padding: 1px 7px; border-radius: 20px; }
+.meeting-ogsm-cards { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+.meeting-ogsm-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.meeting-ogsm-card-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.meeting-ogsm-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.mogsm-bc-item { font-size: 11px; color: var(--text3); }
+.mogsm-bc-m { color: var(--text2); font-weight: 500; }
+.mogsm-bc-sep { font-size: 11px; color: var(--border2); margin: 0 1px; }
+
 /* ── Meeting Report Frame ── */
 .meeting-report-frame {
   background: var(--bg2);
