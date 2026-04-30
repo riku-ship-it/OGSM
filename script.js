@@ -644,7 +644,7 @@ function renderObjective() {
   nameEl.oncompositionend   = function(e) {
     _objComposing = false;
     const d = e.data || '';
-    if (d && nameEl.textContent === _objPreText + d + d) {
+    if (d) {
       nameEl.textContent = _objPreText + d;
       const r = document.createRange(), s = window.getSelection();
       r.selectNodeContents(nameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
@@ -775,7 +775,7 @@ function renderColumns() {
       nameEl.addEventListener('compositionend', function(e) {
         _goalComposing = false;
         const d = e.data || '';
-        if (d && nameEl.textContent === _goalPreText + d + d) {
+        if (d) {
           nameEl.textContent = _goalPreText + d;
           const r = document.createRange(), s = window.getSelection();
           r.selectNodeContents(nameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
@@ -918,7 +918,7 @@ function renderColumns() {
       sNameEl.addEventListener('compositionend', function(e) {
         _stratComposing = false;
         const d = e.data || '';
-        if (d && sNameEl.textContent === _stratPreText + d + d) {
+        if (d) {
           sNameEl.textContent = _stratPreText + d;
           const r = document.createRange(), s = window.getSelection();
           r.selectNodeContents(sNameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
@@ -1038,7 +1038,7 @@ function renderColumns() {
       aNameEl.addEventListener('compositionend', function(e) {
         _actComposing = false;
         const d = e.data || '';
-        if (d && aNameEl.textContent === _actPreText + d + d) {
+        if (d) {
           aNameEl.textContent = _actPreText + d;
           const r = document.createRange(), s = window.getSelection();
           r.selectNodeContents(aNameEl); r.collapse(false); s.removeAllRanges(); s.addRange(r);
