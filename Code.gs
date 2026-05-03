@@ -30,7 +30,7 @@
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','備註','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
-var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingSelections'];
+var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport', 'MeetingSelections'];
 
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
@@ -56,6 +56,15 @@ function getOrCreateWeeklyNotesSheet(ss) {
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('WeeklyNotes');
   newSheet.appendRow(['職員', '週', '內容']);
+  return newSheet;
+}
+
+// ── 取得或建立會議報告工作表 ──
+function getOrCreateMeetingReportSheet(ss) {
+  var sheet = ss.getSheetByName('MeetingReport');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('MeetingReport');
+  newSheet.appendRow(['weekKey', 'data']);
   return newSheet;
 }
 
@@ -148,6 +157,23 @@ function doGet(e) {
       }
       return ContentService
         .createTextOutput(JSON.stringify({ content: wnContent }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳會議報告資料 ----
+    if (e.parameter.action === 'get_meeting_report') {
+      var mrSheet = getOrCreateMeetingReportSheet(ss);
+      var mrData = mrSheet.getDataRange().getValues();
+      var mrWeekKey = e.parameter.weekKey || '';
+      var mrResult = '{}';
+      for (var i = 1; i < mrData.length; i++) {
+        if (String(mrData[i][0]) === mrWeekKey) {
+          mrResult = String(mrData[i][1] || '{}');
+          break;
+        }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ data: mrResult }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -418,6 +444,30 @@ function doPost(e) {
         if (!wUpdated) {
           wSheet.appendRow([wStaff, wWeekRange, wContent]);
         }
+        SpreadsheetApp.flush();
+      } finally {
+        lock.releaseLock();
+      }
+      result = JSON.stringify({ success: true });
+
+    // ---- save_meeting_report：儲存或更新會議報告資料 ----
+    } else if (body.type === 'save_meeting_report') {
+      var lock = LockService.getScriptLock();
+      lock.waitLock(30000);
+      try {
+        var mrSheet = getOrCreateMeetingReportSheet(ss);
+        var mrData = mrSheet.getDataRange().getValues();
+        var mrWeekKey = String(body.weekKey || '');
+        var mrJson = JSON.stringify(body.data || {});
+        var mrUpdated = false;
+        for (var i = 1; i < mrData.length; i++) {
+          if (String(mrData[i][0]) === mrWeekKey) {
+            mrSheet.getRange(i + 1, 2).setValue(mrJson);
+            mrUpdated = true;
+            break;
+          }
+        }
+        if (!mrUpdated) mrSheet.appendRow([mrWeekKey, mrJson]);
         SpreadsheetApp.flush();
       } finally {
         lock.releaseLock();

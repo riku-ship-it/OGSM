@@ -1987,6 +1987,7 @@ const MEETING_STATUS_OPTIONS = ['未開始', '進行中', '待確認解法', '�
 let meetingPickerMember = null;
 let meetingAddRowMember = null;
 let meetingTlEditId = null;
+let meetingReportCache = null;
 let meetingStatusFilter = null;
 let meetingCollapsedMembers = {};
 let pickerSelectedGoalId = null;
@@ -1999,16 +2000,30 @@ function getMeetingWeekKey() {
 
 function meetingNavWeek(dir) {
   meetingWeekOffset += dir;
+  meetingReportCache = null;
   renderMeetingSection();
 }
 
 function getMeetingReportData() {
+  if (meetingReportCache !== null) return meetingReportCache;
   try { return JSON.parse(localStorage.getItem('meeting-report-v2-' + getMeetingWeekKey()) || '{}'); }
   catch(e) { return {}; }
 }
 
 function saveMeetingReportData(data) {
+  meetingReportCache = data;
   localStorage.setItem('meeting-report-v2-' + getMeetingWeekKey(), JSON.stringify(data));
+  postData({ type: 'save_meeting_report', weekKey: getMeetingWeekKey(), data: data }).catch(function() {});
+}
+
+async function loadMeetingReportFromBackend() {
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_report&weekKey=' + getMeetingWeekKey(), { method: 'GET', cache: 'no-store' });
+    const json = await res.json();
+    meetingReportCache = JSON.parse(json.data || '{}');
+  } catch(e) {
+    meetingReportCache = null;
+  }
 }
 
 function _pushMemberSelectionsToServer(memberName) {
@@ -2115,6 +2130,7 @@ async function renderMeetingSection() {
     awtEl.textContent = yr + '年第' + weekNum + '週 佈達事項';
   }
 
+  await loadMeetingReportFromBackend();
   renderMeetingScore();
   renderMeetingStatusFilters();
   renderMeetingAnnounce();
