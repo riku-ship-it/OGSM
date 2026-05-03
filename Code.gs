@@ -16,7 +16,7 @@
 //    J(9)  負責人     → Action assignee
 //    K(10) 開始日期   → Action start_date
 //    L(11) 截止日期   → Action due_date
-//    M(12) 行動進度   → Action progress
+//    M(12) 備註       → Action notes
 //    N(13) 狀態       → Action status
 //    O(14) 交通燈     → Goal traffic_light
 //    P(15) 截止日     → Goal deadline
@@ -28,9 +28,9 @@
 // ====================================================
 
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
-var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','行動進度','狀態','交通燈','截止日','策略狀態','成功定義'];
+var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','備註','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
-var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport'];
+var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport', 'MeetingSelections'];
 
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
@@ -38,6 +38,15 @@ function getOrCreateStatsSheet(ss) {
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('Stats');
   newSheet.appendRow(STATS_HEADER_ROW);
+  return newSheet;
+}
+
+// ── 取得或建立會議選取工作表 ──
+function getOrCreateMeetingSelectionsSheet(ss) {
+  var sheet = ss.getSheetByName('MeetingSelections');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('MeetingSelections');
+  newSheet.appendRow(['weekKey', 'member', 'selectedActionIds', 'selectedStrategyKeys']);
   return newSheet;
 }
 
@@ -168,6 +177,23 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ---- 回傳會議選取項目 ----
+    if (e.parameter.action === 'get_meeting_selections') {
+      var msSheet = getOrCreateMeetingSelectionsSheet(ss);
+      var msData = msSheet.getDataRange().getValues();
+      var msWeekKey = e.parameter.weekKey || '';
+      var selections = {};
+      for (var i = 1; i < msData.length; i++) {
+        if (String(msData[i][0]) !== msWeekKey) continue;
+        var msMember = String(msData[i][1] || '');
+        try { selections[msMember] = { selectedActionIds: JSON.parse(msData[i][2] || '[]'), selectedStrategyKeys: JSON.parse(msData[i][3] || '[]') }; }
+        catch(e2) { selections[msMember] = { selectedActionIds: [], selectedStrategyKeys: [] }; }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ selections: selections }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ---- 回傳指定職員的 OGSM 資料 ----
     var staffName = e.parameter.staff || 'Riku';
     var sheet = getSheetForStaff(ss, staffName);
@@ -222,7 +248,7 @@ function doGet(e) {
           assignee:      String(row[9]  || ''),
           start_date:    formatDate(row[10]),
           due_date:      formatDate(row[11]),
-          progress:      Number(row[12]) || 0,
+          notes:         String(row[12] || ''),
           status:        String(row[13] || '未開始')
         });
       }
@@ -448,6 +474,32 @@ function doPost(e) {
       }
       result = JSON.stringify({ success: true });
 
+    // ---- save_meeting_selections：儲存會議選取項目 ----
+    } else if (body.type === 'save_meeting_selections') {
+      var lock2 = LockService.getScriptLock();
+      lock2.waitLock(30000);
+      try {
+        var msSheet2 = getOrCreateMeetingSelectionsSheet(ss);
+        var msWeekKey2 = String(body.weekKey || '');
+        var msMember2 = String(body.member || '');
+        var msActionIds = JSON.stringify(body.selectedActionIds || []);
+        var msStratKeys = JSON.stringify(body.selectedStrategyKeys || []);
+        SpreadsheetApp.flush();
+        var msData2 = msSheet2.getDataRange().getValues();
+        var msRowsToDelete = [];
+        for (var i = msData2.length - 1; i >= 1; i--) {
+          if (String(msData2[i][0]) === msWeekKey2 && String(msData2[i][1]) === msMember2) {
+            msRowsToDelete.push(i + 1);
+          }
+        }
+        msRowsToDelete.forEach(function(r) { msSheet2.deleteRow(r); });
+        msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys]);
+        SpreadsheetApp.flush();
+      } finally {
+        lock2.releaseLock();
+      }
+      result = JSON.stringify({ success: true });
+
     } else {
       // 所有其他操作使用 body.staff 指定的工作表
       var staffName = String(body.staff || 'Riku');
@@ -603,7 +655,7 @@ function doPost(e) {
           String(body.assignee      || ''),
           '',
           String(body.due_date      || ''),
-          Number(body.progress)     || 0,
+          String(body.notes         || ''),
           String(body.status        || '未開始'),
           '', '',
           '', ''
@@ -622,7 +674,7 @@ function doPost(e) {
             if (body.action_name !== undefined) sheet.getRange(rowNum, 9).setValue(body.action_name);
             if (body.assignee    !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
             if (body.due_date    !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
-            if (body.progress    !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.notes       !== undefined) sheet.getRange(rowNum, 13).setValue(String(body.notes));
             if (body.status      !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
             if (body.success_def !== undefined) sheet.getRange(rowNum, 18).setValue(body.success_def);
             updated = true;
@@ -769,7 +821,7 @@ function doPost(e) {
             var rowNum = i + 1;
             if (body.assignee !== undefined) sheet.getRange(rowNum, 10).setValue(body.assignee);
             if (body.due_date !== undefined) sheet.getRange(rowNum, 12).setValue(body.due_date);
-            if (body.progress !== undefined) sheet.getRange(rowNum, 13).setValue(Number(body.progress));
+            if (body.notes    !== undefined) sheet.getRange(rowNum, 13).setValue(String(body.notes));
             if (body.status   !== undefined) sheet.getRange(rowNum, 14).setValue(body.status);
             updated = true;
             break;
