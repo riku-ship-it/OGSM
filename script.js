@@ -2040,16 +2040,31 @@ async function _syncMeetingSelectionsFromServer() {
     if (!json.selections) return;
     const localData = getMeetingReportData();
     let changed = false;
+    const membersToRepush = [];
     Object.keys(json.selections).forEach(function(member) {
       const remote = json.selections[member];
       if (!localData[member]) localData[member] = {};
       const localIds = JSON.stringify(localData[member].selectedActionIds || []);
       const localKeys = JSON.stringify(localData[member].selectedStrategyKeys || []);
-      if (localIds !== JSON.stringify(remote.selectedActionIds || []) || localKeys !== JSON.stringify(remote.selectedStrategyKeys || [])) {
-        localData[member].selectedActionIds = remote.selectedActionIds || [];
-        localData[member].selectedStrategyKeys = remote.selectedStrategyKeys || [];
-        changed = true;
+      const remoteIds = JSON.stringify(remote.selectedActionIds || []);
+      const remoteKeys = JSON.stringify(remote.selectedStrategyKeys || []);
+      if (localIds !== remoteIds || localKeys !== remoteKeys) {
+        const localHasData = (localData[member].selectedActionIds || []).length > 0 ||
+                             (localData[member].selectedStrategyKeys || []).length > 0;
+        if (localHasData) {
+          // 本地有資料但與遠端不符，代表遠端可能是舊的（因為上次 push 失敗）
+          // 反向修復：把本地推送到遠端，不覆蓋本地
+          membersToRepush.push(member);
+        } else {
+          // 本地無資料，從遠端拉（跨裝置首次載入）
+          localData[member].selectedActionIds = remote.selectedActionIds || [];
+          localData[member].selectedStrategyKeys = remote.selectedStrategyKeys || [];
+          changed = true;
+        }
       }
+    });
+    membersToRepush.forEach(function(member) {
+      _pushMemberSelectionsToServer(member).catch(function() {});
     });
     if (changed) {
       localStorage.setItem('meeting-report-v2-' + weekKey, JSON.stringify(localData));
@@ -2634,7 +2649,13 @@ async function confirmOgsmPicker() {
   try {
     await _pushMemberSelectionsToServer(memberToSync);
   } catch(e) {
-    showToast('❌ 選取項目同步失敗，請重試', true);
+    // 第一次失敗後等 2 秒重試一次
+    await new Promise(function(r) { setTimeout(r, 2000); });
+    try {
+      await _pushMemberSelectionsToServer(memberToSync);
+    } catch(e2) {
+      showToast('❌ 選取項目同步失敗，請重試', true);
+    }
   }
 }
 
