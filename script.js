@@ -1991,6 +1991,7 @@ let meetingReportCache = null;
 let meetingStatusFilter = null;
 let meetingCollapsedMembers = {};
 let meetingSelectionsCache = {};
+let _pendingPushMembers = new Set();
 let pickerSelectedGoalId = null;
 let pickerSelectedStrategyName = null;
 let pickerTempSelected = { actionIds: [], strategyKeys: [] };
@@ -2031,7 +2032,8 @@ function _pushMemberSelectionsToServer(memberName) {
   const weekKey = getMeetingWeekKey();
   const cache = ((meetingSelectionsCache[weekKey] || {})[memberName]) || {};
   const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: cache.selectedActionIds || [], selectedStrategyKeys: cache.selectedStrategyKeys || [] };
-  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r) { return r.json(); });
+  _pendingPushMembers.add(memberName);
+  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r) { return r.json(); }).finally(function() { _pendingPushMembers.delete(memberName); });
 }
 
 async function loadMeetingSelectionsFromServer() {
@@ -2050,8 +2052,14 @@ async function _syncMeetingSelectionsFromServer() {
   try {
     const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
     const json = await res.json();
+    const serverSelections = json.selections || {};
     const prev = JSON.stringify(meetingSelectionsCache[weekKey] || {});
-    meetingSelectionsCache[weekKey] = json.selections || {};
+    if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
+    Object.keys(serverSelections).forEach(function(member) {
+      if (!_pendingPushMembers.has(member)) {
+        meetingSelectionsCache[weekKey][member] = serverSelections[member];
+      }
+    });
     if (JSON.stringify(meetingSelectionsCache[weekKey]) !== prev) renderMeetingRows();
   } catch(e) { /* silent on periodic sync */ }
 }
