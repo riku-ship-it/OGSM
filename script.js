@@ -2038,9 +2038,14 @@ async function _syncMeetingSelectionsFromServer() {
     });
     if (changed) {
       localStorage.setItem('meeting-report-v2-' + weekKey, JSON.stringify(localData));
+      await Promise.all(getMeetingOrderedMembers()
+        .filter(function(name) { return name !== currentStaff; })
+        .map(function(name) {
+          return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
+        }));
       renderMeetingRows();
     }
-  } catch(e) {}
+  } catch(e) { showToast('❌ 選取項目同步失敗，請重試', true); }
 }
 
 function getMemberRows(data, memberName) {
