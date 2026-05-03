@@ -2308,6 +2308,7 @@ function saveSelectedActionIds(memberName, ids) {
   if (!data[memberName]) data[memberName] = {};
   data[memberName].selectedActionIds = ids;
   saveMeetingReportData(data);
+  _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
 function getSelectedStrategyKeys(memberName) {
@@ -2320,6 +2321,7 @@ function saveSelectedStrategyKeys(memberName, keys) {
   if (!data[memberName]) data[memberName] = {};
   data[memberName].selectedStrategyKeys = keys;
   saveMeetingReportData(data);
+  _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
 function removeMeetingOgsmItem(memberName, actionId) {
