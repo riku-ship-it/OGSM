@@ -1990,6 +1990,7 @@ let meetingTlEditId = null;
 let meetingReportCache = null;
 let meetingStatusFilter = null;
 let meetingCollapsedMembers = {};
+let meetingSelectionsCache = {};
 let pickerSelectedGoalId = null;
 let pickerSelectedStrategyName = null;
 let pickerTempSelected = { actionIds: [], strategyKeys: [] };
@@ -2028,8 +2029,20 @@ async function loadMeetingReportFromBackend() {
 
 function _pushMemberSelectionsToServer(memberName) {
   const weekKey = getMeetingWeekKey();
-  const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: getSelectedActionIds(memberName), selectedStrategyKeys: getSelectedStrategyKeys(memberName) };
+  const cache = ((meetingSelectionsCache[weekKey] || {})[memberName]) || {};
+  const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: cache.selectedActionIds || [], selectedStrategyKeys: cache.selectedStrategyKeys || [] };
   return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r) { return r.json(); });
+}
+
+async function loadMeetingSelectionsFromServer() {
+  const weekKey = getMeetingWeekKey();
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const json = await res.json();
+    meetingSelectionsCache[weekKey] = json.selections || {};
+  } catch(e) {
+    if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
+  }
 }
 
 async function _syncMeetingSelectionsFromServer() {
@@ -2037,47 +2050,10 @@ async function _syncMeetingSelectionsFromServer() {
   try {
     const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
     const json = await res.json();
-    if (!json.selections) return;
-    const localData = getMeetingReportData();
-    let changed = false;
-    const membersToRepush = [];
-    Object.keys(json.selections).forEach(function(member) {
-      const remote = json.selections[member];
-      if (!localData[member]) localData[member] = {};
-      const localIds = JSON.stringify(localData[member].selectedActionIds || []);
-      const localKeys = JSON.stringify(localData[member].selectedStrategyKeys || []);
-      const remoteIds = JSON.stringify(remote.selectedActionIds || []);
-      const remoteKeys = JSON.stringify(remote.selectedStrategyKeys || []);
-      if (localIds !== remoteIds || localKeys !== remoteKeys) {
-        const localHasData = (localData[member].selectedActionIds || []).length > 0 ||
-                             (localData[member].selectedStrategyKeys || []).length > 0;
-        if (localHasData) {
-          // 本地有資料但與遠端不符，代表遠端可能是舊的（因為上次 push 失敗）
-          // 反向修復：把本地推送到遠端，不覆蓋本地
-          membersToRepush.push(member);
-        } else {
-          // 本地無資料，從遠端拉（跨裝置首次載入）
-          localData[member].selectedActionIds = remote.selectedActionIds || [];
-          localData[member].selectedStrategyKeys = remote.selectedStrategyKeys || [];
-          changed = true;
-        }
-      }
-    });
-    membersToRepush.forEach(function(member) {
-      _pushMemberSelectionsToServer(member).catch(function() {});
-    });
-    if (changed) {
-      localStorage.setItem('meeting-report-v2-' + weekKey, JSON.stringify(localData));
-      await Promise.all(getMeetingOrderedMembers()
-        .map(function(name) {
-          return fetchData(name).then(function(data) {
-            staffDataCache[name] = data;
-            if (name === currentStaff) state = { strategies: [], ...data };
-          }).catch(function() {});
-        }));
-      renderMeetingRows();
-    }
-  } catch(e) { showToast('❌ 選取項目同步失敗，請重試', true); }
+    const prev = JSON.stringify(meetingSelectionsCache[weekKey] || {});
+    meetingSelectionsCache[weekKey] = json.selections || {};
+    if (JSON.stringify(meetingSelectionsCache[weekKey]) !== prev) renderMeetingRows();
+  } catch(e) { /* silent on periodic sync */ }
 }
 
 function getMemberRows(data, memberName) {
@@ -2156,7 +2132,7 @@ async function renderMeetingSection() {
     .map(function(name) {
       return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
     });
-  await Promise.all([_syncMeetingSelectionsFromServer(), ...cachePromises]);
+  await Promise.all([loadMeetingSelectionsFromServer(), ...cachePromises]);
   renderMeetingRows();
 }
 
@@ -2299,42 +2275,40 @@ function closeDeptNotesModal() {
 }
 
 function getSelectedActionIds(memberName) {
-  const data = getMeetingReportData();
-  return (data[memberName] && data[memberName].selectedActionIds) || [];
+  const weekKey = getMeetingWeekKey();
+  return ((meetingSelectionsCache[weekKey] || {})[memberName] || {}).selectedActionIds || [];
 }
 
 function saveSelectedActionIds(memberName, ids) {
-  const data = getMeetingReportData();
-  if (!data[memberName]) data[memberName] = {};
-  data[memberName].selectedActionIds = ids;
-  saveMeetingReportData(data);
+  const weekKey = getMeetingWeekKey();
+  if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
+  if (!meetingSelectionsCache[weekKey][memberName]) meetingSelectionsCache[weekKey][memberName] = {};
+  meetingSelectionsCache[weekKey][memberName].selectedActionIds = ids;
   _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
 function getSelectedStrategyKeys(memberName) {
-  const data = getMeetingReportData();
-  return (data[memberName] && data[memberName].selectedStrategyKeys) || [];
+  const weekKey = getMeetingWeekKey();
+  return ((meetingSelectionsCache[weekKey] || {})[memberName] || {}).selectedStrategyKeys || [];
 }
 
 function saveSelectedStrategyKeys(memberName, keys) {
-  const data = getMeetingReportData();
-  if (!data[memberName]) data[memberName] = {};
-  data[memberName].selectedStrategyKeys = keys;
-  saveMeetingReportData(data);
+  const weekKey = getMeetingWeekKey();
+  if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
+  if (!meetingSelectionsCache[weekKey][memberName]) meetingSelectionsCache[weekKey][memberName] = {};
+  meetingSelectionsCache[weekKey][memberName].selectedStrategyKeys = keys;
   _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
 function removeMeetingOgsmItem(memberName, actionId) {
   const ids = getSelectedActionIds(memberName).filter(function(id) { return id !== actionId; });
   saveSelectedActionIds(memberName, ids);
-  _pushMemberSelectionsToServer(memberName);
   renderMeetingRows();
 }
 
 function removeMeetingStrategyItem(memberName, stratKey) {
   const keys = getSelectedStrategyKeys(memberName).filter(function(k) { return k !== stratKey; });
   saveSelectedStrategyKeys(memberName, keys);
-  _pushMemberSelectionsToServer(memberName);
   renderMeetingRows();
 }
 
@@ -2644,14 +2618,17 @@ function closeOgsmPicker() {
 async function confirmOgsmPicker() {
   if (!meetingPickerMember) return;
   const memberToSync = meetingPickerMember;
-  saveSelectedActionIds(memberToSync, pickerTempSelected.actionIds);
-  saveSelectedStrategyKeys(memberToSync, pickerTempSelected.strategyKeys);
+  const weekKey = getMeetingWeekKey();
+  if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
+  meetingSelectionsCache[weekKey][memberToSync] = {
+    selectedActionIds: pickerTempSelected.actionIds.slice(),
+    selectedStrategyKeys: pickerTempSelected.strategyKeys.slice()
+  };
   closeOgsmPicker();
   renderMeetingRows();
   try {
     await _pushMemberSelectionsToServer(memberToSync);
   } catch(e) {
-    // 第一次失敗後等 2 秒重試一次
     await new Promise(function(r) { setTimeout(r, 2000); });
     try {
       await _pushMemberSelectionsToServer(memberToSync);

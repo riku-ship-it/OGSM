@@ -46,7 +46,7 @@ function getOrCreateMeetingSelectionsSheet(ss) {
   var sheet = ss.getSheetByName('MeetingSelections');
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('MeetingSelections');
-  newSheet.appendRow(['weekKey', 'member', 'selectedActionIds', 'selectedStrategyKeys']);
+  newSheet.appendRow(['weekKey', 'member', 'selectedActionIds', 'selectedStrategyKeys', 'updatedAt']);
   return newSheet;
 }
 
@@ -493,7 +493,7 @@ function doPost(e) {
           }
         }
         msRowsToDelete.forEach(function(r) { msSheet2.deleteRow(r); });
-        msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys]);
+        msSheet2.appendRow([msWeekKey2, msMember2, msActionIds, msStratKeys, new Date().toISOString()]);
         SpreadsheetApp.flush();
       } finally {
         lock2.releaseLock();
