@@ -1878,7 +1878,7 @@ function switchSection(section) {
   document.getElementById('nav-department').classList.toggle('active', !isPersonal);
   if (!isPersonal) {
     renderMeetingSection();
-    if (!_meetingSyncTimer) _meetingSyncTimer = setInterval(_syncMeetingSelectionsFromServer, 30000);
+    if (!_meetingSyncTimer) _meetingSyncTimer = setInterval(_syncMeetingSelectionsFromServer, 10000);
   } else {
     clearInterval(_meetingSyncTimer); _meetingSyncTimer = null;
   }
@@ -2039,9 +2039,11 @@ async function _syncMeetingSelectionsFromServer() {
     if (changed) {
       localStorage.setItem('meeting-report-v2-' + weekKey, JSON.stringify(localData));
       await Promise.all(getMeetingOrderedMembers()
-        .filter(function(name) { return name !== currentStaff; })
         .map(function(name) {
-          return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
+          return fetchData(name).then(function(data) {
+            staffDataCache[name] = data;
+            if (name === currentStaff) state = { strategies: [], ...data };
+          }).catch(function() {});
         }));
       renderMeetingRows();
     }
@@ -2119,7 +2121,7 @@ async function renderMeetingSection() {
 
   const members = getMeetingOrderedMembers();
   const cachePromises = members
-    .filter(function(name) { return name !== currentStaff && !staffDataCache[name]; })
+    .filter(function(name) { return name !== currentStaff; })
     .map(function(name) {
       return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
     });
