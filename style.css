@@ -1702,6 +1702,66 @@ body {
 }
 .meeting-tab-panel { }
 
+/* ── Meeting Tabs Right ── */
+.meeting-tabs-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.meeting-ai-summary-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #a78bfa;
+  background: linear-gradient(135deg, #ede9fe 0%, #f5f3ff 100%);
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.meeting-ai-summary-btn:hover {
+  background: linear-gradient(135deg, #ddd6fe 0%, #ede9fe 100%);
+  border-color: #7c3aed;
+}
+
+/* ── AI Summary Modal ── */
+.ai-summary-modal-inner {
+  max-width: 680px;
+  width: 90vw;
+}
+.ai-summary-content {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ai-summary-content h2, .ai-summary-content h3 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.ai-summary-content ul, .ai-summary-content ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+.ai-summary-loading {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text3);
+  font-size: 14px;
+}
+.ai-summary-error {
+  color: #dc2626;
+  padding: 16px;
+  font-size: 13px;
+}
+
 /* ── Meeting Status Filters ── */
 .meeting-status-filters {
   display: flex;

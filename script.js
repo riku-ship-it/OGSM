@@ -2301,6 +2301,101 @@ function closeDeptNotesModal() {
   if (modal) modal.style.display = 'none';
 }
 
+function closeAiSummaryModal() {
+  const modal = document.getElementById('ai-summary-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderAiSummaryMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/<\/ul>\s*<ul>/g, '')
+    .replace(/\n/g, '<br>');
+}
+
+async function generateMeetingSummary() {
+  const modal = document.getElementById('ai-summary-modal');
+  const bodyEl = document.getElementById('ai-summary-modal-body');
+  const titleEl = document.getElementById('ai-summary-modal-title');
+  if (!modal || !bodyEl) return;
+
+  const weekStart = getWeekStart(meetingWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const startStr = isoDate(weekStart);
+  const endStr = isoDate(weekEnd);
+  const weekRangeStr = startStr + '~' + endStr;
+  const weekKey = getMeetingWeekKey();
+
+  if (titleEl) titleEl.textContent = '部門週報 AI 摘要（' + startStr + ' ~ ' + endStr + '）';
+  bodyEl.innerHTML = '<div class="ai-summary-loading">AI 分析中，請稍候…</div>';
+  modal.style.display = 'flex';
+
+  const members = getMeetingOrderedMembers();
+
+  // ensure week notes are cached
+  await Promise.all(members.map(async function(name) {
+    const cacheKey = name + '-' + weekRangeStr;
+    if (weekNoteCache[cacheKey] === undefined) {
+      try {
+        const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        weekNoteCache[cacheKey] = data.content || '';
+      } catch(e) { weekNoteCache[cacheKey] = ''; }
+    }
+  }));
+
+  // compute status counts across all members
+  const statusCounts = { '未開始': 0, '進行中': 0, '卡關': 0, '完成': 0 };
+  members.forEach(function(name) {
+    const data = name === currentStaff ? state : (staffDataCache[name] || {});
+    (data.actions || []).forEach(function(a) {
+      if (a.action_name && statusCounts[a.status] !== undefined) statusCounts[a.status]++;
+    });
+  });
+
+  // build per-member data
+  const membersData = members.map(function(name) {
+    const data = name === currentStaff ? state : (staffDataCache[name] || {});
+    const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+    const selectedIds = getSelectedActionIds(name);
+    const selectedActions = selectedIds.map(function(id) {
+      return allActions.find(function(a) { return a.id === id; });
+    }).filter(Boolean).map(function(a) {
+      return { action_name: a.action_name, status: a.status || '未開始', assignee: a.assignee || '' };
+    });
+
+    const rawMemberNote = ((meetingMemberNotesCache[weekKey] || {})[name] || '').replace(/<[^>]*>/g, '').trim();
+    const rawWeekNote = (weekNoteCache[name + '-' + weekRangeStr] || '').replace(/<[^>]*>/g, '').trim();
+
+    return { name: name, selectedActions: selectedActions, memberNote: rawMemberNote, weekNote: rawWeekNote };
+  });
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'ai_meeting_summary',
+        weekRange: startStr + ' ~ ' + endStr,
+        members: membersData,
+        statusCounts: statusCounts
+      })
+    });
+    const json = await res.json();
+    if (json.success && json.summary) {
+      bodyEl.innerHTML = '<div class="ai-summary-content">' + renderAiSummaryMarkdown(json.summary) + '</div>';
+    } else {
+      bodyEl.innerHTML = '<div class="ai-summary-error">摘要產生失敗：' + escHtml(json.error || '未知錯誤') + '</div>';
+    }
+  } catch(e) {
+    bodyEl.innerHTML = '<div class="ai-summary-error">連線失敗，請稍後再試</div>';
+  }
+}
+
 function getSelectedActionIds(memberName) {
   const weekKey = getMeetingWeekKey();
   return ((meetingSelectionsCache[weekKey] || {})[memberName] || {}).selectedActionIds || [];
