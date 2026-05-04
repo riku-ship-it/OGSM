@@ -423,6 +423,55 @@ function doPost(e) {
         }
       }
 
+    // ---- ai_generate_meeting：AI 生成本週報告項目 ----
+    } else if (body.type === 'ai_generate_meeting') {
+      var props2    = PropertiesService.getScriptProperties();
+      var apiKey2   = props2.getProperty('API_KEY');
+      var chatbotId2 = props2.getProperty('CHATBOT_ID');
+      if (!apiKey2 || !chatbotId2) {
+        result = JSON.stringify({ success: false, error: '請先設定 API_KEY、CHATBOT_ID' });
+      } else {
+        try {
+          var genStaff    = String(body.staff     || '');
+          var genWeekStart = String(body.weekStart || '');
+          var genWeekEnd   = String(body.weekEnd   || '');
+          var genRows = getSheetForStaff(ss, genStaff).getDataRange().getValues();
+          var lines = ['[MEETING_GENERATE]', '', '【本週會議區間】' + genWeekStart + ' ～ ' + genWeekEnd, '【職員】' + genStaff, '', '【OGSM 資料】'];
+          var seenObj3 = {}, seenGoal3 = {}, seenStrat3 = {};
+          for (var r = 1; r < genRows.length; r++) {
+            var gr = genRows[r];
+            if (!gr[0] && !gr[6]) continue;
+            var oKey3 = String(gr[0] || '');
+            var gKey3 = String(gr[2] || '');
+            var sKey3 = gKey3 + '::' + String(gr[7] || '');
+            if (oKey3 && !seenObj3[oKey3])    { seenObj3[oKey3]  = true; lines.push('目標：' + String(gr[1] || '')); }
+            if (gKey3 && !seenGoal3[gKey3])   { seenGoal3[gKey3] = true; lines.push('  支線目標（id:' + gKey3 + '）：' + String(gr[3] || '') + (gr[15] ? '（截止：' + formatDate(gr[15]) + '）' : '')); }
+            if (gr[7] && !seenStrat3[sKey3])  { seenStrat3[sKey3] = true; lines.push('    策略（id:' + sKey3 + '）：' + String(gr[7]) + (gr[16] ? '（狀態：' + String(gr[16]) + '）' : '')); }
+            if (gr[6]) { lines.push('      行動（id:' + String(gr[6]) + '）：' + String(gr[8] || '') + '（負責人：' + String(gr[9] || '') + '，截止：' + formatDate(gr[11]) + '，狀態：' + String(gr[13] || '未開始') + '）'); }
+          }
+          var genApiUrl = 'https://api.maiagent.ai/api/v1/chatbots/' + chatbotId2 + '/completions/';
+          var genRes = UrlFetchApp.fetch(genApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Api-Key ' + apiKey2 },
+            payload: JSON.stringify({ message: { content: lines.join('\n') }, is_streaming: false }),
+            muteHttpExceptions: true
+          });
+          var genStatus = genRes.getResponseCode();
+          var genData   = JSON.parse(genRes.getContentText());
+          if (genStatus === 200 || genStatus === 201) {
+            var rawReply = genData.content || (genData.message && genData.message.content) || genData.answer || genData.text || genData.reply || '';
+            var jsonMatch = rawReply.match(/\{[\s\S]*\}/);
+            var genItems = [];
+            if (jsonMatch) { try { genItems = JSON.parse(jsonMatch[0]).items || []; } catch(pe) { genItems = []; } }
+            result = JSON.stringify({ success: true, items: genItems });
+          } else {
+            result = JSON.stringify({ success: false, error: 'AI API 錯誤 ' + genStatus });
+          }
+        } catch (genErr) {
+          result = JSON.stringify({ success: false, error: genErr.message });
+        }
+      }
+
     // ---- save_week_note：儲存或更新週記錄 ----
     } else if (body.type === 'save_week_note') {
       var lock = LockService.getScriptLock();
