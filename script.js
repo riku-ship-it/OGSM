@@ -1982,7 +1982,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Meeting Section ──
 
-const MEETING_DEFAULT_ORDER = ['Luka', 'Riku', 'Cathy', 'Yumin'];
+const MEETING_DEFAULT_ORDER = ['Luka', 'Riku', 'Cathy'];
 const MEETING_STATUS_OPTIONS = ['未開始', '進行中', '待確認解法', '已解決（待觀察）', '已解決（完全改善）', '目前無解'];
 let meetingPickerMember = null;
 let meetingAddRowMember = null;
@@ -2382,7 +2382,6 @@ function renderMeetingRows() {
     }).filter(Boolean);
 
     const color = avatarColor(name);
-    const isCollapsed = !!meetingCollapsedMembers[name];
 
     const selectedStrategyKeys = getSelectedStrategyKeys(name);
     const totalSelected = selectedIds.length + selectedStrategyKeys.length;
@@ -2440,13 +2439,12 @@ function renderMeetingRows() {
         '<div class="meeting-member-note-editor" id="' + noteId + '" contenteditable="true" data-member="' + escHtml(name) + '" data-placeholder="備注此人本週項目..." oninput="scheduleMeetingMemberNoteSave(\'' + safeName + '\')">' + noteContent + '</div>' +
       '</div>';
 
-    html += '<div class="meeting-member-section' + (isCollapsed ? ' collapsed' : '') + '">' +
-      '<div class="meeting-member-header" onclick="toggleMeetingMember(\'' + safeName + '\')">' +
+    html += '<div class="meeting-member-section">' +
+      '<div class="meeting-member-header">' +
         '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
         '<div class="meeting-member-name">' + escHtml(name) + '</div>' +
         '<span class="meeting-member-count">' + totalSelected + ' 項</span>' +
-        '<button class="meeting-pick-btn" onclick="event.stopPropagation();openAiMeetingModal(\'' + safeName + '\')">' + pickLabel + '</button>' +
-        '<svg class="meeting-member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
+        '<button class="meeting-pick-btn" onclick="openAiMeetingModal(\'' + safeName + '\')">' + pickLabel + '</button>' +
       '</div>' +
       '<div class="meeting-member-body">' + bodyHtml + noteAreaHtml + '</div>' +
     '</div>';
