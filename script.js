@@ -2548,9 +2548,9 @@ function renderPickerModal(memberName) {
     const hasItems = allStrategies.some(function(s) { return s.goal_id === goal.id; }) ||
                      allActions.some(function(a) { return a.goal_id === goal.id; });
     if (!hasItems) return;
-    const isActive = goal.id === pickerActiveGoalId;
+    const isActive = String(goal.id) === String(pickerActiveGoalId);
     gHtml += '<div class="picker-goal-item' + (isActive ? ' active' : '') +
-      '" onclick="setPickerGoal(' + goal.id + ',\'' + safeMember + '\')">' +
+      '" onclick="setPickerGoal(\'' + goal.id + '\',\'' + safeMember + '\')">' +
       escHtml(goal.name) + '</div>';
   });
 
