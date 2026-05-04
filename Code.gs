@@ -538,6 +538,70 @@ function doPost(e) {
         }
       }
 
+    // ---- ai_meeting_summary：AI 生成本週部門會議摘要 ----
+    } else if (body.type === 'ai_meeting_summary') {
+      var props3    = PropertiesService.getScriptProperties();
+      var apiKey3   = props3.getProperty('API_KEY');
+      var chatbotId3 = props3.getProperty('CHATBOT_ID');
+      if (!apiKey3 || !chatbotId3) {
+        result = JSON.stringify({ success: false, error: '請先設定 API_KEY、CHATBOT_ID' });
+      } else {
+        try {
+          var weekRange3  = String(body.weekRange || '');
+          var members3    = body.members || [];
+          var statusCounts3 = body.statusCounts || {};
+          var lines3 = [
+            '你是一位專業的部門週報摘要助理。請根據以下本週部門資料，產生一份簡潔有力的部門週報摘要。',
+            '請用繁體中文回覆，使用 Markdown 格式，依序包含以下四個段落：',
+            '## 1. 各人本週進度總結',
+            '## 2. 部門整體狀況',
+            '## 3. 值得關注的風險點',
+            '## 4. 下週建議',
+            '',
+            '===== 本週資料 =====',
+            '週次：' + weekRange3,
+            '',
+            '【部門行動狀態統計】',
+            '未開始：' + (statusCounts3['未開始'] || 0) + ' 項',
+            '進行中：' + (statusCounts3['進行中'] || 0) + ' 項',
+            '卡關：'  + (statusCounts3['卡關']   || 0) + ' 項',
+            '完成：'  + (statusCounts3['完成']   || 0) + ' 項',
+            ''
+          ];
+          members3.forEach(function(m) {
+            lines3.push('【' + m.name + '】');
+            if (m.selectedActions && m.selectedActions.length > 0) {
+              lines3.push('本週選取行動：');
+              m.selectedActions.forEach(function(a) {
+                lines3.push('  - ' + a.action_name + '（狀態：' + a.status + (a.assignee ? '，負責人：' + a.assignee : '') + '）');
+              });
+            } else {
+              lines3.push('本週未選取行動項目');
+            }
+            if (m.memberNote) lines3.push('備注：' + m.memberNote);
+            if (m.weekNote)   lines3.push('本週成果/問題：' + m.weekNote);
+            lines3.push('');
+          });
+          var sumApiUrl = 'https://api.maiagent.ai/api/v1/chatbots/' + chatbotId3 + '/completions/';
+          var sumRes = UrlFetchApp.fetch(sumApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Api-Key ' + apiKey3 },
+            payload: JSON.stringify({ message: { content: lines3.join('\n') }, is_streaming: false }),
+            muteHttpExceptions: true
+          });
+          var sumStatus = sumRes.getResponseCode();
+          var sumData   = JSON.parse(sumRes.getContentText());
+          if (sumStatus === 200 || sumStatus === 201) {
+            var sumReply = sumData.content || (sumData.message && sumData.message.content) || sumData.answer || sumData.text || sumData.reply || '';
+            result = JSON.stringify({ success: true, summary: sumReply });
+          } else {
+            result = JSON.stringify({ success: false, error: 'AI API 錯誤 ' + sumStatus + ': ' + sumRes.getContentText() });
+          }
+        } catch(sumErr) {
+          result = JSON.stringify({ success: false, error: sumErr.message });
+        }
+      }
+
     // ---- save_week_note：儲存或更新週記錄 ----
     } else if (body.type === 'save_week_note') {
       var lock = LockService.getScriptLock();
