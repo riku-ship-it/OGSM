@@ -32,6 +32,18 @@ var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度'
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
 var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport', 'MeetingSelections'];
 
+// Google Sheets 會將形如 "2026-04-30" 的字串自動轉成 Date 物件
+// 此函式將 cell 值統一轉回 "yyyy-MM-dd" 字串，避免比對失敗
+function normalizeDateCell(cellValue) {
+  if (cellValue instanceof Date) {
+    var y = cellValue.getFullYear();
+    var m = String(cellValue.getMonth() + 1).padStart(2, '0');
+    var d = String(cellValue.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+  return String(cellValue || '');
+}
+
 // ── 取得或建立統計工作表 ──
 function getOrCreateStatsSheet(ss) {
   var sheet = ss.getSheetByName('Stats');
@@ -167,7 +179,7 @@ function doGet(e) {
       var mrWeekKey = e.parameter.weekKey || '';
       var mrResult = '{}';
       for (var i = 1; i < mrData.length; i++) {
-        if (String(mrData[i][0]) === mrWeekKey) {
+        if (normalizeDateCell(mrData[i][0]) === mrWeekKey) {
           mrResult = String(mrData[i][1] || '{}');
           break;
         }
@@ -184,7 +196,7 @@ function doGet(e) {
       var msWeekKey = e.parameter.weekKey || '';
       var selections = {};
       for (var i = 1; i < msData.length; i++) {
-        if (String(msData[i][0]) !== msWeekKey) continue;
+        if (normalizeDateCell(msData[i][0]) !== msWeekKey) continue;
         var msMember = String(msData[i][1] || '');
         try { selections[msMember] = { selectedActionIds: JSON.parse(msData[i][2] || '[]'), selectedStrategyKeys: JSON.parse(msData[i][3] || '[]') }; }
         catch(e2) { selections[msMember] = { selectedActionIds: [], selectedStrategyKeys: [] }; }
@@ -510,7 +522,7 @@ function doPost(e) {
         var mrJson = JSON.stringify(body.data || {});
         var mrUpdated = false;
         for (var i = 1; i < mrData.length; i++) {
-          if (String(mrData[i][0]) === mrWeekKey) {
+          if (normalizeDateCell(mrData[i][0]) === mrWeekKey) {
             mrSheet.getRange(i + 1, 2).setValue(mrJson);
             mrUpdated = true;
             break;
@@ -537,7 +549,7 @@ function doPost(e) {
         var msData2 = msSheet2.getDataRange().getValues();
         var msRowsToDelete = [];
         for (var i = msData2.length - 1; i >= 1; i--) {
-          if (String(msData2[i][0]) === msWeekKey2 && String(msData2[i][1]) === msMember2) {
+          if (normalizeDateCell(msData2[i][0]) === msWeekKey2 && String(msData2[i][1]) === msMember2) {
             msRowsToDelete.push(i + 1);
           }
         }
