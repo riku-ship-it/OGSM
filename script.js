@@ -1993,6 +1993,7 @@ let meetingCollapsedMembers = {};
 let meetingSelectionsCache = {};
 let _pendingPushMembers = new Set();
 let aiMeetingTempItems = [];
+let meetingPickerChecked = { actions: new Set(), strategies: new Set() };
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2364,7 +2365,7 @@ function renderMeetingRows() {
     const selectedStrategyKeys = getSelectedStrategyKeys(name);
     const totalSelected = selectedIds.length + selectedStrategyKeys.length;
     const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const pickLabel = totalSelected > 0 ? '編輯項目' : '✨ AI 生成';
+    const pickLabel = totalSelected > 0 ? '編輯項目' : '選取項目';
 
     const selectedStrategyItems = selectedStrategyKeys.map(function(key) {
       const sep = key.indexOf('::');
@@ -2376,7 +2377,7 @@ function renderMeetingRows() {
 
     let bodyHtml;
     if (selectedActions.length === 0 && selectedStrategyItems.length === 0) {
-      bodyHtml = '<div class="meeting-member-empty">尚未生成本週項目</div>';
+      bodyHtml = '<div class="meeting-member-empty">尚未選取本週項目</div>';
     } else {
       const stratCards = selectedStrategyItems.map(function(s) {
         const safeKey = s.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -2495,71 +2496,116 @@ function openAiMeetingModal(memberName) {
   const modal = document.getElementById('meeting-ogsm-picker');
   const titleEl = document.getElementById('meeting-picker-title');
   if (!modal) return;
-  titleEl.textContent = memberName + ' — AI 生成本週項目';
+  titleEl.textContent = memberName + ' — 選取本週項目';
   modal.style.display = 'flex';
+
   const existingActionIds = getSelectedActionIds(memberName);
   const existingStratKeys = getSelectedStrategyKeys(memberName);
+
   if (existingActionIds.length > 0 || existingStratKeys.length > 0) {
+    meetingPickerChecked = {
+      actions: new Set(existingActionIds.map(String)),
+      strategies: new Set(existingStratKeys)
+    };
+  } else {
+    const weekStart = isoDate(getWeekStart(meetingWeekOffset));
+    const weekEnd = isoDate(getWeekEnd(getWeekStart(meetingWeekOffset)));
     const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
     const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
-    aiMeetingTempItems = [];
-    existingActionIds.forEach(function(id) {
-      const a = allActions.find(function(x) { return x.id === id; });
-      if (a) aiMeetingTempItems.push({ type: 'action', id: id, name: a.action_name, reason: '' });
-    });
-    existingStratKeys.forEach(function(key) {
-      const sep = key.indexOf('::');
-      const stratName = sep >= 0 ? key.slice(sep + 2) : key;
-      aiMeetingTempItems.push({ type: 'strategy', id: key, name: stratName, reason: '' });
-    });
-    renderAiMeetingItems();
-  } else {
-    generateAiMeetingItems(memberName);
+    const suggested = new Set(allActions.filter(function(a) {
+      if (a.status === '完成') return false;
+      const inWeek = a.due_date && a.due_date >= weekStart && a.due_date <= weekEnd;
+      return inWeek || a.status === '進行中';
+    }).map(function(a) { return String(a.id); }));
+    meetingPickerChecked = { actions: suggested, strategies: new Set() };
   }
+
+  renderPickerModal(memberName);
 }
 
-function generateAiMeetingItems(memberName) {
-  const weekStartDate = getWeekStart(meetingWeekOffset);
-  const weekEndDate = getWeekEnd(weekStartDate);
-  const weekStart = isoDate(weekStartDate);
-  const weekEnd = isoDate(weekEndDate);
-  const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
-  const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
-  aiMeetingTempItems = allActions.filter(function(a) {
-    if (a.status === '完成') return false;
-    const inWeek = a.due_date && a.due_date >= weekStart && a.due_date <= weekEnd;
-    return inWeek || a.status === '進行中';
-  }).map(function(a) {
-    return { type: 'action', id: a.id, name: a.action_name, reason: '' };
-  });
-  renderAiMeetingItems();
-}
-
-function renderAiMeetingItems() {
+function renderPickerModal(memberName) {
   const bodyEl = document.getElementById('meeting-picker-body');
   if (!bodyEl) return;
-  if (!aiMeetingTempItems.length) {
-    bodyEl.innerHTML = '<div class="ai-items-empty">AI 未找到本週適合報告的項目</div>';
+  const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
+  const allGoals = data.goals || [];
+  const allStrategies = data.strategies || [];
+  const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+
+  if (!allActions.length && !allStrategies.length) {
+    bodyEl.innerHTML = '<div class="ai-items-empty">此成員尚無 OGSM 資料</div>';
     return;
   }
-  const html = aiMeetingTempItems.map(function(item, idx) {
-    const typeLabel = item.type === 'strategy' ? 'S' : 'M';
-    const typeClass = item.type === 'strategy' ? 'col-tag-s' : 'col-tag-m';
-    return '<div class="ai-item-card">' +
-      '<span class="col-tag ' + typeClass + '" style="flex-shrink:0;align-self:flex-start;margin-top:2px">' + typeLabel + '</span>' +
-      '<div class="ai-item-info">' +
-        '<div class="ai-item-name">' + escHtml(item.name) + '</div>' +
-        (item.reason ? '<div class="ai-item-reason">' + escHtml(item.reason) + '</div>' : '') +
-      '</div>' +
-      '<button class="meeting-ogsm-card-delete" onclick="removeAiMeetingTempItem(' + idx + ')" title="移除">✕</button>' +
-    '</div>';
-  }).join('');
-  bodyEl.innerHTML = '<div class="ai-items-list">' + html + '</div>';
+
+  let html = '';
+  allGoals.forEach(function(goal) {
+    const goalStrategies = allStrategies.filter(function(s) { return s.goal_id === goal.id; });
+    const goalActions = allActions.filter(function(a) { return a.goal_id === goal.id; });
+    if (!goalStrategies.length && !goalActions.length) return;
+
+    html += '<div class="picker-goal-group">';
+    html += '<div class="picker-goal-label"><span class="col-tag col-tag-g">G</span>' + escHtml(goal.name) + '</div>';
+
+    goalStrategies.forEach(function(strat) {
+      const stratKey = goal.id + '::' + strat.name;
+      const stratChecked = meetingPickerChecked.strategies.has(stratKey) ? ' checked' : '';
+      const safeKey = stratKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += '<div class="picker-strat-group">';
+      html += '<label class="picker-checkbox-item">' +
+        '<input type="checkbox" class="picker-checkbox"' + stratChecked + ' onchange="togglePickerItem(\'strategy\',\'' + safeKey + '\')">' +
+        '<div class="picker-item-content">' +
+          '<span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="col-tag col-tag-s">S</span><span style="font-size:13px;font-weight:600;color:var(--text)">' + escHtml(strat.name) + '</span></span>' +
+        '</div>' +
+      '</label>';
+
+      const stratActions = goalActions.filter(function(a) { return (a.strategy_name || '') === strat.name; });
+      stratActions.forEach(function(a) {
+        const checked = meetingPickerChecked.actions.has(String(a.id)) ? ' checked' : '';
+        const safeId = (a.id + '').replace(/'/g, "\\'");
+        const st = a.status || '未開始';
+        html += '<label class="picker-checkbox-item" style="padding-left:36px">' +
+          '<input type="checkbox" class="picker-checkbox"' + checked + ' onchange="togglePickerItem(\'action\',\'' + safeId + '\')">' +
+          '<div class="picker-item-content">' +
+            '<span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><span class="col-tag col-tag-m">M</span><span style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(a.action_name) + '</span></span>' +
+            '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
+          '</div>' +
+        '</label>';
+      });
+      html += '</div>';
+    });
+
+    const knownStratNames = goalStrategies.map(function(s) { return s.name; });
+    const ungrouped = goalActions.filter(function(a) { return !knownStratNames.includes(a.strategy_name || ''); });
+    ungrouped.forEach(function(a) {
+      const checked = meetingPickerChecked.actions.has(String(a.id)) ? ' checked' : '';
+      const safeId = (a.id + '').replace(/'/g, "\\'");
+      const st = a.status || '未開始';
+      html += '<label class="picker-checkbox-item" style="padding-left:20px">' +
+        '<input type="checkbox" class="picker-checkbox"' + checked + ' onchange="togglePickerItem(\'action\',\'' + safeId + '\')">' +
+        '<div class="picker-item-content">' +
+          '<span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><span class="col-tag col-tag-m">M</span><span style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(a.action_name) + '</span></span>' +
+          '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
+        '</div>' +
+      '</label>';
+    });
+
+    html += '</div>';
+  });
+
+  if (!html) {
+    bodyEl.innerHTML = '<div class="ai-items-empty">此成員尚無可選取的項目</div>';
+    return;
+  }
+  bodyEl.innerHTML = '<div class="picker-gsm-list">' + html + '</div>';
 }
 
-function removeAiMeetingTempItem(idx) {
-  aiMeetingTempItems.splice(idx, 1);
-  renderAiMeetingItems();
+function togglePickerItem(type, id) {
+  if (type === 'action') {
+    if (meetingPickerChecked.actions.has(String(id))) meetingPickerChecked.actions.delete(String(id));
+    else meetingPickerChecked.actions.add(String(id));
+  } else {
+    if (meetingPickerChecked.strategies.has(id)) meetingPickerChecked.strategies.delete(id);
+    else meetingPickerChecked.strategies.add(id);
+  }
 }
 
 function closeAiMeetingModal() {
@@ -2567,14 +2613,15 @@ function closeAiMeetingModal() {
   if (modal) modal.style.display = 'none';
   meetingPickerMember = null;
   aiMeetingTempItems = [];
+  meetingPickerChecked = { actions: new Set(), strategies: new Set() };
 }
 
 async function confirmAiMeetingItems() {
   if (!meetingPickerMember) return;
   const memberToSync = meetingPickerMember;
   const weekKey = getMeetingWeekKey();
-  const selectedActionIds = aiMeetingTempItems.filter(function(i) { return i.type === 'action'; }).map(function(i) { return i.id; });
-  const selectedStrategyKeys = aiMeetingTempItems.filter(function(i) { return i.type === 'strategy'; }).map(function(i) { return i.id; });
+  const selectedActionIds = Array.from(meetingPickerChecked.actions);
+  const selectedStrategyKeys = Array.from(meetingPickerChecked.strategies);
   if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   meetingSelectionsCache[weekKey][memberToSync] = { selectedActionIds: selectedActionIds, selectedStrategyKeys: selectedStrategyKeys };
   closeAiMeetingModal();
