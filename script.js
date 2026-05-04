@@ -1996,6 +1996,8 @@ let aiMeetingTempItems = [];
 let meetingPickerChecked = { actions: new Set(), strategies: new Set() };
 let pickerActiveGoalId = null;
 let pickerActiveStrategyKey = null;
+let meetingMemberNotesCache = {};
+let meetingMemberNoteTimers = {};
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2046,6 +2048,24 @@ async function loadMeetingSelectionsFromServer() {
   } catch(e) {
     if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   }
+}
+
+async function loadMeetingNotesFromBackend() {
+  const weekKey = getMeetingWeekKey();
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_notes&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const json = await res.json();
+    if (!meetingMemberNotesCache[weekKey]) meetingMemberNotesCache[weekKey] = {};
+    if (json.announce !== undefined && json.announce !== null) {
+      meetingMemberNotesCache[weekKey]._announce = json.announce;
+      if (json.announce) localStorage.setItem('meeting-announce-' + weekKey, json.announce);
+    }
+    if (json.memberNotes) {
+      Object.keys(json.memberNotes).forEach(function(member) {
+        meetingMemberNotesCache[weekKey][member] = json.memberNotes[member];
+      });
+    }
+  } catch(e) {}
 }
 
 async function _syncMeetingSelectionsFromServer() {
@@ -2130,7 +2150,7 @@ async function renderMeetingSection() {
     awtEl.textContent = yr + '年第' + weekNum + '週 佈達事項';
   }
 
-  await loadMeetingReportFromBackend();
+  await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend()]);
   renderMeetingScore();
   renderMeetingStatusFilters();
   renderMeetingAnnounce();
@@ -2404,6 +2424,22 @@ function renderMeetingRows() {
       bodyHtml = '<div class="meeting-ogsm-cards">' + stratCards + actionCards + '</div>';
     }
 
+    const weekKeyNow = getMeetingWeekKey();
+    const noteContent = (meetingMemberNotesCache[weekKeyNow] || {})[name] || '';
+    const noteId = 'mmn-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+    const noteAreaHtml =
+      '<div class="meeting-member-note-wrap">' +
+        '<div class="meeting-member-note-top">' +
+          '<span class="meeting-member-note-label">備注</span>' +
+          '<div class="meeting-member-note-toolbar">' +
+            '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'bold\')" title="粗體"><b>B</b></button>' +
+            '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'insertUnorderedList\')" title="列點"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>' +
+            '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'link\')" title="超連結"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="meeting-member-note-editor" id="' + noteId + '" contenteditable="true" data-member="' + escHtml(name) + '" data-placeholder="備注此人本週項目..." oninput="scheduleMeetingMemberNoteSave(\'' + safeName + '\')">' + noteContent + '</div>' +
+      '</div>';
+
     html += '<div class="meeting-member-section' + (isCollapsed ? ' collapsed' : '') + '">' +
       '<div class="meeting-member-header" onclick="toggleMeetingMember(\'' + safeName + '\')">' +
         '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
@@ -2412,10 +2448,48 @@ function renderMeetingRows() {
         '<button class="meeting-pick-btn" onclick="event.stopPropagation();openAiMeetingModal(\'' + safeName + '\')">' + pickLabel + '</button>' +
         '<svg class="meeting-member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
-      '<div class="meeting-member-body">' + bodyHtml + '</div>' +
+      '<div class="meeting-member-body">' + bodyHtml + noteAreaHtml + '</div>' +
     '</div>';
   });
   container.innerHTML = html || '<div class="meeting-ogsm-hint">無成員資料</div>';
+}
+
+function meetingMemberNoteCmd(name, cmd) {
+  const noteId = 'mmn-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+  const editor = document.getElementById(noteId);
+  if (!editor) return;
+  editor.focus();
+  if (cmd === 'link') {
+    showLinkPopover(editor, function(url, displayText, hasSelection) {
+      if (hasSelection) {
+        document.execCommand('createLink', false, url);
+      } else {
+        const text = displayText || url;
+        document.execCommand('insertHTML', false, '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>');
+      }
+      scheduleMeetingMemberNoteSave(name);
+    });
+  } else {
+    document.execCommand(cmd, false, null);
+    scheduleMeetingMemberNoteSave(name);
+  }
+}
+
+function scheduleMeetingMemberNoteSave(name) {
+  const noteId = 'mmn-' + name.replace(/[^a-zA-Z0-9]/g, '_');
+  const editor = document.getElementById(noteId);
+  if (!editor) return;
+  const weekKey = getMeetingWeekKey();
+  if (!meetingMemberNotesCache[weekKey]) meetingMemberNotesCache[weekKey] = {};
+  meetingMemberNotesCache[weekKey][name] = editor.innerHTML;
+  clearTimeout(meetingMemberNoteTimers[name]);
+  meetingMemberNoteTimers[name] = setTimeout(async function() {
+    try {
+      await postData({ type: 'save_meeting_note', noteType: 'member_note', weekKey: weekKey, member: name, content: meetingMemberNotesCache[weekKey][name] || '' });
+    } finally {
+      delete meetingMemberNoteTimers[name];
+    }
+  }, 2000);
 }
 
 function saveMeetingRowField(el) {
@@ -2812,8 +2886,9 @@ function renderMeetingAnnounce() {
   const weekKey = getMeetingWeekKey();
   const editor = document.getElementById('meeting-announce-editor');
   if (editor) {
-    const saved = localStorage.getItem('meeting-announce-' + weekKey) || '';
-    editor.innerHTML = saved;
+    const cached = (meetingMemberNotesCache[weekKey] || {})._announce;
+    const content = cached !== undefined ? cached : (localStorage.getItem('meeting-announce-' + weekKey) || '');
+    editor.innerHTML = content;
   }
   renderMeetingAnnounceHistory();
 }
@@ -2840,36 +2915,55 @@ function meetingAnnounceSave() {
   const editor = document.getElementById('meeting-announce-editor');
   if (!editor) return;
   const weekKey = getMeetingWeekKey();
-  localStorage.setItem('meeting-announce-' + weekKey, editor.innerHTML);
+  const content = editor.innerHTML;
+  localStorage.setItem('meeting-announce-' + weekKey, content);
+  if (!meetingMemberNotesCache[weekKey]) meetingMemberNotesCache[weekKey] = {};
+  meetingMemberNotesCache[weekKey]._announce = content;
+  postData({ type: 'save_meeting_note', noteType: 'announce', weekKey: weekKey, member: '', content: content }).catch(function() {});
   showToast('✅ 佈達事項已儲存');
   renderMeetingAnnounceHistory();
 }
 
-function renderMeetingAnnounceHistory() {
+async function renderMeetingAnnounceHistory() {
   const listEl = document.getElementById('meeting-announce-history-list');
   if (!listEl) return;
 
-  const currentKey = 'meeting-announce-' + getMeetingWeekKey();
-  const historyKeys = [];
+  const currentWeekKey = getMeetingWeekKey();
+  const currentKey = 'meeting-announce-' + currentWeekKey;
+
+  function renderList(items) {
+    if (!items.length) {
+      listEl.innerHTML = '<div class="announce-history-empty">尚無歷史紀錄</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(function(item) {
+      return '<details class="announce-history-item">' +
+        '<summary class="announce-history-summary">' + escHtml(item.weekKey) + ' 週</summary>' +
+        '<div class="announce-history-content">' + item.content + '</div>' +
+        '</details>';
+    }).join('');
+  }
+
+  // Show localStorage history first for instant feedback
+  const localKeys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('meeting-announce-') && k !== currentKey) {
-      historyKeys.push(k);
+    if (k && k.startsWith('meeting-announce-') && k !== currentKey) localKeys.push(k);
+  }
+  localKeys.sort().reverse();
+  renderList(localKeys.map(function(k) {
+    return { weekKey: k.replace('meeting-announce-', ''), content: localStorage.getItem(k) || '' };
+  }).filter(function(i) { return !!i.content; }));
+
+  // Fetch from backend and update
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_announce_history&currentWeekKey=' + encodeURIComponent(currentWeekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const json = await res.json();
+    if (json.history && json.history.length > 0) {
+      json.history.forEach(function(item) {
+        if (item.content) localStorage.setItem('meeting-announce-' + item.weekKey, item.content);
+      });
+      renderList(json.history);
     }
-  }
-  historyKeys.sort().reverse();
-
-  if (!historyKeys.length) {
-    listEl.innerHTML = '<div class="announce-history-empty">尚無歷史紀錄</div>';
-    return;
-  }
-
-  listEl.innerHTML = historyKeys.map(function(k) {
-    const dateStr = k.replace('meeting-announce-', '');
-    const content = localStorage.getItem(k) || '';
-    return '<details class="announce-history-item">' +
-      '<summary class="announce-history-summary">' + escHtml(dateStr) + ' 週</summary>' +
-      '<div class="announce-history-content">' + content + '</div>' +
-      '</details>';
-  }).join('');
+  } catch(e) {}
 }
