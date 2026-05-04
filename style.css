@@ -1707,9 +1707,10 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 .meeting-ai-summary-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 6px 14px;
@@ -1723,6 +1724,7 @@ body {
   font-family: var(--font);
   transition: all .15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .meeting-ai-summary-btn:hover {
   background: linear-gradient(135deg, #ddd6fe 0%, #ede9fe 100%);
