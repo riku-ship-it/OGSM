@@ -2518,28 +2518,20 @@ function openAiMeetingModal(memberName) {
   }
 }
 
-async function generateAiMeetingItems(memberName) {
-  const bodyEl = document.getElementById('meeting-picker-body');
-  if (bodyEl) bodyEl.innerHTML = '<div class="ai-generating-hint"><div class="ai-spinner"></div>AI 分析中，請稍候⋯</div>';
+function generateAiMeetingItems(memberName) {
   const weekStartDate = getWeekStart(meetingWeekOffset);
   const weekEndDate = getWeekEnd(weekStartDate);
   const weekStart = isoDate(weekStartDate);
   const weekEnd = isoDate(weekEndDate);
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ type: 'ai_generate_meeting', staff: memberName, weekStart: weekStart, weekEnd: weekEnd })
-    }).then(function(r) { return r.json(); });
-    if (res.success && res.items) {
-      aiMeetingTempItems = res.items;
-    } else {
-      aiMeetingTempItems = [];
-      showToast('❌ AI 生成失敗：' + (res.error || '未知錯誤'), true);
-    }
-  } catch(e) {
-    aiMeetingTempItems = [];
-    showToast('❌ AI 生成失敗，請重試', true);
-  }
+  const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
+  const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+  aiMeetingTempItems = allActions.filter(function(a) {
+    if (a.status === '完成') return false;
+    const inWeek = a.due_date && a.due_date >= weekStart && a.due_date <= weekEnd;
+    return inWeek || a.status === '進行中';
+  }).map(function(a) {
+    return { type: 'action', id: a.id, name: a.action_name, reason: '' };
+  });
   renderAiMeetingItems();
 }
 
