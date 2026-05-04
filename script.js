@@ -1994,6 +1994,7 @@ let meetingSelectionsCache = {};
 let _pendingPushMembers = new Set();
 let aiMeetingTempItems = [];
 let meetingPickerChecked = { actions: new Set(), strategies: new Set() };
+let pickerActiveGoalId = null;
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2493,6 +2494,7 @@ function submitMeetingAddRow() {
 
 function openAiMeetingModal(memberName) {
   meetingPickerMember = memberName;
+  pickerActiveGoalId = null;
   const modal = document.getElementById('meeting-ogsm-picker');
   const titleEl = document.getElementById('meeting-picker-title');
   if (!modal) return;
@@ -2536,66 +2538,83 @@ function renderPickerModal(memberName) {
     return;
   }
 
-  let html = '';
+  const safeMember = escHtml(memberName).replace(/'/g, "\\'");
+
+  // G column
+  let gHtml = '';
   allGoals.forEach(function(goal) {
-    const goalStrategies = allStrategies.filter(function(s) { return s.goal_id === goal.id; });
-    const goalActions = allActions.filter(function(a) { return a.goal_id === goal.id; });
-    if (!goalStrategies.length && !goalActions.length) return;
-
-    html += '<div class="picker-goal-group">';
-    html += '<div class="picker-goal-label"><span class="col-tag col-tag-g">G</span>' + escHtml(goal.name) + '</div>';
-
-    goalStrategies.forEach(function(strat) {
-      const stratKey = goal.id + '::' + strat.name;
-      const stratChecked = meetingPickerChecked.strategies.has(stratKey) ? ' checked' : '';
-      const safeKey = stratKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      html += '<div class="picker-strat-group">';
-      html += '<label class="picker-checkbox-item">' +
-        '<input type="checkbox" class="picker-checkbox"' + stratChecked + ' onchange="togglePickerItem(\'strategy\',\'' + safeKey + '\')">' +
-        '<div class="picker-item-content">' +
-          '<span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="col-tag col-tag-s">S</span><span style="font-size:13px;font-weight:600;color:var(--text)">' + escHtml(strat.name) + '</span></span>' +
-        '</div>' +
-      '</label>';
-
-      const stratActions = goalActions.filter(function(a) { return (a.strategy_name || '') === strat.name; });
-      stratActions.forEach(function(a) {
-        const checked = meetingPickerChecked.actions.has(String(a.id)) ? ' checked' : '';
-        const safeId = (a.id + '').replace(/'/g, "\\'");
-        const st = a.status || '未開始';
-        html += '<label class="picker-checkbox-item" style="padding-left:36px">' +
-          '<input type="checkbox" class="picker-checkbox"' + checked + ' onchange="togglePickerItem(\'action\',\'' + safeId + '\')">' +
-          '<div class="picker-item-content">' +
-            '<span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><span class="col-tag col-tag-m">M</span><span style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(a.action_name) + '</span></span>' +
-            '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
-          '</div>' +
-        '</label>';
-      });
-      html += '</div>';
-    });
-
-    const knownStratNames = goalStrategies.map(function(s) { return s.name; });
-    const ungrouped = goalActions.filter(function(a) { return !knownStratNames.includes(a.strategy_name || ''); });
-    ungrouped.forEach(function(a) {
-      const checked = meetingPickerChecked.actions.has(String(a.id)) ? ' checked' : '';
-      const safeId = (a.id + '').replace(/'/g, "\\'");
-      const st = a.status || '未開始';
-      html += '<label class="picker-checkbox-item" style="padding-left:20px">' +
-        '<input type="checkbox" class="picker-checkbox"' + checked + ' onchange="togglePickerItem(\'action\',\'' + safeId + '\')">' +
-        '<div class="picker-item-content">' +
-          '<span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden"><span class="col-tag col-tag-m">M</span><span style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(a.action_name) + '</span></span>' +
-          '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
-        '</div>' +
-      '</label>';
-    });
-
-    html += '</div>';
+    const hasItems = allStrategies.some(function(s) { return s.goal_id === goal.id; }) ||
+                     allActions.some(function(a) { return a.goal_id === goal.id; });
+    if (!hasItems) return;
+    const isActive = goal.id === pickerActiveGoalId;
+    gHtml += '<div class="picker-goal-item' + (isActive ? ' active' : '') +
+      '" onclick="setPickerGoal(' + goal.id + ',\'' + safeMember + '\')">' +
+      escHtml(goal.name) + '</div>';
   });
 
-  if (!html) {
-    bodyEl.innerHTML = '<div class="ai-items-empty">此成員尚無可選取的項目</div>';
-    return;
+  // S column – filtered by active goal
+  const visibleStrategies = pickerActiveGoalId
+    ? allStrategies.filter(function(s) { return s.goal_id === pickerActiveGoalId; })
+    : allStrategies;
+  let sHtml = '';
+  if (!visibleStrategies.length) {
+    sHtml = '<div class="picker-col-empty">無策略</div>';
+  } else {
+    visibleStrategies.forEach(function(strat) {
+      const stratKey = strat.goal_id + '::' + strat.name;
+      const isChecked = meetingPickerChecked.strategies.has(stratKey);
+      const safeKey = stratKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      sHtml += '<div class="picker-board-item' + (isChecked ? ' active' : '') + '">' +
+        '<input type="checkbox" class="picker-checkbox"' + (isChecked ? ' checked' : '') +
+        ' onchange="togglePickerItem(\'strategy\',\'' + safeKey + '\');this.closest(\'.picker-board-item\').classList.toggle(\'active\')">' +
+        '<div class="picker-board-item-content"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+        escHtml(strat.name) + '</span></div>' +
+      '</div>';
+    });
   }
-  bodyEl.innerHTML = '<div class="picker-gsm-list">' + html + '</div>';
+
+  // M column – filtered by active goal
+  const visibleActions = pickerActiveGoalId
+    ? allActions.filter(function(a) { return a.goal_id === pickerActiveGoalId; })
+    : allActions;
+  let mHtml = '';
+  if (!visibleActions.length) {
+    mHtml = '<div class="picker-col-empty">無行動項目</div>';
+  } else {
+    visibleActions.forEach(function(a) {
+      const isChecked = meetingPickerChecked.actions.has(String(a.id));
+      const safeId = (a.id + '').replace(/'/g, "\\'");
+      const st = a.status || '未開始';
+      mHtml += '<div class="picker-board-item' + (isChecked ? ' active' : '') + '">' +
+        '<input type="checkbox" class="picker-checkbox"' + (isChecked ? ' checked' : '') +
+        ' onchange="togglePickerItem(\'action\',\'' + safeId + '\');this.closest(\'.picker-board-item\').classList.toggle(\'active\')">' +
+        '<div class="picker-board-item-content">' +
+          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">' + escHtml(a.action_name) + '</span>' +
+          '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  bodyEl.innerHTML = '<div class="picker-board">' +
+    '<div class="picker-board-col">' +
+      '<div class="picker-col-header"><span class="col-tag col-tag-g">G</span>支線目標</div>' +
+      '<div class="picker-col-body">' + (gHtml || '<div class="picker-col-empty">無目標</div>') + '</div>' +
+    '</div>' +
+    '<div class="picker-board-col">' +
+      '<div class="picker-col-header"><span class="col-tag col-tag-s">S</span>策略</div>' +
+      '<div class="picker-col-body">' + sHtml + '</div>' +
+    '</div>' +
+    '<div class="picker-board-col">' +
+      '<div class="picker-col-header"><span class="col-tag col-tag-m">M</span>行動項目</div>' +
+      '<div class="picker-col-body">' + mHtml + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function setPickerGoal(goalId, memberName) {
+  pickerActiveGoalId = pickerActiveGoalId === goalId ? null : goalId;
+  renderPickerModal(memberName);
 }
 
 function togglePickerItem(type, id) {
@@ -2614,6 +2633,7 @@ function closeAiMeetingModal() {
   meetingPickerMember = null;
   aiMeetingTempItems = [];
   meetingPickerChecked = { actions: new Set(), strategies: new Set() };
+  pickerActiveGoalId = null;
 }
 
 async function confirmAiMeetingItems() {
