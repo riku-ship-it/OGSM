@@ -2559,7 +2559,7 @@ function renderPickerModal(memberName) {
   if (!pickerActiveGoalId) {
     sHtml = '<div class="picker-col-empty">← 請先選擇支線目標</div>';
   } else {
-    const visibleStrategies = allStrategies.filter(function(s) { return s.goal_id === pickerActiveGoalId; });
+    const visibleStrategies = allStrategies.filter(function(s) { return String(s.goal_id) === String(pickerActiveGoalId); });
     if (!visibleStrategies.length) {
       sHtml = '<div class="picker-col-empty">此目標無策略</div>';
     } else {
