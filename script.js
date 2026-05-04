@@ -2150,18 +2150,16 @@ async function renderMeetingSection() {
     awtEl.textContent = yr + '年第' + weekNum + '週 佈達事項';
   }
 
-  await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend()]);
-  renderMeetingScore();
-  renderMeetingStatusFilters();
-  renderMeetingAnnounce();
-
   const members = getMeetingOrderedMembers();
   const cachePromises = members
-    .filter(function(name) { return name !== currentStaff; })
+    .filter(function(name) { return name !== currentStaff && !staffDataCache[name]; })
     .map(function(name) {
       return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
     });
-  await Promise.all([loadMeetingSelectionsFromServer(), ...cachePromises]);
+  await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend(), loadMeetingSelectionsFromServer(), ...cachePromises]);
+  renderMeetingScore();
+  renderMeetingStatusFilters();
+  renderMeetingAnnounce();
   renderMeetingRows();
 }
 
