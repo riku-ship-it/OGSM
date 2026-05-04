@@ -30,7 +30,7 @@
 var SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 var HEADER_ROW = ['編號','目標標題','支線編號','支線名稱','進度','顏色','行動編號','策略名稱','行動項目','負責人','開始日期','截止日期','備註','狀態','交通燈','截止日','策略狀態','成功定義'];
 var STATS_HEADER_ROW = ['職員','ID','上線日期','系統平台','對象','項目說明','計分標準','分數'];
-var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport', 'MeetingSelections'];
+var SYSTEM_SHEETS = ['Stats', 'WeeklyNotes', 'MeetingReport', 'MeetingSelections', 'MeetingNotes'];
 
 // Google Sheets 會將形如 "2026-04-30" 的字串自動轉成 Date 物件
 // 此函式將 cell 值統一轉回 "yyyy-MM-dd" 字串，避免比對失敗
@@ -77,6 +77,16 @@ function getOrCreateMeetingReportSheet(ss) {
   if (sheet) return sheet;
   var newSheet = ss.insertSheet('MeetingReport');
   newSheet.appendRow(['weekKey', 'data']);
+  return newSheet;
+}
+
+// ── 取得或建立會議備注工作表 ──
+// 欄位: noteType(announce/member_note) | weekKey | member | content | updatedAt
+function getOrCreateMeetingNotesSheet(ss) {
+  var sheet = ss.getSheetByName('MeetingNotes');
+  if (sheet) return sheet;
+  var newSheet = ss.insertSheet('MeetingNotes');
+  newSheet.appendRow(['noteType', 'weekKey', 'member', 'content', 'updatedAt']);
   return newSheet;
 }
 
@@ -186,6 +196,50 @@ function doGet(e) {
       }
       return ContentService
         .createTextOutput(JSON.stringify({ data: mrResult }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳本週會議備注（佈達事項 + 各成員備注）----
+    if (e.parameter.action === 'get_meeting_notes') {
+      var mnSheet = getOrCreateMeetingNotesSheet(ss);
+      var mnData = mnSheet.getDataRange().getValues();
+      var mnWeekKey = e.parameter.weekKey || '';
+      var mnAnnounce = '';
+      var mnMemberNotes = {};
+      for (var i = 1; i < mnData.length; i++) {
+        var mnNoteType = String(mnData[i][0] || '');
+        var mnRowWeek = normalizeDateCell(mnData[i][1]);
+        var mnRowMember = String(mnData[i][2] || '');
+        var mnRowContent = String(mnData[i][3] || '');
+        if (mnRowWeek !== mnWeekKey) continue;
+        if (mnNoteType === 'announce') {
+          mnAnnounce = mnRowContent;
+        } else if (mnNoteType === 'member_note') {
+          mnMemberNotes[mnRowMember] = mnRowContent;
+        }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ announce: mnAnnounce, memberNotes: mnMemberNotes }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ---- 回傳歷史佈達事項（排除本週）----
+    if (e.parameter.action === 'get_announce_history') {
+      var mnSheet2 = getOrCreateMeetingNotesSheet(ss);
+      var mnData2 = mnSheet2.getDataRange().getValues();
+      var currentWeekKey2 = e.parameter.currentWeekKey || '';
+      var history2 = [];
+      for (var i = 1; i < mnData2.length; i++) {
+        var nt2 = String(mnData2[i][0] || '');
+        var wk2 = normalizeDateCell(mnData2[i][1]);
+        var ct2 = String(mnData2[i][3] || '');
+        if (nt2 === 'announce' && wk2 !== currentWeekKey2 && ct2) {
+          history2.push({ weekKey: wk2, content: ct2 });
+        }
+      }
+      history2.sort(function(a, b) { return b.weekKey.localeCompare(a.weekKey); });
+      return ContentService
+        .createTextOutput(JSON.stringify({ history: history2 }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -532,6 +586,37 @@ function doPost(e) {
         SpreadsheetApp.flush();
       } finally {
         lock.releaseLock();
+      }
+      result = JSON.stringify({ success: true });
+
+    // ---- save_meeting_note：儲存佈達事項或成員備注 ----
+    } else if (body.type === 'save_meeting_note') {
+      var mnLock = LockService.getScriptLock();
+      mnLock.waitLock(30000);
+      try {
+        var mnSheet3 = getOrCreateMeetingNotesSheet(ss);
+        var mnData3 = mnSheet3.getDataRange().getValues();
+        var mnNoteType3 = String(body.noteType || '');
+        var mnWeekKey3 = String(body.weekKey || '');
+        var mnMember3 = String(body.member || '');
+        var mnContent3 = String(body.content || '');
+        var mnUpdated3 = false;
+        for (var i = 1; i < mnData3.length; i++) {
+          if (String(mnData3[i][0]) === mnNoteType3 &&
+              normalizeDateCell(mnData3[i][1]) === mnWeekKey3 &&
+              String(mnData3[i][2]) === mnMember3) {
+            mnSheet3.getRange(i + 1, 4).setValue(mnContent3);
+            mnSheet3.getRange(i + 1, 5).setValue(new Date().toISOString());
+            mnUpdated3 = true;
+            break;
+          }
+        }
+        if (!mnUpdated3) {
+          mnSheet3.appendRow([mnNoteType3, mnWeekKey3, mnMember3, mnContent3, new Date().toISOString()]);
+        }
+        SpreadsheetApp.flush();
+      } finally {
+        mnLock.releaseLock();
       }
       result = JSON.stringify({ success: true });
 

@@ -2448,6 +2448,62 @@ details[open] .announce-history-summary::before { transform: rotate(90deg); }
 .announce-history-content ul { padding-left: 16px; }
 .announce-history-content a { color: var(--blue); }
 
+/* ── Meeting Member Note Area ── */
+.meeting-member-note-wrap {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.meeting-member-note-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 6px;
+}
+.meeting-member-note-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.meeting-member-note-toolbar {
+  display: flex;
+  gap: 3px;
+}
+.meeting-member-note-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  transition: all .12s;
+}
+.meeting-member-note-btn:hover { background: var(--bg3); color: var(--text); }
+.meeting-member-note-editor {
+  min-height: 64px;
+  padding: 6px 16px 14px;
+  outline: none;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.meeting-member-note-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text3);
+  pointer-events: none;
+}
+.meeting-member-note-editor ul { padding-left: 18px; margin: 2px 0; }
+.meeting-member-note-editor li { margin: 1px 0; }
+.meeting-member-note-editor a { color: var(--blue); text-decoration: underline; cursor: pointer; }
+.meeting-member-note-editor b, .meeting-member-note-editor strong { font-weight: 700; }
+
 /* ── OGSM Picker Modal ── */
 .meeting-modal-overlay {
   position: fixed;
