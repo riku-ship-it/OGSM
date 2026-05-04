@@ -1992,9 +1992,7 @@ let meetingStatusFilter = null;
 let meetingCollapsedMembers = {};
 let meetingSelectionsCache = {};
 let _pendingPushMembers = new Set();
-let pickerSelectedGoalId = null;
-let pickerSelectedStrategyName = null;
-let pickerTempSelected = { actionIds: [], strategyKeys: [] };
+let aiMeetingTempItems = [];
 
 function getMeetingWeekKey() {
   return isoDate(getWeekStart(meetingWeekOffset));
@@ -2366,7 +2364,7 @@ function renderMeetingRows() {
     const selectedStrategyKeys = getSelectedStrategyKeys(name);
     const totalSelected = selectedIds.length + selectedStrategyKeys.length;
     const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const pickLabel = totalSelected > 0 ? '編輯選取' : '＋ 選取項目';
+    const pickLabel = totalSelected > 0 ? '編輯項目' : '✨ AI 生成';
 
     const selectedStrategyItems = selectedStrategyKeys.map(function(key) {
       const sep = key.indexOf('::');
@@ -2378,7 +2376,7 @@ function renderMeetingRows() {
 
     let bodyHtml;
     if (selectedActions.length === 0 && selectedStrategyItems.length === 0) {
-      bodyHtml = '<div class="meeting-member-empty">尚未選取本週項目</div>';
+      bodyHtml = '<div class="meeting-member-empty">尚未生成本週項目</div>';
     } else {
       const stratCards = selectedStrategyItems.map(function(s) {
         const safeKey = s.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -2408,7 +2406,7 @@ function renderMeetingRows() {
         '<div class="mrow-avatar" style="background:' + color + '">' + escHtml(name[0] || '') + '</div>' +
         '<div class="meeting-member-name">' + escHtml(name) + '</div>' +
         '<span class="meeting-member-count">' + totalSelected + ' 項</span>' +
-        '<button class="meeting-pick-btn" onclick="event.stopPropagation();openOgsmPicker(\'' + safeName + '\')">' + pickLabel + '</button>' +
+        '<button class="meeting-pick-btn" onclick="event.stopPropagation();openAiMeetingModal(\'' + safeName + '\')">' + pickLabel + '</button>' +
         '<svg class="meeting-member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>' +
       '</div>' +
       '<div class="meeting-member-body">' + bodyHtml + '</div>' +
@@ -2492,147 +2490,102 @@ function submitMeetingAddRow() {
   showToast('✅ 任務已新增');
 }
 
-function openOgsmPicker(memberName) {
+function openAiMeetingModal(memberName) {
   meetingPickerMember = memberName;
-  pickerSelectedGoalId = null;
-  pickerSelectedStrategyName = null;
-  pickerTempSelected = {
-    actionIds: getSelectedActionIds(memberName).slice(),
-    strategyKeys: getSelectedStrategyKeys(memberName).slice()
-  };
   const modal = document.getElementById('meeting-ogsm-picker');
   const titleEl = document.getElementById('meeting-picker-title');
   if (!modal) return;
-  titleEl.textContent = memberName + ' — 選取本週項目';
-  renderOgsmPickerBoard();
+  titleEl.textContent = memberName + ' — AI 生成本週項目';
   modal.style.display = 'flex';
-}
-
-function renderOgsmPickerBoard() {
-  const bodyEl = document.getElementById('meeting-picker-body');
-  if (!bodyEl || !meetingPickerMember) return;
-  const data = meetingPickerMember === currentStaff ? state : (staffDataCache[meetingPickerMember] || {});
-  const goals = data.goals || [];
-  const actions = (data.actions || []).filter(function(a) { return !!a.action_name; });
-
-  let gHtml = '';
-  goals.forEach(function(g) {
-    const isActive = String(g.id) === String(pickerSelectedGoalId);
-    gHtml += '<div class="picker-goal-item' + (isActive ? ' active' : '') + '" onclick="pickerSelectGoal(\'' + escHtml(String(g.id)) + '\')">' + escHtml(g.name || '') + '</div>';
-  });
-  if (!goals.length) gHtml = '<div class="picker-col-empty">尚無目標</div>';
-
-  let sHtml = '';
-  if (!pickerSelectedGoalId) {
-    sHtml = '<div class="picker-col-empty">← 請先選擇目標</div>';
-  } else {
-    const goalActions = actions.filter(function(a) { return String(a.goal_id) === String(pickerSelectedGoalId); });
-    const stratNames = [];
-    goalActions.forEach(function(a) {
-      const sName = a.strategy_name || '（未分類）';
-      if (!stratNames.includes(sName)) stratNames.push(sName);
+  const existingActionIds = getSelectedActionIds(memberName);
+  const existingStratKeys = getSelectedStrategyKeys(memberName);
+  if (existingActionIds.length > 0 || existingStratKeys.length > 0) {
+    const data = memberName === currentStaff ? state : (staffDataCache[memberName] || {});
+    const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
+    aiMeetingTempItems = [];
+    existingActionIds.forEach(function(id) {
+      const a = allActions.find(function(x) { return x.id === id; });
+      if (a) aiMeetingTempItems.push({ type: 'action', id: id, name: a.action_name, reason: '' });
     });
-    if (!stratNames.length) {
-      sHtml = '<div class="picker-col-empty">尚無策略</div>';
-    } else {
-      stratNames.forEach(function(sName) {
-        const stratKey = String(pickerSelectedGoalId) + '::' + sName;
-        const isChecked = pickerTempSelected.strategyKeys.includes(stratKey);
-        const isActive = pickerSelectedStrategyName === sName;
-        const safeSName = sName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        sHtml += '<div class="picker-board-item' + (isActive ? ' active' : '') + '">' +
-          '<input type="checkbox" class="picker-checkbox" value="' + escHtml(stratKey) + '"' + (isChecked ? ' checked' : '') + ' onchange="pickerToggleStrategy(this.value, this.checked)" onclick="event.stopPropagation()">' +
-          '<div class="picker-board-item-content" onclick="pickerSelectStrategy(\'' + safeSName + '\')">' + escHtml(sName) + '</div>' +
-        '</div>';
-      });
-    }
-  }
-
-  let mHtml = '';
-  if (!pickerSelectedGoalId) {
-    mHtml = '<div class="picker-col-empty">← 請先選擇目標</div>';
+    existingStratKeys.forEach(function(key) {
+      const sep = key.indexOf('::');
+      const stratName = sep >= 0 ? key.slice(sep + 2) : key;
+      aiMeetingTempItems.push({ type: 'strategy', id: key, name: stratName, reason: '' });
+    });
+    renderAiMeetingItems();
   } else {
-    const goalActions = actions.filter(function(a) { return String(a.goal_id) === String(pickerSelectedGoalId); });
-    const filteredActions = pickerSelectedStrategyName
-      ? goalActions.filter(function(a) { return (a.strategy_name || '（未分類）') === pickerSelectedStrategyName; })
-      : goalActions;
-    if (!filteredActions.length) {
-      mHtml = '<div class="picker-col-empty">尚無行動項目</div>';
-    } else {
-      filteredActions.forEach(function(a) {
-        const isChecked = pickerTempSelected.actionIds.includes(a.id);
-        const st = a.status || '未開始';
-        mHtml += '<div class="picker-board-item">' +
-          '<input type="checkbox" class="picker-checkbox" value="' + escHtml(a.id) + '"' + (isChecked ? ' checked' : '') + ' onchange="pickerToggleAction(this.value, this.checked)">' +
-          '<div class="picker-board-item-content">' +
-            '<span>' + escHtml(a.action_name) + '</span>' +
-            '<span class="mstatus-badge badge-' + escHtml(st) + ' picker-item-badge">' + escHtml(st) + '</span>' +
-          '</div>' +
-        '</div>';
-      });
-    }
+    generateAiMeetingItems(memberName);
   }
+}
 
-  bodyEl.innerHTML =
-    '<div class="picker-board">' +
-      '<div class="picker-board-col">' +
-        '<div class="picker-col-header"><span class="col-tag col-tag-g">G</span>支線目標</div>' +
-        '<div class="picker-col-body">' + gHtml + '</div>' +
+async function generateAiMeetingItems(memberName) {
+  const bodyEl = document.getElementById('meeting-picker-body');
+  if (bodyEl) bodyEl.innerHTML = '<div class="ai-generating-hint"><div class="ai-spinner"></div>AI 分析中，請稍候⋯</div>';
+  const weekStartDate = getWeekStart(meetingWeekOffset);
+  const weekEndDate = getWeekEnd(weekStartDate);
+  const weekStart = isoDate(weekStartDate);
+  const weekEnd = isoDate(weekEndDate);
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'ai_generate_meeting', staff: memberName, weekStart: weekStart, weekEnd: weekEnd })
+    }).then(function(r) { return r.json(); });
+    if (res.success && res.items) {
+      aiMeetingTempItems = res.items;
+    } else {
+      aiMeetingTempItems = [];
+      showToast('❌ AI 生成失敗：' + (res.error || '未知錯誤'), true);
+    }
+  } catch(e) {
+    aiMeetingTempItems = [];
+    showToast('❌ AI 生成失敗，請重試', true);
+  }
+  renderAiMeetingItems();
+}
+
+function renderAiMeetingItems() {
+  const bodyEl = document.getElementById('meeting-picker-body');
+  if (!bodyEl) return;
+  if (!aiMeetingTempItems.length) {
+    bodyEl.innerHTML = '<div class="ai-items-empty">AI 未找到本週適合報告的項目</div>';
+    return;
+  }
+  const html = aiMeetingTempItems.map(function(item, idx) {
+    const typeLabel = item.type === 'strategy' ? 'S' : 'M';
+    const typeClass = item.type === 'strategy' ? 'col-tag-s' : 'col-tag-m';
+    return '<div class="ai-item-card">' +
+      '<span class="col-tag ' + typeClass + '" style="flex-shrink:0;align-self:flex-start;margin-top:2px">' + typeLabel + '</span>' +
+      '<div class="ai-item-info">' +
+        '<div class="ai-item-name">' + escHtml(item.name) + '</div>' +
+        (item.reason ? '<div class="ai-item-reason">' + escHtml(item.reason) + '</div>' : '') +
       '</div>' +
-      '<div class="picker-board-col">' +
-        '<div class="picker-col-header"><span class="col-tag col-tag-s">S</span>策略</div>' +
-        '<div class="picker-col-body">' + sHtml + '</div>' +
-      '</div>' +
-      '<div class="picker-board-col">' +
-        '<div class="picker-col-header"><span class="col-tag col-tag-m">M</span>行動項目</div>' +
-        '<div class="picker-col-body">' + mHtml + '</div>' +
-      '</div>' +
+      '<button class="meeting-ogsm-card-delete" onclick="removeAiMeetingTempItem(' + idx + ')" title="移除">✕</button>' +
     '</div>';
+  }).join('');
+  bodyEl.innerHTML = '<div class="ai-items-list">' + html + '</div>';
 }
 
-function pickerSelectGoal(goalId) {
-  pickerSelectedGoalId = (String(pickerSelectedGoalId) === String(goalId)) ? null : goalId;
-  pickerSelectedStrategyName = null;
-  renderOgsmPickerBoard();
+function removeAiMeetingTempItem(idx) {
+  aiMeetingTempItems.splice(idx, 1);
+  renderAiMeetingItems();
 }
 
-function pickerSelectStrategy(stratName) {
-  pickerSelectedStrategyName = pickerSelectedStrategyName === stratName ? null : stratName;
-  renderOgsmPickerBoard();
-}
-
-function pickerToggleAction(id, checked) {
-  if (checked) {
-    if (!pickerTempSelected.actionIds.includes(id)) pickerTempSelected.actionIds.push(id);
-  } else {
-    pickerTempSelected.actionIds = pickerTempSelected.actionIds.filter(function(x) { return x !== id; });
-  }
-}
-
-function pickerToggleStrategy(key, checked) {
-  if (checked) {
-    if (!pickerTempSelected.strategyKeys.includes(key)) pickerTempSelected.strategyKeys.push(key);
-  } else {
-    pickerTempSelected.strategyKeys = pickerTempSelected.strategyKeys.filter(function(x) { return x !== key; });
-  }
-}
-
-function closeOgsmPicker() {
+function closeAiMeetingModal() {
   const modal = document.getElementById('meeting-ogsm-picker');
   if (modal) modal.style.display = 'none';
   meetingPickerMember = null;
+  aiMeetingTempItems = [];
 }
 
-async function confirmOgsmPicker() {
+async function confirmAiMeetingItems() {
   if (!meetingPickerMember) return;
   const memberToSync = meetingPickerMember;
   const weekKey = getMeetingWeekKey();
+  const selectedActionIds = aiMeetingTempItems.filter(function(i) { return i.type === 'action'; }).map(function(i) { return i.id; });
+  const selectedStrategyKeys = aiMeetingTempItems.filter(function(i) { return i.type === 'strategy'; }).map(function(i) { return i.id; });
   if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
-  meetingSelectionsCache[weekKey][memberToSync] = {
-    selectedActionIds: pickerTempSelected.actionIds.slice(),
-    selectedStrategyKeys: pickerTempSelected.strategyKeys.slice()
-  };
-  closeOgsmPicker();
+  meetingSelectionsCache[weekKey][memberToSync] = { selectedActionIds: selectedActionIds, selectedStrategyKeys: selectedStrategyKeys };
+  closeAiMeetingModal();
   renderMeetingRows();
   try {
     await _pushMemberSelectionsToServer(memberToSync);
@@ -2641,7 +2594,7 @@ async function confirmOgsmPicker() {
     try {
       await _pushMemberSelectionsToServer(memberToSync);
     } catch(e2) {
-      showToast('❌ 選取項目同步失敗，請重試', true);
+      showToast('❌ 同步失敗，請重試', true);
     }
   }
 }
