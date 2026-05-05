@@ -1661,6 +1661,10 @@ body {
 .meeting-score-card:hover { background: var(--bg3, #f0f0f5); }
 .meeting-score-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 4px; }
 .meeting-score-value { font-size: 28px; font-weight: 700; color: var(--blue); line-height: 1; }
+.meeting-score-delta { font-size: 11px; font-weight: 600; margin-top: 4px; min-height: 14px; }
+.meeting-score-delta.up { color: #16a34a; }
+.meeting-score-delta.down { color: #dc2626; }
+.meeting-score-delta.flat { color: var(--text3); }
 
 /* ── Meeting Tabs ── */
 .meeting-tabs {
@@ -2697,6 +2701,35 @@ details[open] .announce-history-summary::before { transform: rotate(90deg); }
   box-shadow: 0 20px 60px rgba(0,0,0,.18);
   overflow: hidden;
 }
+.dept-score-modal-wide { width: 1060px; }
+.dept-score-modal-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.dept-score-modal-layout > .dept-score-modal-body {
+  flex: 1;
+  border-right: 1px solid var(--border);
+}
+.dept-score-chart-panel {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 10px;
+}
+.dept-score-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+}
+#dept-score-chart-wrap svg { display: block; }
+.dept-score-chart-line { fill: none; stroke: var(--blue); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.dept-score-chart-dot { fill: var(--blue); }
+.dept-score-chart-area { fill: url(#scoreChartGrad); opacity: .18; }
+.dept-score-chart-label { font-size: 10px; fill: var(--text3); }
+.dept-score-chart-value { font-size: 11px; font-weight: 600; fill: var(--blue); }
 .dept-score-modal-header {
   display: flex;
   align-items: center;

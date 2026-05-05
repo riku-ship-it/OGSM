@@ -2249,6 +2249,91 @@ function renderMeetingScore() {
 
   const el = document.getElementById('meeting-total-score');
   if (el) el.textContent = total;
+
+  // Compute last week's score for delta indicator
+  const prevWeekStart = getWeekStart(meetingWeekOffset - 1);
+  const prevWeekEnd = getWeekEnd(prevWeekStart);
+  const prevStartStr = isoDate(prevWeekStart);
+  const prevEndStr = isoDate(prevWeekEnd);
+  let prevTotal = 0;
+  members.forEach(function(name) {
+    const items = getPersonStats(name).filter(function(i) {
+      const d = i.launchDate || i.date;
+      return d >= prevStartStr && d <= prevEndStr;
+    });
+    prevTotal += items.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+  });
+  const deltaEl = document.getElementById('meeting-score-delta');
+  if (deltaEl) {
+    const diff = total - prevTotal;
+    if (diff > 0) {
+      deltaEl.textContent = '▲ ' + diff + ' vs 上週';
+      deltaEl.className = 'meeting-score-delta up';
+    } else if (diff < 0) {
+      deltaEl.textContent = '▼ ' + Math.abs(diff) + ' vs 上週';
+      deltaEl.className = 'meeting-score-delta down';
+    } else {
+      deltaEl.textContent = '— 與上週相同';
+      deltaEl.className = 'meeting-score-delta flat';
+    }
+  }
+}
+
+function getDeptScoreForWeekOffset(offset) {
+  const weekStart = getWeekStart(offset);
+  const weekEnd = getWeekEnd(weekStart);
+  const startStr = isoDate(weekStart);
+  const endStr = isoDate(weekEnd);
+  const members = staffList.length ? staffList : MEETING_DEFAULT_ORDER;
+  let total = 0;
+  members.forEach(function(name) {
+    const items = getPersonStats(name).filter(function(i) {
+      const d = i.launchDate || i.date;
+      return d >= startStr && d <= endStr;
+    });
+    total += items.reduce(function(s, i) { return s + (i.score || 0); }, 0);
+  });
+  return { score: total, startStr: startStr, weekStart: weekStart };
+}
+
+function renderDeptScoreChart() {
+  const wrap = document.getElementById('dept-score-chart-wrap');
+  if (!wrap) return;
+  const weeks = [];
+  for (let i = 5; i >= 0; i--) {
+    weeks.push(getDeptScoreForWeekOffset(meetingWeekOffset - i));
+  }
+  const scores = weeks.map(function(w) { return w.score; });
+  const maxScore = Math.max.apply(null, scores) || 1;
+  const W = 268, H = 180, PL = 24, PR = 8, PT = 20, PB = 32;
+  const chartW = W - PL - PR;
+  const chartH = H - PT - PB;
+  const n = weeks.length;
+  function px(i) { return PL + (i / (n - 1)) * chartW; }
+  function py(v) { return PT + chartH - (v / maxScore) * chartH; }
+  const points = weeks.map(function(w, i) { return px(i) + ',' + py(w.score); }).join(' ');
+  const areaPoints = 'M' + px(0) + ',' + (PT + chartH) + ' ' +
+    weeks.map(function(w, i) { return 'L' + px(i) + ',' + py(w.score); }).join(' ') +
+    ' L' + px(n - 1) + ',' + (PT + chartH) + ' Z';
+  let dotsHtml = '';
+  let labelsHtml = '';
+  weeks.forEach(function(w, i) {
+    const x = px(i), y = py(w.score);
+    dotsHtml += '<circle class="dept-score-chart-dot" cx="' + x + '" cy="' + y + '" r="3.5"/>';
+    const d = w.weekStart;
+    const label = (d.getMonth() + 1) + '/' + d.getDate();
+    labelsHtml += '<text class="dept-score-chart-label" x="' + x + '" y="' + (H - 10) + '" text-anchor="middle">' + label + '</text>';
+    labelsHtml += '<text class="dept-score-chart-value" x="' + x + '" y="' + (y - 7) + '" text-anchor="middle">' + w.score + '</text>';
+  });
+  wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+    '<defs><linearGradient id="scoreChartGrad" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="var(--blue)" stop-opacity="0.5"/>' +
+    '<stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>' +
+    '</linearGradient></defs>' +
+    '<path class="dept-score-chart-area" d="' + areaPoints + '"/>' +
+    '<polyline class="dept-score-chart-line" points="' + points + '"/>' +
+    dotsHtml + labelsHtml +
+    '</svg>';
 }
 
 function openDeptScoreModal() {
@@ -2301,6 +2386,8 @@ function openDeptScoreModal() {
 
   const modal = document.getElementById('dept-score-modal');
   if (modal) modal.style.display = 'flex';
+
+  renderDeptScoreChart();
 }
 
 function closeDeptScoreModal() {
