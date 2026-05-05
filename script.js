@@ -2267,10 +2267,10 @@ function renderMeetingScore() {
   if (deltaEl) {
     const diff = total - prevTotal;
     if (diff > 0) {
-      deltaEl.textContent = '▲ ' + diff + ' vs 上週';
+      deltaEl.textContent = '▲ ' + diff;
       deltaEl.className = 'meeting-score-delta up';
     } else if (diff < 0) {
-      deltaEl.textContent = '▼ ' + Math.abs(diff) + ' vs 上週';
+      deltaEl.textContent = '▼ ' + Math.abs(diff);
       deltaEl.className = 'meeting-score-delta down';
     } else {
       deltaEl.textContent = '— 與上週相同';
@@ -2304,13 +2304,25 @@ function renderDeptScoreChart() {
     weeks.push(getDeptScoreForWeekOffset(meetingWeekOffset - i));
   }
   const scores = weeks.map(function(w) { return w.score; });
-  const maxScore = Math.max.apply(null, scores) || 1;
-  const W = 268, H = 180, PL = 24, PR = 8, PT = 20, PB = 32;
+  const rawMax = Math.max.apply(null, scores) || 1;
+  const gridSteps = 4;
+  const maxScore = Math.ceil(rawMax / gridSteps) * gridSteps || gridSteps;
+  const W = 280, H = 185, PL = 42, PR = 12, PT = 20, PB = 34;
   const chartW = W - PL - PR;
   const chartH = H - PT - PB;
   const n = weeks.length;
   function px(i) { return PL + (i / (n - 1)) * chartW; }
   function py(v) { return PT + chartH - (v / maxScore) * chartH; }
+
+  let gridHtml = '';
+  for (let g = 0; g <= gridSteps; g++) {
+    const val = Math.round((g / gridSteps) * maxScore);
+    const y = py(val);
+    gridHtml += '<line class="dept-score-chart-grid" x1="' + PL + '" y1="' + y + '" x2="' + (W - PR) + '" y2="' + y + '"/>';
+    gridHtml += '<text class="dept-score-chart-y-label" x="' + (PL - 5) + '" y="' + (y + 3.5) + '" text-anchor="end">' + val + '</text>';
+  }
+  const borderHtml = '<rect class="dept-score-chart-border" x="' + PL + '" y="' + PT + '" width="' + chartW + '" height="' + chartH + '"/>';
+
   const points = weeks.map(function(w, i) { return px(i) + ',' + py(w.score); }).join(' ');
   const areaPoints = 'M' + px(0) + ',' + (PT + chartH) + ' ' +
     weeks.map(function(w, i) { return 'L' + px(i) + ',' + py(w.score); }).join(' ') +
@@ -2319,17 +2331,18 @@ function renderDeptScoreChart() {
   let labelsHtml = '';
   weeks.forEach(function(w, i) {
     const x = px(i), y = py(w.score);
-    dotsHtml += '<circle class="dept-score-chart-dot" cx="' + x + '" cy="' + y + '" r="3.5"/>';
+    dotsHtml += '<circle class="dept-score-chart-dot" cx="' + x + '" cy="' + y + '" r="4"/>';
     const d = w.weekStart;
     const label = (d.getMonth() + 1) + '/' + d.getDate();
-    labelsHtml += '<text class="dept-score-chart-label" x="' + x + '" y="' + (H - 10) + '" text-anchor="middle">' + label + '</text>';
-    labelsHtml += '<text class="dept-score-chart-value" x="' + x + '" y="' + (y - 7) + '" text-anchor="middle">' + w.score + '</text>';
+    labelsHtml += '<text class="dept-score-chart-label" x="' + x + '" y="' + (H - 8) + '" text-anchor="middle">' + label + '</text>';
+    labelsHtml += '<text class="dept-score-chart-value" x="' + x + '" y="' + (y - 8) + '" text-anchor="middle">' + w.score + '</text>';
   });
   wrap.innerHTML = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
     '<defs><linearGradient id="scoreChartGrad" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="var(--blue)" stop-opacity="0.5"/>' +
+    '<stop offset="0%" stop-color="var(--blue)" stop-opacity="0.45"/>' +
     '<stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>' +
     '</linearGradient></defs>' +
+    gridHtml + borderHtml +
     '<path class="dept-score-chart-area" d="' + areaPoints + '"/>' +
     '<polyline class="dept-score-chart-line" points="' + points + '"/>' +
     dotsHtml + labelsHtml +
