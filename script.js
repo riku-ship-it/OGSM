@@ -354,6 +354,13 @@ function scheduleWeekNoteSave() {
   const weekRangeStr = isoDate(ws) + '~' + isoDate(getWeekEnd(ws));
   const cacheKey = currentStaff + '-' + weekRangeStr;
   weekNoteCache[cacheKey] = editor.innerHTML;
+  const _mws = getWeekStart(meetingWeekOffset);
+  const _mwRangeStr = isoDate(_mws) + '~' + isoDate(getWeekEnd(_mws));
+  if (weekRangeStr === _mwRangeStr) {
+    const _mNoteId = 'mmn-' + currentStaff.replace(/[^a-zA-Z0-9]/g, '_');
+    const _mEditor = document.getElementById(_mNoteId);
+    if (_mEditor) _mEditor.innerHTML = editor.innerHTML;
+  }
   const person = currentStaff;
   clearTimeout(weekNoteTimers[cacheKey]);
   weekNoteTimers[cacheKey] = setTimeout(async function() {
@@ -2687,19 +2694,20 @@ function renderMeetingRows() {
     }
 
     const weekKeyNow = getMeetingWeekKey();
-    const noteContent = (meetingMemberNotesCache[weekKeyNow] || {})[name] || '';
+    const _mwRangeStr = weekKeyNow + '~' + isoDate(getWeekEnd(getWeekStart(meetingWeekOffset)));
+    const noteContent = weekNoteCache[name + '-' + _mwRangeStr] || '';
     const noteId = 'mmn-' + name.replace(/[^a-zA-Z0-9]/g, '_');
     const noteAreaHtml =
       '<div class="meeting-member-note-wrap">' +
         '<div class="meeting-member-note-top">' +
-          '<span class="meeting-member-note-label">備注</span>' +
+          '<span class="meeting-member-note-label">成果/問題</span>' +
           '<div class="meeting-member-note-toolbar">' +
             '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'bold\')" title="粗體"><b>B</b></button>' +
             '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'insertUnorderedList\')" title="列點"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>' +
             '<button class="meeting-member-note-btn" onmousedown="event.preventDefault();meetingMemberNoteCmd(\'' + safeName + '\',\'link\')" title="超連結"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>' +
           '</div>' +
         '</div>' +
-        '<div class="meeting-member-note-editor" id="' + noteId + '" contenteditable="true" data-member="' + escHtml(name) + '" data-placeholder="備注此人本週項目..." oninput="scheduleMeetingMemberNoteSave(\'' + safeName + '\')">' + noteContent + '</div>' +
+        '<div class="meeting-member-note-editor" id="' + noteId + '" contenteditable="true" data-member="' + escHtml(name) + '" data-placeholder="記錄本週成果或發現的問題..." oninput="scheduleMeetingMemberNoteSave(\'' + safeName + '\')">' + noteContent + '</div>' +
       '</div>';
 
     html += '<div class="meeting-member-section">' +
@@ -2740,13 +2748,23 @@ function scheduleMeetingMemberNoteSave(name) {
   const noteId = 'mmn-' + name.replace(/[^a-zA-Z0-9]/g, '_');
   const editor = document.getElementById(noteId);
   if (!editor) return;
-  const weekKey = getMeetingWeekKey();
-  if (!meetingMemberNotesCache[weekKey]) meetingMemberNotesCache[weekKey] = {};
-  meetingMemberNotesCache[weekKey][name] = editor.innerHTML;
+  const mws = getWeekStart(meetingWeekOffset);
+  const weekRangeStr = isoDate(mws) + '~' + isoDate(getWeekEnd(mws));
+  const cacheKey = name + '-' + weekRangeStr;
+  weekNoteCache[cacheKey] = editor.innerHTML;
+  const statsWs = getWeekStart(statsWeekOffset);
+  const statsRangeStr = isoDate(statsWs) + '~' + isoDate(getWeekEnd(statsWs));
+  if (name === currentStaff && weekRangeStr === statsRangeStr) {
+    const statsEditor = document.getElementById('stats-note-editor');
+    if (statsEditor) statsEditor.innerHTML = editor.innerHTML;
+  }
   clearTimeout(meetingMemberNoteTimers[name]);
   meetingMemberNoteTimers[name] = setTimeout(async function() {
     try {
-      await postData({ type: 'save_meeting_note', noteType: 'member_note', weekKey: weekKey, member: name, content: meetingMemberNotesCache[weekKey][name] || '' });
+      await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ type: 'save_week_note', staff: name, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' })
+      });
     } finally {
       delete meetingMemberNoteTimers[name];
     }
