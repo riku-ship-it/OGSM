@@ -2045,6 +2045,7 @@ async function loadMeetingSelectionsFromServer() {
     const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
     const json = await res.json();
     meetingSelectionsCache[weekKey] = json.selections || {};
+    try { localStorage.setItem('meeting-selections-v1-' + weekKey, JSON.stringify(meetingSelectionsCache[weekKey])); } catch(e) {}
   } catch(e) {
     if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   }
@@ -2151,10 +2152,36 @@ async function renderMeetingSection() {
   }
 
   const members = getMeetingOrderedMembers();
+  const weekKey = getMeetingWeekKey();
+
+  // Pre-populate caches from localStorage for instant render
+  if (!meetingSelectionsCache[weekKey]) {
+    try { meetingSelectionsCache[weekKey] = JSON.parse(localStorage.getItem('meeting-selections-v1-' + weekKey) || 'null') || {}; }
+    catch(e) { meetingSelectionsCache[weekKey] = {}; }
+  }
+  members.forEach(function(name) {
+    if (!staffDataCache[name]) {
+      try {
+        const cached = localStorage.getItem('staffdata-v1-' + name);
+        if (cached) staffDataCache[name] = JSON.parse(cached);
+      } catch(e) {}
+    }
+  });
+
+  // Render immediately with cached data
+  renderMeetingScore();
+  renderMeetingStatusFilters();
+  renderMeetingAnnounce();
+  renderMeetingRows();
+
+  // Fetch fresh data in background, then re-render
   const cachePromises = members
     .filter(function(name) { return name !== currentStaff && !staffDataCache[name]; })
     .map(function(name) {
-      return fetchData(name).then(function(data) { staffDataCache[name] = data; }).catch(function() {});
+      return fetchData(name).then(function(data) {
+        staffDataCache[name] = data;
+        try { localStorage.setItem('staffdata-v1-' + name, JSON.stringify(data)); } catch(e) {}
+      }).catch(function() {});
     });
   await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend(), loadMeetingSelectionsFromServer(), ...cachePromises]);
   renderMeetingScore();
@@ -2406,6 +2433,7 @@ function saveSelectedActionIds(memberName, ids) {
   if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   if (!meetingSelectionsCache[weekKey][memberName]) meetingSelectionsCache[weekKey][memberName] = {};
   meetingSelectionsCache[weekKey][memberName].selectedActionIds = ids;
+  try { localStorage.setItem('meeting-selections-v1-' + weekKey, JSON.stringify(meetingSelectionsCache[weekKey])); } catch(e) {}
   _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
@@ -2419,6 +2447,7 @@ function saveSelectedStrategyKeys(memberName, keys) {
   if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   if (!meetingSelectionsCache[weekKey][memberName]) meetingSelectionsCache[weekKey][memberName] = {};
   meetingSelectionsCache[weekKey][memberName].selectedStrategyKeys = keys;
+  try { localStorage.setItem('meeting-selections-v1-' + weekKey, JSON.stringify(meetingSelectionsCache[weekKey])); } catch(e) {}
   _pushMemberSelectionsToServer(memberName).catch(function() {});
 }
 
