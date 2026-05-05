@@ -1659,8 +1659,8 @@ body {
   cursor: pointer;
 }
 .meeting-score-card:hover { background: var(--bg3, #f0f0f5); }
-.meeting-score-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 4px; }
-.meeting-score-value { font-size: 28px; font-weight: 700; color: var(--blue); line-height: 1; }
+.meeting-score-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 8px; }
+.meeting-score-value { font-size: 22px; font-weight: 700; color: var(--blue); line-height: 1; }
 .meeting-score-card > .meeting-score-value { font-size: 22px; }
 .meeting-score-row { display: flex; align-items: center; justify-content: center; position: relative; }
 .meeting-score-delta { font-size: 14px; font-weight: 700; position: absolute; right: 0; }
