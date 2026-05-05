@@ -2183,11 +2183,52 @@ async function renderMeetingSection() {
         try { localStorage.setItem('staffdata-v1-' + name, JSON.stringify(data)); } catch(e) {}
       }).catch(function() {});
     });
-  await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend(), loadMeetingSelectionsFromServer(), ...cachePromises]);
+
+  // Fetch stats for all members so dept score total is complete without clicking avatars
+  const statsPromises = members.map(function(name) {
+    return fetch(GAS_URL + '?api=1&action=get_stats&staff=' + encodeURIComponent(name) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (Array.isArray(data.items)) {
+          const allData = getStatsData();
+          allData[name] = data.items.map(function(item) {
+            return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
+          });
+          saveStatsData(allData);
+        }
+      }).catch(function() {});
+  });
+
+  // Fetch week notes for all members so dept notes count shows without opening modal
+  const weekRangeStr = isoDate(weekStart) + '~' + isoDate(weekEnd);
+  const notePromises = members.map(function(name) {
+    const cacheKey = name + '-' + weekRangeStr;
+    if (weekNoteCache[cacheKey] !== undefined) return Promise.resolve();
+    return fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' })
+      .then(function(res) { return res.json(); })
+      .then(function(data) { weekNoteCache[cacheKey] = data.content || ''; })
+      .catch(function() { weekNoteCache[cacheKey] = ''; });
+  });
+
+  await Promise.all([loadMeetingReportFromBackend(), loadMeetingNotesFromBackend(), loadMeetingSelectionsFromServer(), ...cachePromises, ...statsPromises, ...notePromises]);
   renderMeetingScore();
+  renderMeetingNotesCount();
   renderMeetingStatusFilters();
   renderMeetingAnnounce();
   renderMeetingRows();
+}
+
+function renderMeetingNotesCount() {
+  const members = staffList.length ? staffList : MEETING_DEFAULT_ORDER;
+  const weekStart = getWeekStart(meetingWeekOffset);
+  const weekEnd = getWeekEnd(weekStart);
+  const weekRangeStr = isoDate(weekStart) + '~' + isoDate(weekEnd);
+  let filledCount = 0;
+  members.forEach(function(name) {
+    if (weekNoteCache[name + '-' + weekRangeStr]) filledCount++;
+  });
+  const countEl = document.getElementById('meeting-notes-count');
+  if (countEl) countEl.textContent = filledCount + '/' + members.length;
 }
 
 function renderMeetingScore() {
