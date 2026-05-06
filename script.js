@@ -3016,6 +3016,7 @@ async function confirmAiMeetingItems() {
   const selectedStrategyKeys = Array.from(meetingPickerChecked.strategies);
   if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
   meetingSelectionsCache[weekKey][memberToSync] = { selectedActionIds: selectedActionIds, selectedStrategyKeys: selectedStrategyKeys };
+  try { localStorage.setItem('meeting-selections-v1-' + weekKey, JSON.stringify(meetingSelectionsCache[weekKey])); } catch(e) {}
   closeAiMeetingModal();
   renderMeetingRows();
   try {
