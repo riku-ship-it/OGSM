@@ -1873,17 +1873,14 @@ body {
   padding: 1px 8px;
 }
 .meeting-ogsm-card-due {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
   font-size: 11px;
   color: var(--text3);
   background: var(--bg3);
   border-radius: 10px;
   padding: 1px 8px;
-}
-.meeting-ogsm-card-due.no-date {
-  color: var(--text4, #bbb);
-  background: none;
-  padding: 1px 0;
-  font-style: italic;
 }
 .meeting-ogsm-card-delete {
   position: absolute;

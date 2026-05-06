@@ -2687,8 +2687,8 @@ function renderMeetingRows() {
           '<div class="meeting-ogsm-card-footer">' +
             '<span class="mstatus-badge badge-' + escHtml(st) + '">' + escHtml(st) + '</span>' +
             (a.assignee ? '<span class="meeting-ogsm-card-assignee">' + escHtml(a.assignee) + '</span>' : '') +
-            (a.due_date ? '<span class="meeting-ogsm-card-due">' + escHtml(fmtDate(a.due_date)) + '</span>' : '<span class="meeting-ogsm-card-due no-date">未設截止日</span>') +
           '</div>' +
+          (a.due_date ? '<span class="meeting-ogsm-card-due">' + escHtml(fmtDate(a.due_date)) + '</span>' : '') +
         '</div>';
       }).join('');
       bodyHtml = '<div class="meeting-ogsm-cards">' + stratCards + actionCards + '</div>';
