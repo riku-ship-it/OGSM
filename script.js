@@ -938,13 +938,13 @@ function renderColumns() {
 
   const mLabel = selectedStrategy ? selectedStrategy : (selectedGoalId ? '全部行動' : '');
   const mCount = selectedGoalId ? mActions.length : '';
-  const mCol = makeColumn('M', '行動項目', 'col-tag-m', mCount);
+  const mCol = makeColumn('M', 'Action-行動計劃', 'col-tag-m', mCount);
   const mBody = mCol.querySelector('.col-body');
 
   if (!selectedGoalId) {
     mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">←</div><span>請先選擇左側目標</span></div>';
   } else if (!mActions.length) {
-    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📝</div><span>尚無行動項目</span></div>';
+    mBody.innerHTML = '<div class="col-empty"><div class="col-empty-icon">📝</div><span>尚無Action-行動計劃</span></div>';
   } else {
     mActions.forEach(a => {
       const item = document.createElement('div');
@@ -1062,7 +1062,7 @@ const COLUMN_TOOLTIPS = {
         <p class="ogsm-tooltip-desc">自定義執行到什麼狀態，這個策略才算完成？</p>
       </div>`,
   M: `<div class="ogsm-tooltip-section">
-        <span class="ogsm-tooltip-label">行動項目</span>
+        <span class="ogsm-tooltip-label">Action-行動計劃</span>
         <p class="ogsm-tooltip-desc">推進策略的具體行動，指定負責人與截止日。</p>
       </div>`,
 };
@@ -2966,7 +2966,7 @@ function renderPickerModal(memberName) {
       '<div class="picker-col-body">' + sHtml + '</div>' +
     '</div>' +
     '<div class="picker-board-col">' +
-      '<div class="picker-col-header"><span class="col-tag col-tag-m">M</span>行動項目</div>' +
+      '<div class="picker-col-header"><span class="col-tag col-tag-m">M</span>Action-行動計劃</div>' +
       '<div class="picker-col-body">' + mHtml + '</div>' +
     '</div>' +
   '</div>';
