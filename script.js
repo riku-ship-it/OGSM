@@ -2539,7 +2539,7 @@ async function generateMeetingSummary() {
     const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
     const selectedIds = getSelectedActionIds(name);
     const selectedActions = selectedIds.map(function(id) {
-      return allActions.find(function(a) { return a.id === id; });
+      return allActions.find(function(a) { return String(a.id) === String(id); });
     }).filter(Boolean).map(function(a) {
       return { action_name: a.action_name, status: a.status || '未開始', assignee: a.assignee || '' };
     });
@@ -2648,7 +2648,7 @@ function renderMeetingRows() {
     const allActions = (data.actions || []).filter(function(a) { return !!a.action_name; });
     const selectedIds = getSelectedActionIds(name);
     const selectedActions = selectedIds.map(function(id) {
-      return allActions.find(function(a) { return a.id === id; });
+      return allActions.find(function(a) { return String(a.id) === String(id); });
     }).filter(Boolean);
 
     const color = avatarColor(name);
