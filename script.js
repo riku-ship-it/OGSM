@@ -954,9 +954,9 @@ function renderColumns() {
         <div class="action-item-top">
           <span class="drag-handle" title="拖移排序" style="margin-right:4px">⠿</span>
           <span class="action-item-name" contenteditable="true" spellcheck="false">${escHtml(a.action_name)}</span>
-          ${a.notes ? `<span class="action-item-notes">${escHtml(a.notes)}</span>` : '<span class="action-item-notes action-item-notes-empty"></span>'}
           <span class="action-badge badge-${a.status}">${escHtml(a.status)}</span>
         </div>
+        ${a.notes ? `<div class="action-item-notes"><svg class="action-item-notes-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="9" x2="10" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="6.5" r="0.75" fill="currentColor"/></svg><span>${escHtml(a.notes)}</span></div>` : ''}
         <div class="action-item-meta">
           ${a.assignee ? `<span class="action-meta-assignee">
             <span class="avatar" style="background:${avatarColor(a.assignee)}">${initials(a.assignee)}</span>
