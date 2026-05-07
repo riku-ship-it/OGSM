@@ -2505,11 +2505,15 @@ async function renderAiSummaryHistory() {
     const items = (json.history || []).filter(function(i) { return !!i.content; });
     if (!items.length) { section.style.display = 'none'; return; }
     section.style.display = '';
-    listEl.innerHTML = items.map(function(item) {
-      return '<div class="sidebar-history-item" onclick="openHistorySummaryModal(' + JSON.stringify(item.weekKey) + ', ' + JSON.stringify(item.content) + ')">' +
-        escHtml(item.weekKey) + ' 週' +
-        '</div>';
+    listEl.innerHTML = items.map(function(item, idx) {
+      return '<div class="sidebar-history-item" data-idx="' + idx + '">' + escHtml(item.weekKey) + ' 週</div>';
     }).join('');
+    listEl.querySelectorAll('.sidebar-history-item').forEach(function(el) {
+      const idx = parseInt(el.dataset.idx, 10);
+      el.addEventListener('click', function() {
+        openHistorySummaryModal(items[idx].weekKey, items[idx].content);
+      });
+    });
   } catch(e) { section.style.display = 'none'; }
 }
 
