@@ -1885,6 +1885,7 @@ function switchSection(section) {
   document.getElementById('nav-department').classList.toggle('active', !isPersonal);
   if (!isPersonal) {
     renderMeetingSection();
+    renderAiSummaryHistory();
     if (!_meetingSyncTimer) _meetingSyncTimer = setInterval(_syncMeetingSelectionsFromServer, 10000);
   } else {
     clearInterval(_meetingSyncTimer); _meetingSyncTimer = null;
@@ -2494,8 +2495,8 @@ function renderAiSummaryMarkdown(text) {
 }
 
 async function renderAiSummaryHistory() {
-  const section = document.getElementById('ai-summary-history-section');
-  const listEl = document.getElementById('ai-summary-history-list');
+  const section = document.getElementById('sidebar-history-section');
+  const listEl = document.getElementById('sidebar-history-list');
   if (!section || !listEl) return;
   const currentWeekKey = getMeetingWeekKey();
   try {
@@ -2505,9 +2506,9 @@ async function renderAiSummaryHistory() {
     if (!items.length) { section.style.display = 'none'; return; }
     section.style.display = '';
     listEl.innerHTML = items.map(function(item) {
-      return '<details class="announce-history-item">' +
+      return '<details class="announce-history-item sidebar-history-item">' +
         '<summary class="announce-history-summary">' + escHtml(item.weekKey) + ' 週</summary>' +
-        '<div class="announce-history-content ai-summary-content">' + renderAiSummaryMarkdown(item.content) + '</div>' +
+        '<div class="announce-history-content ai-summary-content sidebar-history-content">' + renderAiSummaryMarkdown(item.content) + '</div>' +
         '</details>';
     }).join('');
   } catch(e) { section.style.display = 'none'; }
@@ -2529,7 +2530,6 @@ async function generateMeetingSummary() {
   if (titleEl) titleEl.textContent = '部門週報 AI 摘要（' + startStr + ' ~ ' + endStr + '）';
   bodyEl.innerHTML = '<div class="ai-summary-loading">AI 分析中，請稍候…</div>';
   modal.style.display = 'flex';
-  renderAiSummaryHistory();
 
   const members = getMeetingOrderedMembers();
 
