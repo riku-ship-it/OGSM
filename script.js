@@ -2493,6 +2493,26 @@ function renderAiSummaryMarkdown(text) {
     .replace(/\n/g, '<br>');
 }
 
+async function renderAiSummaryHistory() {
+  const section = document.getElementById('ai-summary-history-section');
+  const listEl = document.getElementById('ai-summary-history-list');
+  if (!section || !listEl) return;
+  const currentWeekKey = getMeetingWeekKey();
+  try {
+    const res = await fetch(GAS_URL + '?api=1&action=get_ai_summary_history&currentWeekKey=' + encodeURIComponent(currentWeekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
+    const json = await res.json();
+    const items = (json.history || []).filter(function(i) { return !!i.content; });
+    if (!items.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    listEl.innerHTML = items.map(function(item) {
+      return '<details class="announce-history-item">' +
+        '<summary class="announce-history-summary">' + escHtml(item.weekKey) + ' 週</summary>' +
+        '<div class="announce-history-content ai-summary-content">' + renderAiSummaryMarkdown(item.content) + '</div>' +
+        '</details>';
+    }).join('');
+  } catch(e) { section.style.display = 'none'; }
+}
+
 async function generateMeetingSummary() {
   const modal = document.getElementById('ai-summary-modal');
   const bodyEl = document.getElementById('ai-summary-modal-body');
@@ -2509,6 +2529,7 @@ async function generateMeetingSummary() {
   if (titleEl) titleEl.textContent = '部門週報 AI 摘要（' + startStr + ' ~ ' + endStr + '）';
   bodyEl.innerHTML = '<div class="ai-summary-loading">AI 分析中，請稍候…</div>';
   modal.style.display = 'flex';
+  renderAiSummaryHistory();
 
   const members = getMeetingOrderedMembers();
 
@@ -2563,6 +2584,7 @@ async function generateMeetingSummary() {
     const json = await res.json();
     if (json.success && json.summary) {
       bodyEl.innerHTML = '<div class="ai-summary-content">' + renderAiSummaryMarkdown(json.summary) + '</div>';
+      renderAiSummaryHistory();
     } else {
       bodyEl.innerHTML = '<div class="ai-summary-error">摘要產生失敗：' + escHtml(json.error || '未知錯誤') + '</div>';
     }
