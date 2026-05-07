@@ -912,14 +912,13 @@ body {
   border-top: 1px solid var(--border);
   margin-bottom: 2px;
 }
-.sidebar-history-item > summary {
+.sidebar-history-item {
   padding: 7px 8px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text2);
   cursor: pointer;
-  list-style: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -928,26 +927,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sidebar-history-item > summary::before {
+.sidebar-history-item::before {
   content: '▶';
   font-size: 9px;
   flex-shrink: 0;
-  transition: transform .15s;
 }
-.sidebar-history-item[open] > summary::before { transform: rotate(90deg); }
-.sidebar-history-item > summary:hover { background: var(--bg3); color: var(--text); }
-.sidebar-history-content {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--text2);
-  padding: 8px 8px 4px;
-  overflow-x: hidden;
-}
-.sidebar-history-content h2,
-.sidebar-history-content h3 { font-size: 12px; font-weight: 600; margin: 6px 0 2px; color: var(--text); }
-.sidebar-history-content ul { padding-left: 14px; margin: 2px 0; }
-.sidebar-history-content li { margin-bottom: 2px; }
-.sidebar-history-content br { display: none; }
+.sidebar-history-item:hover { background: var(--bg3); color: var(--text); }
 
 /* ── Section Wrappers ── */
 #section-personal { flex: 1; min-height: 0; display: flex; flex-direction: column; }
