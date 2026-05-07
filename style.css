@@ -1745,6 +1745,26 @@ body {
   max-width: 680px;
   width: 90vw;
 }
+.ai-summary-modal-inner .dept-score-modal-body {
+  flex: 1;
+  min-height: 0;
+}
+.ai-summary-history-section {
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: 30vh;
+  flex-shrink: 0;
+}
+.ai-summary-history-title {
+  padding: 10px 20px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: .04em;
+}
+.ai-summary-history-section .announce-history-content {
+  white-space: normal;
+}
 .ai-summary-content {
   font-size: 14px;
   line-height: 1.75;

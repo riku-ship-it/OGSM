@@ -243,6 +243,26 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ---- 回傳 AI 摘要歷史（排除本週）----
+    if (e.parameter.action === 'get_ai_summary_history') {
+      var aiHisSheet = getOrCreateMeetingNotesSheet(ss);
+      var aiHisData = aiHisSheet.getDataRange().getValues();
+      var currentWeekKeyAiHis = e.parameter.currentWeekKey || '';
+      var aiHisList = [];
+      for (var i = 1; i < aiHisData.length; i++) {
+        var ntAiH = String(aiHisData[i][0] || '');
+        var wkAiH = normalizeDateCell(aiHisData[i][1]);
+        var ctAiH = String(aiHisData[i][3] || '');
+        if (ntAiH === 'ai_summary' && wkAiH !== currentWeekKeyAiHis && ctAiH) {
+          aiHisList.push({ weekKey: wkAiH, content: ctAiH });
+        }
+      }
+      aiHisList.sort(function(a, b) { return b.weekKey.localeCompare(a.weekKey); });
+      return ContentService
+        .createTextOutput(JSON.stringify({ history: aiHisList }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ---- 回傳會議選取項目 ----
     if (e.parameter.action === 'get_meeting_selections') {
       var msSheet = getOrCreateMeetingSelectionsSheet(ss);
@@ -593,6 +613,26 @@ function doPost(e) {
           var sumData   = JSON.parse(sumRes.getContentText());
           if (sumStatus === 200 || sumStatus === 201) {
             var sumReply = sumData.content || (sumData.message && sumData.message.content) || sumData.answer || sumData.text || sumData.reply || '';
+            var aiLock = LockService.getScriptLock();
+            aiLock.waitLock(30000);
+            try {
+              var aiSaveSheet = getOrCreateMeetingNotesSheet(ss);
+              var aiSaveData = aiSaveSheet.getDataRange().getValues();
+              var aiWeekKey = weekRange3.split(' ~ ')[0].trim();
+              var aiUpdated = false;
+              for (var ai = 1; ai < aiSaveData.length; ai++) {
+                if (String(aiSaveData[ai][0]) === 'ai_summary' && normalizeDateCell(aiSaveData[ai][1]) === aiWeekKey) {
+                  aiSaveSheet.getRange(ai + 1, 4).setValue(sumReply);
+                  aiSaveSheet.getRange(ai + 1, 5).setValue(new Date().toISOString());
+                  aiUpdated = true;
+                  break;
+                }
+              }
+              if (!aiUpdated) aiSaveSheet.appendRow(['ai_summary', aiWeekKey, '', sumReply, new Date().toISOString()]);
+              SpreadsheetApp.flush();
+            } finally {
+              aiLock.releaseLock();
+            }
             result = JSON.stringify({ success: true, summary: sumReply });
           } else {
             result = JSON.stringify({ success: false, error: 'AI API 錯誤 ' + sumStatus + ': ' + sumRes.getContentText() });
