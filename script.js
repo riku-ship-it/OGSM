@@ -2506,12 +2506,21 @@ async function renderAiSummaryHistory() {
     if (!items.length) { section.style.display = 'none'; return; }
     section.style.display = '';
     listEl.innerHTML = items.map(function(item) {
-      return '<details class="announce-history-item sidebar-history-item">' +
-        '<summary class="announce-history-summary">' + escHtml(item.weekKey) + ' 週</summary>' +
-        '<div class="announce-history-content ai-summary-content sidebar-history-content">' + renderAiSummaryMarkdown(item.content) + '</div>' +
-        '</details>';
+      return '<div class="sidebar-history-item" onclick="openHistorySummaryModal(' + JSON.stringify(item.weekKey) + ', ' + JSON.stringify(item.content) + ')">' +
+        escHtml(item.weekKey) + ' 週' +
+        '</div>';
     }).join('');
   } catch(e) { section.style.display = 'none'; }
+}
+
+function openHistorySummaryModal(weekKey, content) {
+  const modal = document.getElementById('ai-summary-modal');
+  const bodyEl = document.getElementById('ai-summary-modal-body');
+  const titleEl = document.getElementById('ai-summary-modal-title');
+  if (!modal || !bodyEl) return;
+  if (titleEl) titleEl.textContent = '部門週報摘要（' + weekKey + ' 週）';
+  bodyEl.innerHTML = '<div class="ai-summary-content">' + renderAiSummaryMarkdown(content) + '</div>';
+  modal.style.display = 'flex';
 }
 
 async function generateMeetingSummary() {
