@@ -740,16 +740,17 @@ async function postData(payload) {
     return { success: true };
   }
   if (type === 'delete_staff') {
-    await fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(payload.staff_name)}&select=id`, { headers: h })
-      .then(r => r.json())
-      .then(async goals => {
-        for (const g of goals) {
-          await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
-          await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
-        }
-      });
+    const goalsRes = await fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(payload.staff_name)}&select=id`, { headers: h });
+    const goals = await goalsRes.json();
+    for (const g of (Array.isArray(goals) ? goals : [])) {
+      await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
+      await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
     await fetch(`${SUPABASE_URL}/rest/v1/objectives?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/stats_items?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/weekly_notes?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/meeting_selections?member=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
     await fetch(`${SUPABASE_URL}/rest/v1/staff?name=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
     return { success: true };
   }
@@ -778,6 +779,7 @@ async function postData(payload) {
     return { success: true };
   }
   if (type === 'save_meeting_report') {
+    await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes`, { method: 'POST', headers: { ...h, 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify({ note_type: 'meeting_report', week_key: payload.weekKey, member: '', content: JSON.stringify(payload.data) }) });
     return { success: true };
   }
   if (type === 'ai_chat' || type === 'ai_meeting_summary' || type === 'ai_generate_meeting') {
@@ -1817,12 +1819,8 @@ async function switchStaff(name) {
 async function initStaff() {
   try {
     staffList = await fetchStaffList();
-    if (!staffList.length) {
-      await postData({ type: 'add_staff', staff_name: 'Riku' });
-      staffList = ['Riku'];
-    }
     if (!staffList.includes(currentStaff)) {
-      currentStaff = staffList[0];
+      currentStaff = staffList[0] || '';
       localStorage.setItem('ogsm-current-staff', currentStaff);
     }
   } catch(e) {
@@ -2199,11 +2197,24 @@ function saveMeetingReportData(data) {
 }
 
 async function loadMeetingReportFromBackend() {
+  const weekKey = getMeetingWeekKey();
   try {
-    const stored = localStorage.getItem('meeting-report-v2-' + getMeetingWeekKey());
-    meetingReportCache = stored ? JSON.parse(stored) : null;
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes?note_type=eq.meeting_report&week_key=eq.${encodeURIComponent(weekKey)}&select=content`, { headers: h });
+    const data = await res.json();
+    if (data && data.length > 0 && data[0].content) {
+      try { meetingReportCache = JSON.parse(data[0].content); } catch(e) { meetingReportCache = null; }
+    } else {
+      try {
+        const stored = localStorage.getItem('meeting-report-v2-' + weekKey);
+        meetingReportCache = stored ? JSON.parse(stored) : null;
+      } catch(e) { meetingReportCache = null; }
+    }
   } catch(e) {
-    meetingReportCache = null;
+    try {
+      const stored = localStorage.getItem('meeting-report-v2-' + weekKey);
+      meetingReportCache = stored ? JSON.parse(stored) : null;
+    } catch(e2) { meetingReportCache = null; }
   }
 }
 
