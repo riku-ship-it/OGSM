@@ -601,14 +601,46 @@ function confirmAddStatsItem() {
 // ── Fetch / Post ──
 async function fetchData(staff) {
   const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
-  const [objRes, goalRes, stratRes, actRes] = await Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/objectives?staff=eq.${encodeURIComponent(staff || currentStaff)}&select=*`, { headers: h }),
-    fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(staff || currentStaff)}&select=*&order=sort_order.asc`, { headers: h }),
-    fetch(`${SUPABASE_URL}/rest/v1/strategies?select=*`, { headers: h }),
-    fetch(`${SUPABASE_URL}/rest/v1/actions?select=*&order=sort_order.asc`, { headers: h }),
-  ]);
-  const [objectives, goals, strategies, actions] = await Promise.all([objRes.json(), goalRes.json(), stratRes.json(), actRes.json()]);
-  return { objectives, goals, strategies, actions };
+  const targetStaff = staff || currentStaff;
+
+  // 先取得該職員的所有 goal_id
+  const goalRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(targetStaff)}&select=id,objective_id,staff,name,color,progress,traffic_light,deadline,sort_order&order=sort_order.asc`,
+    { headers: h }
+  );
+  const goals = await goalRes.json();
+
+  // 取得 objectives
+  const objRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/objectives?staff=eq.${encodeURIComponent(targetStaff)}&select=*`,
+    { headers: h }
+  );
+  const objectives = await objRes.json();
+
+  // 取得 strategies
+  const stratRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/strategies?select=*`,
+    { headers: h }
+  );
+  const strategies = await stratRes.json();
+
+  // 用 goal_id 清單取 actions
+  let actions = [];
+  if (goals && goals.length > 0) {
+    const goalIds = goals.map(g => g.id).join(',');
+    const actRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/actions?goal_id=in.(${goalIds})&select=*&order=sort_order.asc`,
+      { headers: h }
+    );
+    actions = await actRes.json();
+  }
+
+  return {
+    objectives: Array.isArray(objectives) ? objectives : [],
+    goals: Array.isArray(goals) ? goals : [],
+    strategies: Array.isArray(strategies) ? strategies : [],
+    actions: Array.isArray(actions) ? actions : [],
+  };
 }
 async function fetchStaffList() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/staff?select=name`, {
