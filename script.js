@@ -1,4 +1,6 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7LdRHWiViQTCrte3fL2ySS49nPb_w3Zk7ctX1dyb1A0zDmMXw/exec';
+const SUPABASE_URL = 'https://bibemmnkwqugooltrrtl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYmVtbW5rd3F1Z29vbHRycnRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMDk1MDYsImV4cCI6MjA2MTU4NTUwNn0.x6JKdJQa7xMIp1n1TUqbPKYpPHb7dRqWbLVrxuAGM5E';
+const sb = () => ({ url: SUPABASE_URL, key: SUPABASE_KEY });
 
 // ── Color Map ──
 const COLOR_MAP = {
@@ -95,28 +97,27 @@ async function loadStats() {
   const staff = currentStaff;
   renderStats();
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_stats&staff=' + encodeURIComponent(staff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/stats_items?staff=eq.${encodeURIComponent(staff)}&select=*`, { headers: h });
     const data = await res.json();
-    if (Array.isArray(data.items)) {
-      const allData = getStatsData();
-      const localItems = allData[staff] || [];
-      const backendIds = new Set(data.items.map(function(i) { return i.id; }));
-      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-      const pendingItems = localItems.filter(function(i) { return !backendIds.has(i.id) && Number(i.id) >= fiveMinAgo; });
-      const backendMapped = data.items.map(function(item) {
-        return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
-      });
-      allData[staff] = backendMapped.concat(pendingItems);
-      saveStatsData(allData);
-      if (currentStaff === staff) renderStats();
-    }
-  } catch(e) { /* silently use localStorage */ }
+    const allData = getStatsData();
+    allData[staff] = data.map(item => ({ id: item.id, launchDate: item.launch_date, platform: item.platform, target: item.target, description: item.description, type: item.type_name, score: item.score, date: item.launch_date }));
+    saveStatsData(allData);
+    if (currentStaff === staff) renderStats();
+  } catch(e) {}
 }
 
 async function postStatsToBackend(payload) {
+  const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
   try {
-    await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ ...payload, staff: currentStaff }) });
-  } catch(e) { /* silently fail */ }
+    if (payload.type === 'add_stats_item') {
+      await fetch(`${SUPABASE_URL}/rest/v1/stats_items`, { method: 'POST', headers: h, body: JSON.stringify({ id: payload.id, staff: currentStaff, launch_date: payload.launchDate, platform: payload.platform, target: payload.target, description: payload.description, type_name: payload.type_name, score: payload.score }) });
+    } else if (payload.type === 'update_stats_item') {
+      await fetch(`${SUPABASE_URL}/rest/v1/stats_items?id=eq.${payload.id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ launch_date: payload.launchDate, platform: payload.platform, target: payload.target, description: payload.description, type_name: payload.type_name, score: payload.score }) });
+    } else if (payload.type === 'delete_stats_item') {
+      await fetch(`${SUPABASE_URL}/rest/v1/stats_items?id=eq.${payload.id}`, { method: 'DELETE', headers: h });
+    }
+  } catch(e) {}
 }
 
 function getWeekStart(offsetWeeks) {
@@ -336,9 +337,10 @@ async function initWeekNoteEditor(person, weekStartStr) {
     return;
   }
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(person) + '&weekStart=' + weekStartStr + '&_t=' + Date.now(), { cache: 'no-store' });
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_notes?staff=eq.${encodeURIComponent(person)}&week_start=eq.${encodeURIComponent(weekStartStr)}&select=content`, { headers: h });
     const data = await res.json();
-    weekNoteCache[cacheKey] = data.content || '';
+    weekNoteCache[cacheKey] = (data[0] && data[0].content) || '';
   } catch(e) {
     weekNoteCache[cacheKey] = '';
   }
@@ -365,10 +367,7 @@ function scheduleWeekNoteSave() {
   clearTimeout(weekNoteTimers[cacheKey]);
   weekNoteTimers[cacheKey] = setTimeout(async function() {
     try {
-      await fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ type: 'save_week_note', staff: person, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' })
-      });
+      await postData({ type: 'save_week_note', staff: person, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' });
       delete weekNoteTimers[cacheKey];
       const s = document.getElementById('stats-note-save-status');
       if (s) { s.textContent = '已儲存'; setTimeout(function() { if (s) s.textContent = ''; }, 2000); }
@@ -601,18 +600,160 @@ function confirmAddStatsItem() {
 
 // ── Fetch / Post ──
 async function fetchData(staff) {
-  const res = await fetch(GAS_URL + '?api=1&staff=' + encodeURIComponent(staff || currentStaff) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' });
-  return await res.json();
+  const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+  const [objRes, goalRes, stratRes, actRes] = await Promise.all([
+    fetch(`${SUPABASE_URL}/rest/v1/objectives?staff=eq.${encodeURIComponent(staff || currentStaff)}&select=*`, { headers: h }),
+    fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(staff || currentStaff)}&select=*&order=sort_order.asc`, { headers: h }),
+    fetch(`${SUPABASE_URL}/rest/v1/strategies?select=*`, { headers: h }),
+    fetch(`${SUPABASE_URL}/rest/v1/actions?select=*&order=sort_order.asc`, { headers: h }),
+  ]);
+  const [objectives, goals, strategies, actions] = await Promise.all([objRes.json(), goalRes.json(), stratRes.json(), actRes.json()]);
+  return { objectives, goals, strategies, actions };
 }
 async function fetchStaffList() {
-  const res = await fetch(GAS_URL + '?api=1&action=staff_list', { method: 'GET' });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/staff?select=name`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
   const data = await res.json();
-  return data.staff || [];
+  return data.map(r => r.name);
 }
 async function postData(payload) {
-  const body = { ...payload, staff: currentStaff };
-  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(body) });
-  return await res.json();
+  const h = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+  const type = payload.type;
+
+  if (type === 'rename_objective') {
+    await fetch(`${SUPABASE_URL}/rest/v1/objectives?id=eq.${payload.obj_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ title: payload.new_title }) });
+    return { success: true };
+  }
+  if (type === 'create_objective') {
+    const id = 'Obj_' + Date.now();
+    await fetch(`${SUPABASE_URL}/rest/v1/objectives`, { method: 'POST', headers: h, body: JSON.stringify({ id, staff: currentStaff, title: payload.new_title }) });
+    return { success: true, obj_id: id };
+  }
+  if (type === 'add_goal') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals`, { method: 'POST', headers: h, body: JSON.stringify({ id: payload.goal_id, objective_id: payload.obj_id, staff: currentStaff, name: payload.goal_name, color: payload.goal_color, progress: payload.goal_progress || 0, deadline: payload.goal_deadline || null }) });
+    return { success: true };
+  }
+  if (type === 'rename_goal') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${payload.goal_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ name: payload.new_name }) });
+    return { success: true };
+  }
+  if (type === 'delete_goal') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${payload.goal_id}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${payload.goal_id}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${payload.goal_id}`, { method: 'DELETE', headers: h });
+    return { success: true };
+  }
+  if (type === 'update_goal_color') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${payload.goal_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ color: payload.color }) });
+    return { success: true };
+  }
+  if (type === 'update_goal_deadline') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${payload.goal_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ deadline: payload.deadline || null }) });
+    return { success: true };
+  }
+  if (type === 'update_goal_traffic') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${payload.goal_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ traffic_light: payload.traffic_light }) });
+    return { success: true };
+  }
+  if (type === 'add_action') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions`, { method: 'POST', headers: h, body: JSON.stringify({ id: payload.action_id, goal_id: payload.goal_id, strategy_name: payload.strategy_name, action_name: payload.action_name, assignee: payload.assignee, due_date: payload.due_date || null, notes: payload.notes, status: payload.status || '未開始' }) });
+    return { success: true };
+  }
+  if (type === 'update_action') {
+    const updates = {};
+    if (payload.action_name !== undefined) updates.action_name = payload.action_name;
+    if (payload.strategy_name !== undefined) updates.strategy_name = payload.strategy_name;
+    if (payload.assignee !== undefined) updates.assignee = payload.assignee;
+    if (payload.due_date !== undefined) updates.due_date = payload.due_date || null;
+    if (payload.notes !== undefined) updates.notes = payload.notes;
+    if (payload.status !== undefined) updates.status = payload.status;
+    if (payload.success_def !== undefined) updates.success_def = payload.success_def;
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?id=eq.${payload.id}`, { method: 'PATCH', headers: h, body: JSON.stringify(updates) });
+    return { success: true };
+  }
+  if (type === 'rename_action') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?id=eq.${payload.action_id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ action_name: payload.new_name }) });
+    return { success: true };
+  }
+  if (type === 'delete_action') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?id=eq.${payload.action_id}`, { method: 'DELETE', headers: h });
+    return { success: true };
+  }
+  if (type === 'rename_strategy') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${payload.goal_id}&strategy_name=eq.${encodeURIComponent(payload.old_name)}`, { method: 'PATCH', headers: h, body: JSON.stringify({ strategy_name: payload.new_name }) });
+    await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${payload.goal_id}&name=eq.${encodeURIComponent(payload.old_name)}`, { method: 'PATCH', headers: h, body: JSON.stringify({ name: payload.new_name }) });
+    return { success: true };
+  }
+  if (type === 'delete_strategy') {
+    await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${payload.goal_id}&strategy_name=eq.${encodeURIComponent(payload.strategy_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${payload.goal_id}&name=eq.${encodeURIComponent(payload.strategy_name)}`, { method: 'DELETE', headers: h });
+    return { success: true };
+  }
+  if (type === 'update_strategy_status') {
+    await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${payload.goal_id}&name=eq.${encodeURIComponent(payload.strategy_name)}`, { method: 'PATCH', headers: h, body: JSON.stringify({ status: payload.status }) });
+    return { success: true };
+  }
+  if (type === 'update_strategy_success_def') {
+    await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${payload.goal_id}&name=eq.${encodeURIComponent(payload.strategy_name)}`, { method: 'PATCH', headers: h, body: JSON.stringify({ success_def: payload.success_def }) });
+    return { success: true };
+  }
+  if (type === 'add_staff') {
+    await fetch(`${SUPABASE_URL}/rest/v1/staff`, { method: 'POST', headers: h, body: JSON.stringify({ name: payload.staff_name }) });
+    return { success: true };
+  }
+  if (type === 'delete_staff') {
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(payload.staff_name)}&select=id`, { headers: h })
+      .then(r => r.json())
+      .then(async goals => {
+        for (const g of goals) {
+          await fetch(`${SUPABASE_URL}/rest/v1/actions?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
+          await fetch(`${SUPABASE_URL}/rest/v1/strategies?goal_id=eq.${g.id}`, { method: 'DELETE', headers: h });
+        }
+      });
+    await fetch(`${SUPABASE_URL}/rest/v1/goals?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/objectives?staff=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    await fetch(`${SUPABASE_URL}/rest/v1/staff?name=eq.${encodeURIComponent(payload.staff_name)}`, { method: 'DELETE', headers: h });
+    return { success: true };
+  }
+  if (type === 'reorder_goals') {
+    await Promise.all(payload.goal_ids.map((id, idx) =>
+      fetch(`${SUPABASE_URL}/rest/v1/goals?id=eq.${id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ sort_order: idx }) })
+    ));
+    return { success: true };
+  }
+  if (type === 'reorder_actions') {
+    await Promise.all(payload.action_ids.map((id, idx) =>
+      fetch(`${SUPABASE_URL}/rest/v1/actions?id=eq.${id}`, { method: 'PATCH', headers: h, body: JSON.stringify({ sort_order: idx }) })
+    ));
+    return { success: true };
+  }
+  if (type === 'save_week_note') {
+    await fetch(`${SUPABASE_URL}/rest/v1/weekly_notes`, { method: 'POST', headers: { ...h, 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify({ staff: payload.staff, week_start: payload.weekStart, content: payload.content }) });
+    return { success: true };
+  }
+  if (type === 'save_meeting_note') {
+    await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes`, { method: 'POST', headers: h, body: JSON.stringify({ note_type: payload.noteType, week_key: payload.weekKey, member: payload.member || '', content: payload.content }) });
+    return { success: true };
+  }
+  if (type === 'save_meeting_selections') {
+    await fetch(`${SUPABASE_URL}/rest/v1/meeting_selections`, { method: 'POST', headers: { ...h, 'Prefer': 'resolution=merge-duplicates' }, body: JSON.stringify({ week_key: payload.weekKey, member: payload.member, selected_action_ids: payload.selectedActionIds, selected_strategy_keys: payload.selectedStrategyKeys }) });
+    return { success: true };
+  }
+  if (type === 'save_meeting_report') {
+    return { success: true };
+  }
+  if (type === 'ai_chat' || type === 'ai_meeting_summary' || type === 'ai_generate_meeting') {
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbywtjAiFsqzEzKiQ4soH7LdRHWiViQTCrte3fL2ySS49nPb_w3Zk7ctX1dyb1A0zDmMXw/exec';
+    const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ ...payload, staff: currentStaff }) });
+    return await res.json();
+  }
+  return { success: false, message: 'unknown type: ' + type };
 }
 
 // ── Render ──
@@ -1645,7 +1786,7 @@ async function initStaff() {
   try {
     staffList = await fetchStaffList();
     if (!staffList.length) {
-      await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ type: 'add_staff', staff_name: 'Riku' }) });
+      await postData({ type: 'add_staff', staff_name: 'Riku' });
       staffList = ['Riku'];
     }
     if (!staffList.includes(currentStaff)) {
@@ -1689,11 +1830,7 @@ function openDeleteStaffConfirm(name) {
 
 async function deleteStaff(name) {
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ type: 'delete_staff', staff_name: name })
-    });
-    const data = await res.json();
+    const data = await postData({ type: 'delete_staff', staff_name: name });
     if (data.success) {
       staffList = staffList.filter(n => n !== name);
       if (currentStaff === name) {
@@ -2031,9 +2168,8 @@ function saveMeetingReportData(data) {
 
 async function loadMeetingReportFromBackend() {
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_report&weekKey=' + getMeetingWeekKey(), { method: 'GET', cache: 'no-store' });
-    const json = await res.json();
-    meetingReportCache = JSON.parse(json.data || '{}');
+    const stored = localStorage.getItem('meeting-report-v2-' + getMeetingWeekKey());
+    meetingReportCache = stored ? JSON.parse(stored) : null;
   } catch(e) {
     meetingReportCache = null;
   }
@@ -2044,15 +2180,20 @@ function _pushMemberSelectionsToServer(memberName) {
   const cache = ((meetingSelectionsCache[weekKey] || {})[memberName]) || {};
   const payload = { type: 'save_meeting_selections', weekKey: weekKey, member: memberName, selectedActionIds: cache.selectedActionIds || [], selectedStrategyKeys: cache.selectedStrategyKeys || [] };
   _pendingPushMembers.add(memberName);
-  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r) { return r.json(); }).finally(function() { _pendingPushMembers.delete(memberName); });
+  return postData(payload).finally(function() { _pendingPushMembers.delete(memberName); });
 }
 
 async function loadMeetingSelectionsFromServer() {
   const weekKey = getMeetingWeekKey();
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
-    const json = await res.json();
-    meetingSelectionsCache[weekKey] = json.selections || {};
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_selections?week_key=eq.${encodeURIComponent(weekKey)}&select=*`, { headers: h });
+    const data = await res.json();
+    const selections = {};
+    data.forEach(function(row) {
+      selections[row.member] = { selectedActionIds: row.selected_action_ids || [], selectedStrategyKeys: row.selected_strategy_keys || [] };
+    });
+    meetingSelectionsCache[weekKey] = selections;
     try { localStorage.setItem('meeting-selections-v1-' + weekKey, JSON.stringify(meetingSelectionsCache[weekKey])); } catch(e) {}
   } catch(e) {
     if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
@@ -2062,17 +2203,14 @@ async function loadMeetingSelectionsFromServer() {
 async function loadMeetingNotesFromBackend() {
   const weekKey = getMeetingWeekKey();
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_notes&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
-    const json = await res.json();
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes?week_key=eq.${encodeURIComponent(weekKey)}&select=*`, { headers: h });
+    const data = await res.json();
     if (!meetingMemberNotesCache[weekKey]) meetingMemberNotesCache[weekKey] = {};
-    if (json.announce !== undefined && json.announce !== null) {
-      meetingMemberNotesCache[weekKey]._announce = json.announce;
-      if (json.announce) localStorage.setItem('meeting-announce-' + weekKey, json.announce);
-    }
-    if (json.memberNotes) {
-      Object.keys(json.memberNotes).forEach(function(member) {
-        meetingMemberNotesCache[weekKey][member] = json.memberNotes[member];
-      });
+    const announceRow = data.find(function(r) { return r.note_type === 'announce'; });
+    if (announceRow !== undefined) {
+      meetingMemberNotesCache[weekKey]._announce = announceRow ? announceRow.content : '';
+      if (announceRow && announceRow.content) localStorage.setItem('meeting-announce-' + weekKey, announceRow.content);
     }
   } catch(e) {}
 }
@@ -2080,9 +2218,13 @@ async function loadMeetingNotesFromBackend() {
 async function _syncMeetingSelectionsFromServer() {
   const weekKey = getMeetingWeekKey();
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_meeting_selections&weekKey=' + encodeURIComponent(weekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
-    const json = await res.json();
-    const serverSelections = json.selections || {};
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_selections?week_key=eq.${encodeURIComponent(weekKey)}&select=*`, { headers: h });
+    const data = await res.json();
+    const serverSelections = {};
+    data.forEach(function(row) {
+      serverSelections[row.member] = { selectedActionIds: row.selected_action_ids || [], selectedStrategyKeys: row.selected_strategy_keys || [] };
+    });
     const prev = JSON.stringify(meetingSelectionsCache[weekKey] || {});
     if (!meetingSelectionsCache[weekKey]) meetingSelectionsCache[weekKey] = {};
     Object.keys(serverSelections).forEach(function(member) {
@@ -2194,16 +2336,15 @@ async function renderMeetingSection() {
 
   // Fetch stats for all members so dept score total is complete without clicking avatars
   const statsPromises = members.map(function(name) {
-    return fetch(GAS_URL + '?api=1&action=get_stats&staff=' + encodeURIComponent(name) + '&_t=' + Date.now(), { method: 'GET', cache: 'no-store' })
+    const _sh = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    return fetch(`${SUPABASE_URL}/rest/v1/stats_items?staff=eq.${encodeURIComponent(name)}&select=*`, { headers: _sh })
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        if (Array.isArray(data.items)) {
-          const allData = getStatsData();
-          allData[name] = data.items.map(function(item) {
-            return { id: item.id, launchDate: item.launchDate, platform: item.platform, target: item.target, description: item.description, type: item.type, score: item.score, date: item.launchDate };
-          });
-          saveStatsData(allData);
-        }
+        const allData = getStatsData();
+        allData[name] = data.map(function(item) {
+          return { id: item.id, launchDate: item.launch_date, platform: item.platform, target: item.target, description: item.description, type: item.type_name, score: item.score, date: item.launch_date };
+        });
+        saveStatsData(allData);
       }).catch(function() {});
   });
 
@@ -2212,9 +2353,10 @@ async function renderMeetingSection() {
   const notePromises = members.map(function(name) {
     const cacheKey = name + '-' + weekRangeStr;
     if (weekNoteCache[cacheKey] !== undefined) return Promise.resolve();
-    return fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' })
+    const _nh = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    return fetch(`${SUPABASE_URL}/rest/v1/weekly_notes?staff=eq.${encodeURIComponent(name)}&week_start=eq.${encodeURIComponent(weekRangeStr)}&select=content`, { headers: _nh })
       .then(function(res) { return res.json(); })
-      .then(function(data) { weekNoteCache[cacheKey] = data.content || ''; })
+      .then(function(data) { weekNoteCache[cacheKey] = (data[0] && data[0].content) || ''; })
       .catch(function() { weekNoteCache[cacheKey] = ''; });
   });
 
@@ -2438,9 +2580,10 @@ async function openDeptNotesModal() {
     const cacheKey = name + '-' + weekRangeStr;
     if (weekNoteCache[cacheKey] === undefined) {
       try {
-        const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' });
+        const _dh = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_notes?staff=eq.${encodeURIComponent(name)}&week_start=eq.${encodeURIComponent(weekRangeStr)}&select=content`, { headers: _dh });
         const data = await res.json();
-        weekNoteCache[cacheKey] = data.content || '';
+        weekNoteCache[cacheKey] = (data[0] && data[0].content) || '';
       } catch(e) {
         weekNoteCache[cacheKey] = '';
       }
@@ -2500,9 +2643,10 @@ async function renderAiSummaryHistory() {
   if (!section || !listEl) return;
   const currentWeekKey = getMeetingWeekKey();
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_ai_summary_history&currentWeekKey=' + encodeURIComponent(currentWeekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
-    const json = await res.json();
-    const items = (json.history || []).filter(function(i) { return !!i.content; });
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes?note_type=eq.ai_summary&week_key=neq.${encodeURIComponent(currentWeekKey)}&select=week_key,content&order=week_key.desc`, { headers: h });
+    const data = await res.json();
+    const items = data.filter(function(i) { return !!i.content; }).map(function(i) { return { weekKey: i.week_key, content: i.content }; });
     if (!items.length) { section.style.display = 'none'; return; }
     section.style.display = '';
     listEl.innerHTML = items.map(function(item, idx) {
@@ -2551,9 +2695,10 @@ async function generateMeetingSummary() {
     const cacheKey = name + '-' + weekRangeStr;
     if (weekNoteCache[cacheKey] === undefined) {
       try {
-        const res = await fetch(GAS_URL + '?api=1&action=get_week_note&staff=' + encodeURIComponent(name) + '&weekStart=' + weekRangeStr + '&_t=' + Date.now(), { cache: 'no-store' });
+        const _gh = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_notes?staff=eq.${encodeURIComponent(name)}&week_start=eq.${encodeURIComponent(weekRangeStr)}&select=content`, { headers: _gh });
         const data = await res.json();
-        weekNoteCache[cacheKey] = data.content || '';
+        weekNoteCache[cacheKey] = (data[0] && data[0].content) || '';
       } catch(e) { weekNoteCache[cacheKey] = ''; }
     }
   }));
@@ -2585,16 +2730,12 @@ async function generateMeetingSummary() {
   });
 
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        type: 'ai_meeting_summary',
-        weekRange: startStr + ' ~ ' + endStr,
-        members: membersData,
-        statusCounts: statusCounts
-      })
+    const json = await postData({
+      type: 'ai_meeting_summary',
+      weekRange: startStr + ' ~ ' + endStr,
+      members: membersData,
+      statusCounts: statusCounts
     });
-    const json = await res.json();
     if (json.success && json.summary) {
       bodyEl.innerHTML = '<div class="ai-summary-content">' + renderAiSummaryMarkdown(json.summary) + '</div>';
       renderAiSummaryHistory();
@@ -2797,10 +2938,7 @@ function scheduleMeetingMemberNoteSave(name) {
   clearTimeout(meetingMemberNoteTimers[name]);
   meetingMemberNoteTimers[name] = setTimeout(async function() {
     try {
-      await fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ type: 'save_week_note', staff: name, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' })
-      });
+      await postData({ type: 'save_week_note', staff: name, weekStart: weekRangeStr, content: weekNoteCache[cacheKey] || '' });
     } finally {
       delete meetingMemberNoteTimers[name];
     }
@@ -3284,13 +3422,15 @@ async function renderMeetingAnnounceHistory() {
 
   // Fetch from backend and update
   try {
-    const res = await fetch(GAS_URL + '?api=1&action=get_announce_history&currentWeekKey=' + encodeURIComponent(currentWeekKey) + '&_t=' + Date.now(), { cache: 'no-store' });
-    const json = await res.json();
-    if (json.history && json.history.length > 0) {
-      json.history.forEach(function(item) {
+    const h = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/meeting_notes?note_type=eq.announce&week_key=neq.${encodeURIComponent(currentWeekKey)}&select=week_key,content&order=week_key.desc`, { headers: h });
+    const data = await res.json();
+    if (data.length > 0) {
+      const history = data.filter(function(i) { return !!i.content; }).map(function(i) { return { weekKey: i.week_key, content: i.content }; });
+      history.forEach(function(item) {
         if (item.content) localStorage.setItem('meeting-announce-' + item.weekKey, item.content);
       });
-      renderList(json.history);
+      renderList(history);
     }
   } catch(e) {}
 }
